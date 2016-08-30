@@ -71,7 +71,8 @@ int map(char* dir, void* results, size_t size, int (*act)(FILE* f, void* res, ch
 
 /**
  * This reduce function takes the results produced by map and cumulates all
- * the data to give one final Analysis struct.
+ * the data to give one final Analysis struct. Final struct should contain 
+ * filename of file which has longest line.
  *
  * @param  n       The number of files analyzed.
  * @param  results The results array that has been populated by map.
@@ -81,7 +82,8 @@ struct Analysis analysis_reduce(int n, void* results);
 
 /**
  * This reduce function takes the results produced by map and cumulates all
- * the data to give one final Stats struct.
+ * the data to give one final Stats struct. Filename field in the final struct 
+ * should be set to NULL.
  *
  * @param  n       The number of files analyzed.
  * @param  results The results array that has been populated by map.
