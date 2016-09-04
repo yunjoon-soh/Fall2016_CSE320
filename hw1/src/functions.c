@@ -1,5 +1,16 @@
 /*functions.c*/
-#include "main.h"
+#include "map_reduce.h"
+
+// TODO
+/** It is used for validateargs
+* @return Returns 0 if the directory is not available
+*                 1 if the directory is available
+*/
+int isValidDir(char* dir){
+    return 1;
+}
+
+
 /**
 * Validates the command line arguments passed in by the user.
 * @param  argc The number of arguments.
@@ -47,14 +58,6 @@ int validateargs(int argc, char** argv){
     return ret;
 }
 
-// TODO
-/** It is used for validateargs
-* @return Returns 0 if the directory is not available
-*                 1 if the directory is available
-*/
-int isValidDir(char* dir){
-    return 1;
-}
 
 
 /**
@@ -176,8 +179,8 @@ int map(char* dir, void* results, size_t size, int (*act)( FILE * f, void * res,
 * @return The struct containing all the cumulated data.
 */
 struct Analysis analysis_reduce(int n, void* results){
-    struct Analysis* ptr_Results = results;
+    struct Analysis ptr_Results = *((struct Analysis*) results);
 
 
-    return temp;
+    return ptr_Results;
 }
