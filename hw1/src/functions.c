@@ -113,4 +113,71 @@ int nfiles(char* dir){
 * @return The map function returns -1 on failure, sum of act results on
 * success.
 */
-int map(char* dir,void* results, size_t size, int (*act)( FILE * f, void * res, char * fn));
+int map(char* dir, void* results, size_t size, int (*act)( FILE * f, void * res, char * fn)){
+    struct dirent *pDirent;
+    DIR *pDir;
+    int toRet;
+
+    // open directory
+    pDir = opendir(dir);
+
+    if(pDir == NULL){ // opening failed
+        return -1;
+    }
+
+    // read file for each directory
+    toRet = 0;
+    while ((pDirent = readdir(pDir)) != NULL) {
+        if(strcmp(pDirent->d_name, ".") == 0 || strcmp(pDirent->d_name, "..") == 0){
+            fprintf (stderr, "* Skipped : %s\n", pDirent->d_name);
+            continue;
+        }
+
+        
+        // 2. Create relative path from argument and pDirent->d_name
+        int filenameLength = strlen(dir) + strlen(pDirent->d_name) + 2;
+        char* fullPath = malloc(filenameLength);
+        strcat(fullPath, dir);
+        strcat(fullPath, "/");
+        strcat(fullPath, pDirent -> d_name);
+
+        /*[DEBUG] START*/
+        printf("\n");
+        fprintf(stderr, "* Dir of file is %s, Name of file is %s\n",  dir, pDirent->d_name);
+        fprintf(stderr, "* Total of %d length including the / & null terminator\n", filenameLength);
+        fprintf(stderr, "* New filepath is %s\n", fullPath);
+        /*[DEBUG] END*/
+
+        // 3. Open File
+        FILE* openedFile = fopen(fullPath, "r");
+        if(openedFile == NULL){
+            return -1;
+        }
+
+        // 4. Do actions
+        act(openedFile, results, pDirent->d_name);
+        toRet++;
+    }
+
+    // close directory
+    closedir (pDir);
+
+    // return count;
+    return toRet;
+}
+
+/**
+* This reduce function takes the results produced by map and cumulates all
+* the data to give one final Analysis struct. Final struct should contain
+* filename of file which has longest line.
+*
+* @param  n         The number of files analyzed.
+* @param  results   The results array that has been populated by map.
+* @return The struct containing all the cumulated data.
+*/
+struct Analysis analysis_reduce(int n, void* results){
+    struct Analysis* ptr_Results = results;
+
+
+    return temp;
+}

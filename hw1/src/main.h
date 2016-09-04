@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <dirent.h>
+#include "map_reduce.h"
 
 int validateargs(int argc, char** argv);
 int isValidDir(char* dir);
@@ -9,3 +10,5 @@ int isValidDir(char* dir);
 int nfiles(char* dir);
 
 int map(char* dir,void* results, size_t size, int (*act)( FILE * f, void * res, char * fn));
+
+struct Analysis analysis_reduce(int n, void * results);

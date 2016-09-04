@@ -2,15 +2,15 @@
 BINARY_FILE="test.out"
 TEMP_FOLDER="temp"
 
-# cat ""
-# (cat << EOF
-# 	int main(int argc, char** argv) {
-# 	    printf("Welcome to CSE 320!\n");
-# 	    int validationValue = validateargs(argc, argv);
-# 	    fprintf(stderr, "validationValue is %d\n", validationValue);
-# 	    return 0;
-# 	}
-# EOF) >> tester.c
+(cat << EOF > tester.c
+int main(int argc, char** argv) {
+    printf("Welcome to CSE 320!\n");
+    int validationValue = validateargs(argc, argv);
+    fprintf(stderr, "validationValue is %d\n", validationValue);
+    return 0;
+}
+EOF
+)
 
 echo "#include \"main.h\"" > tester.c
 echo "int main(int argc, char** argv) {" >> tester.c
