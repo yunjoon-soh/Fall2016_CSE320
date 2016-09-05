@@ -9,7 +9,7 @@ CFLAGS=-Wall -Werror
 VPATH=./include:./src
 
 all : functions.o
-	@echo Create %^
+	@echo Create $^
 
 %.o : %.c
 	@echo Compiling $^ file
