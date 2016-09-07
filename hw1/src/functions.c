@@ -7,9 +7,16 @@
 *                 1 if the directory is available
 */
 int isValidDir(char* dir){
+    DIR *pDir;
+
+    // open directory
+    pDir = opendir(dir);
+
+    if(NULL== pDir){ // opening failed
+        return 0;
+    }
     return 1;
 }
-
 
 /**
 * Validates the command line arguments passed in by the user.
@@ -119,8 +126,9 @@ int nfiles(char* dir){
 int map(char* dir, void* results, size_t size, int (*act)( FILE * f, void * res, char * fn)){
     struct dirent *pDirent;
     DIR *pDir;
-    int toRet;
+    int toRet, actRet, countLoop;
 
+    fprintf(stderr, "* map(%s, %p, %lu, act)\n", dir, results, size);
     // open directory
     pDir = opendir(dir);
 
@@ -130,36 +138,44 @@ int map(char* dir, void* results, size_t size, int (*act)( FILE * f, void * res,
 
     // read file for each directory
     toRet = 0;
+    countLoop = 0;
     while ((pDirent = readdir(pDir)) != NULL) {
         if(strcmp(pDirent->d_name, ".") == 0 || strcmp(pDirent->d_name, "..") == 0){
             fprintf (stderr, "* Skipped : %s\n", pDirent->d_name);
             continue;
         }
-
         
         // 2. Create relative path from argument and pDirent->d_name
-        int filenameLength = strlen(dir) + strlen(pDirent->d_name) + 2;
-        char* fullPath = malloc(filenameLength);
-        strcat(fullPath, dir);
-        strcat(fullPath, "/");
-        strcat(fullPath, pDirent -> d_name);
+        int filenameLength = strlen(dir) + strlen(pDirent->d_name) + 3;
+        char* fullPath = (char *) malloc(filenameLength);
+        strncat(fullPath, dir, strlen(dir));
+        strncat(fullPath, "/", strlen("/"));
+        strncat(fullPath, pDirent->d_name, strlen(pDirent->d_name));
 
         /*[DEBUG] START*/
-        printf("\n");
-        fprintf(stderr, "* Dir of file is %s, Name of file is %s\n",  dir, pDirent->d_name);
-        fprintf(stderr, "* Total of %d length including the / & null terminator\n", filenameLength);
+        fprintf(stderr, "\n* Dir of file is %s, Name of file is %s\n",  dir, pDirent->d_name);
+        fprintf(stderr, "* Total of %lu length including the / & null terminator\n", strlen(fullPath));
         fprintf(stderr, "* New filepath is %s\n", fullPath);
         /*[DEBUG] END*/
 
         // 3. Open File
         FILE* openedFile = fopen(fullPath, "r");
         if(openedFile == NULL){
+            free(fullPath);
             return -1;
         }
 
         // 4. Do actions
-        act(openedFile, results, pDirent->d_name);
-        toRet++;
+        void* resultAddr = (void*)((long)results + countLoop * size);
+        fprintf(stderr, "* Right before calling act(FILE, %p, %s)\n", resultAddr, pDirent->d_name);
+
+        actRet = act(openedFile, resultAddr, pDirent->d_name);
+        fprintf(stderr, "* actRet: %d\n", actRet);
+
+        toRet = toRet + actRet;
+        countLoop++;
+        fprintf(stderr, "* toRet: %d\n", toRet);
+        free(fullPath);
     }
 
     // close directory
@@ -170,16 +186,16 @@ int map(char* dir, void* results, size_t size, int (*act)( FILE * f, void * res,
 }
 
 /**
-* This reduce function takes the results produced by map and cumulates all
-* the data to give one final Analysis struct. Final struct should contain
-* filename of file which has longest line.
-*
-* @param  n         The number of files analyzed.
-* @param  results   The results array that has been populated by map.
-* @return The struct containing all the cumulated data.
+ * This reduce function takes the results produced by map and cumulates all
+ * the data to give one final Analysis struct. Final struct should contain
+ * filename of file which has longest line.
+ *
+ * @param  n         The number of files analyzed.
+ * @param  results   The results array that has been populated by map.
+ * @return The struct containing all the cumulated data.
 */
 struct Analysis analysis_reduce(int n, void* results){
-    int i;
+    int i, j;
     struct Analysis ana_results, longest_result;
 
     if(n <= 0) // in case n is 0
@@ -193,6 +209,9 @@ struct Analysis analysis_reduce(int n, void* results){
         ana_results = *( ((struct Analysis*) results) + i );
         if(ana_results.lnlen > longest_result.lnlen){
             longest_result = ana_results;
+        }
+        for(j = 0; j < 128; j++){
+            longest_result.ascii[j] += ana_results.ascii[j];
         }
     }
 
@@ -264,12 +283,16 @@ void analysis_print(struct Analysis res, int nbytes, int hist){
         for(i = 0; i < 128; i++){
             if(res.ascii[i] != 0){
                 fprintf(stdout, "%d:", i);
-                for(j = 0; j < res.ascii[i]; j++)
-                    fprintf(stdout, "-");
+                if(res.ascii[i] > 100)
+                    fprintf(stdout, "Error: %d\n", res.ascii[i]);
+                else
+                    for(j = 0; j < res.ascii[i]; j++)
+                        fprintf(stdout, "-");
                 fprintf(stdout, "\n");
             }
         }
     }
+    fprintf(stdout, "\n");
 }
 
 /**
@@ -380,6 +403,8 @@ int analysis(FILE* f, void* res, char* filename){
     int bufferSize, totalRead, freadRet, lineNo, cntPerLine;
     char* buffer;
 
+    fprintf(stderr, "* analysis(FILE, %p, %s)\n", res, filename);    
+
     // CONSTANT
     bufferSize = 100;
 
@@ -389,12 +414,12 @@ int analysis(FILE* f, void* res, char* filename){
     cntPerLine = 0; // char counter for one line (i.e., init to 0 when '\n' is found)    
 
     // initialize the result structure
-    for(int i = 0; i < 128; i++){
-        ((struct Analysis*) res)->ascii[i] = 0;
-    }
     ((struct Analysis*) res)->lnlen = 0;
     ((struct Analysis*) res)->lnno = 0;
     ((struct Analysis*) res)->filename = "";
+    for(int i = 0; i < 128; i++){
+        ((struct Analysis*) res)->ascii[i] = 0;
+    }
 
     // allocate buffer
     buffer = (char*) malloc(bufferSize * sizeof(char));
@@ -411,7 +436,7 @@ int analysis(FILE* f, void* res, char* filename){
         // [DEBUG] END
 
         for(int i = 0; i < freadRet; i++){
-            ((struct Analysis*) res)->ascii[buffer[i]]++;
+            ((struct Analysis*) res)->ascii[(int)buffer[i]]++;
             // [DEBUG] Start
             // fprintf(stderr, "%c(%d)", buffer[i], buffer[i]);
             // [DEBUG] END

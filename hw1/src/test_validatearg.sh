@@ -2,22 +2,18 @@
 BINARY_FILE="test.out"
 TEMP_FOLDER="temp"
 
-# cat ""
-# (cat << EOF
-# 	int main(int argc, char** argv) {
-# 	    printf("Welcome to CSE 320!\n");
-# 	    int validationValue = validateargs(argc, argv);
-# 	    fprintf(stderr, "validationValue is %d\n", validationValue);
-# 	    return 0;
-# 	}
-# EOF) >> tester.c
+(cat << END > tester.c
+	#include "../include/map_reduce.h"
+	int main(int argc, char** argv) {
+	    printf("Welcome to CSE 320!\n");
+	    int validationValue = validateargs(argc, argv);
+	    fprintf(stderr, "validationValue is %d\n", validationValue);
+	    return 0;
+	}
+END
+) 
 
-echo "#include \"main.h\"" > tester.c
-echo "int main(int argc, char** argv) {" >> tester.c
-echo "int validationValue = validateargs(argc, argv);" >> tester.c
-echo "fprintf(stderr, \"validationValue is %d\", validationValue);}" >> tester.c
-
-gcc -c functions.c
+gcc -c functions.c -I../include/
 gcc -c tester.c
 gcc functions.o tester.o -o $BINARY_FILE
 
@@ -64,6 +60,8 @@ echo ""
 ./$BINARY_FILE -hv ana $TEMP_FOLDER
 echo ""
 ./$BINARY_FILE -h -v ana $TEMP_FOLDER testsdfasdf
+echo ""
+./$BINARY_FILE ana Not_existing_foler
 echo ""
 
 # clean up
