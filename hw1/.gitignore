@@ -1,1 +1,3 @@
 src/heredoc.sh
+*.o
+map_reduce
