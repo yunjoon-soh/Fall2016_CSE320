@@ -30,10 +30,10 @@ int isValidDir(char* dir){
 */
 int validateargs(int argc, char** argv){
     /*[DEBUG] Start*/
-    fprintf (stderr, "argc: %d\n", argc);
-    for(int i = 0; i < argc; i++){
-        fprintf (stderr, "argv[%d]: %s\n", i, argv[i]);
-    }
+    // fprintf(stderr, "argc: %d\n", argc);
+    // for(int i = 0; i < argc; i++){
+        // fprintf(stderr, "argv[%d]: %s\n", i, argv[i]);
+    // }
     /*[DEBUG] Done*/
 
     if(argc > 4 || argc <= 1)
@@ -92,10 +92,12 @@ int nfiles(char* dir){
 
     // read file for each directory
     while ((pDirent = readdir(pDir)) != NULL) {
-        if(strcmp(pDirent->d_name, ".") == 0 || strcmp(pDirent->d_name, "..") == 0)
-            fprintf (stderr, "Skipped : %s\n", pDirent->d_name);
-        else
+        if(strcmp(pDirent->d_name, ".") == 0 || strcmp(pDirent->d_name, "..") == 0){
+            // fprintf(stderr, "Skipped : %s\n", pDirent->d_name);
+        }
+        else{
             count++;
+        }
     }
 
     // close directory
@@ -128,7 +130,7 @@ int map(char* dir, void* results, size_t size, int (*act)( FILE * f, void * res,
     DIR *pDir;
     int toRet, actRet, countLoop;
 
-    fprintf(stderr, "* map(%s, %p, %lu, act)\n", dir, results, size);
+    // fprintf(stderr, "* map(%s, %p, %lu, act)\n", dir, results, size);
     // open directory
     pDir = opendir(dir);
 
@@ -141,7 +143,7 @@ int map(char* dir, void* results, size_t size, int (*act)( FILE * f, void * res,
     countLoop = 0;
     while ((pDirent = readdir(pDir)) != NULL) {
         if(strcmp(pDirent->d_name, ".") == 0 || strcmp(pDirent->d_name, "..") == 0){
-            fprintf (stderr, "* Skipped : %s\n", pDirent->d_name);
+            // fprintf(stderr, "* Skipped : %s\n", pDirent->d_name);
             continue;
         }
         
@@ -153,9 +155,9 @@ int map(char* dir, void* results, size_t size, int (*act)( FILE * f, void * res,
         strncat(fullPath, pDirent->d_name, strlen(pDirent->d_name));
 
         /*[DEBUG] START*/
-        fprintf(stderr, "\n* Dir of file is %s, Name of file is %s\n",  dir, pDirent->d_name);
-        fprintf(stderr, "* Total of %lu length including the / & null terminator\n", strlen(fullPath));
-        fprintf(stderr, "* New filepath is %s\n", fullPath);
+        // fprintf(stderr, "\n* Dir of file is %s, Name of file is %s\n",  dir, pDirent->d_name);
+        // fprintf(stderr, "* Total of %lu length including the / & null terminator\n", strlen(fullPath));
+        // fprintf(stderr, "* New filepath is %s\n", fullPath);
         /*[DEBUG] END*/
 
         // 3. Open File
@@ -167,14 +169,14 @@ int map(char* dir, void* results, size_t size, int (*act)( FILE * f, void * res,
 
         // 4. Do actions
         void* resultAddr = (void*)((long)results + countLoop * size);
-        fprintf(stderr, "* Right before calling act(FILE, %p, %s)\n", resultAddr, pDirent->d_name);
+        // fprintf(stderr, "* Right before calling act(FILE, %p, %s)\n", resultAddr, pDirent->d_name);
 
         actRet = act(openedFile, resultAddr, pDirent->d_name);
-        fprintf(stderr, "* actRet: %d\n", actRet);
+        // fprintf(stderr, "* actRet: %d\n", actRet);
 
         toRet = toRet + actRet;
         countLoop++;
-        fprintf(stderr, "* toRet: %d\n", toRet);
+        // fprintf(stderr, "* toRet: %d\n", toRet);
         free(fullPath);
     }
 
@@ -228,12 +230,12 @@ struct Analysis analysis_reduce(int n, void* results){
  * @return         The struct containing all the cumulated data.
  */
 Stats stats_reduce(int n, void* results){
-    int i;
+    int i, j;
     Stats stats_results, current_result;
 
-    // TODO
-    // stats_results.histogram = 0;
-
+    for(int i = 0; i < NVAL; i++){
+        stats_results.histogram[i] = 0;
+    }
     stats_results.sum = 0;
     stats_results.n = 0;
     stats_results.filename = NULL;
@@ -244,6 +246,10 @@ Stats stats_reduce(int n, void* results){
     for(i = 0; i < n; i++){
         current_result = *( ((Stats*) results) + i );
         
+        for(j = 0; j < NVAL; j++){
+            stats_results.histogram[j] += current_result.histogram[j];
+        }
+         
         stats_results.sum += current_result.sum;
         stats_results.n += current_result.n;
     }
@@ -318,6 +324,23 @@ void stats_print(Stats res, int hist){
     double mostFreqCnt, min, max, cur_pos, q1, q2, q3;
     double q1Cnt, q2Cnt, q3Cnt;
 
+    // print histogram first
+    if(hist != 0){
+        for(i = 0; i < NVAL; i++){
+            if(res.histogram[i] != 0){
+                printf("%d:", i);
+                for(j = 0; j < res.histogram[i]; j++)
+                    printf("-");
+                printf("\n");
+            }
+        }
+        printf("\n");
+    }
+
+    if(res.filename != NULL){
+        printf("File: %s\n", res.filename);
+    }
+
     q1 = -1;
     q2 = -1;
     q3 = -1;
@@ -359,7 +382,6 @@ void stats_print(Stats res, int hist){
         }
     }
     printf("Count: %d\n", res.n);
-    printf("Sum: %d\n", res.sum);
     printf("Mean: %f\n", ((double)res.sum/(double)res.n));
     printf("Mode: ");
     for(i = 0; i < NVAL; i++){
@@ -374,17 +396,7 @@ void stats_print(Stats res, int hist){
     printf("Q3: %f\n", q3);
     printf("Min: %f\n", min);
     printf("Max: %f\n", max);
-
-    if(hist != 0){
-        for(i = 0; i < NVAL; i++){
-            if(res.histogram[i] != 0){
-                fprintf(stdout, "%d:", i);
-                for(j = 0; j < res.histogram[i]; j++)
-                    fprintf(stdout, "-");
-                fprintf(stdout, "\n");
-            }
-        }
-    }
+    printf("\n");
 }
 
 /**
@@ -403,7 +415,7 @@ int analysis(FILE* f, void* res, char* filename){
     int bufferSize, totalRead, freadRet, lineNo, cntPerLine;
     char* buffer;
 
-    fprintf(stderr, "* analysis(FILE, %p, %s)\n", res, filename);    
+    // fprintf(stderr, "* analysis(FILE, %p, %s)\n", res, filename);    
 
     // CONSTANT
     bufferSize = 100;
@@ -505,8 +517,16 @@ int stats(FILE* f, void* res, char* filename){
     do{
         fscanfRet = fscanf(f, "%d", &readVal);
 
+        if(fscanfRet == EOF){
+            break;
+        }
+
+        if(readVal < 0 || readVal > NVAL){
+            continue;
+        }
+
         // [DEBUG] Start
-        // fprintf(stderr, "Current fscanfRet: %d\n", fscanfRet);
+        // fprintf(stderr, "Current fscanfRet: %d\n", readVal);
         // [DEBUG] END
 
         ((Stats*) res)->n++;
@@ -518,6 +538,13 @@ int stats(FILE* f, void* res, char* filename){
         // [DEBUG] END
 
     }while(fscanfRet != EOF);
+
+    // for(int i = 0; i < NVAL; i++){
+    //     fprintf(stderr, "[%d]: %d\n", i, ((Stats*) res)->histogram[i]);
+    // }
+    // fprintf(stderr, "sum: %d\n", ((Stats*) res)->sum);
+    // fprintf(stderr, "n  : %d\n", ((Stats*) res)->n);
+    // fprintf(stderr, "char: %s\n", ((Stats*) res)->filename);
     
     // free pointers
     fclose(f);
