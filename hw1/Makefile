@@ -8,12 +8,14 @@
 CFLAGS=-Wall -Werror
 VPATH=./include:./src
 
-all : functions.o
-	@echo Create $^
+all : map_reduce
+
+map_reduce: map_reduce.o main.o
+	gcc -o map_reduce $^ 
 
 %.o : %.c
-	@echo Compiling $^ file
 	gcc -c $(CFLAGS) $^ -I./include
 
 clean:
 	-@rm -rf *.o
+	-@rm -rf map_reduce

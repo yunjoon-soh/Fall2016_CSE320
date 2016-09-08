@@ -5,6 +5,8 @@ struct Analysis analysis_space[NFILES];
 //Space to store the results for stats map
 Stats stats_space[NFILES];
 
+void printUsage();
+
 //Sample Map function action: Print file contents to stdout and returns the number bytes in the file.
 int cat(FILE* f, void* res, char* filename) {
     char c;

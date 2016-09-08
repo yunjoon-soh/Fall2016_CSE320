@@ -3,9 +3,9 @@
 BINARY_FILE="map_reduce"
 TEMP_FOLDER="temp"
 
-gcc -c functions.c -I../include/
+gcc -c map_reduce.c -I../include/
 gcc -c main.c -I../include/
-gcc functions.o main.o -o $BINARY_FILE
+gcc map_reduce.o main.o -o $BINARY_FILE
 
 # test case #1
 echo "* Expected: Print usage and exit"
@@ -47,4 +47,3 @@ rm -rf $TEMP_FOLDER # clean
 rm *.o
 rm $BINARY_FILE
 rm -rf $TEMP_FOLDER
-rm tester.c
