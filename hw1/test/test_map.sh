@@ -1,6 +1,6 @@
 #!/bin/sh
 #test_map.sh
-BINARY_FILE="test.out"
+BINARY_FILE="./test.out"
 TEMP_FOLDER="temp"
 
 (cat << END > tester.c
@@ -29,35 +29,35 @@ int main(int argc, char** argv) {
 END
 )
 
-gcc -c functions.c
-gcc -c tester.c
-gcc functions.o tester.o -o $BINARY_FILE
+gcc -c map_reduce.c -I../include/
+gcc -c tester.c -I../include
+gcc map_reduce.o tester.o -o $BINARY_FILE
 
 # test case 1
 mkdir $TEMP_FOLDER
 echo "Hello this is file1.txt" > $TEMP_FOLDER/file1.txt
 echo "Hello this is file2.txt" > $TEMP_FOLDER/file2.txt
 echo "Hello this is file3.txt" > $TEMP_FOLDER/file3.txt
-./$BINARY_FILE $TEMP_FOLDER
+$BINARY_FILE $TEMP_FOLDER
 echo ""
 
 # test case 2
 touch $TEMP_FOLDER/file4.txt
 touch $TEMP_FOLDER/file5.txt
 touch $TEMP_FOLDER/file6.txt
-./$BINARY_FILE $TEMP_FOLDER
+$BINARY_FILE $TEMP_FOLDER
 echo ""
 
 # # test case 3
 # rm $TEMP_FOLDER/*
 # echo "Expected 0"
-# ./$BINARY_FILE $TEMP_FOLDER
+# $BINARY_FILE $TEMP_FOLDER
 # echo ""
 
 # # test case 4
 # rm -rf $TEMP_FOLDER
 # echo "Expected -1"
-# ./$BINARY_FILE $TEMP_FOLDER
+# $BINARY_FILE $TEMP_FOLDER
 # echo ""
 
 # clean up

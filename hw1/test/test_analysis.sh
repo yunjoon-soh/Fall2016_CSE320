@@ -1,6 +1,6 @@
 #!/bin/sh
 #test_map.sh
-BINARY_FILE="test.out"
+BINARY_FILE="./test.out"
 TEMP_FOLDER="temp"
 
 (cat << END > tester.c
@@ -24,19 +24,19 @@ int main(int argc, char** argv) {
 END
 )
 
-gcc -c functions.c -I../include
-gcc -c tester.c -I../include
-gcc functions.o tester.o -o $BINARY_FILE
+gcc -c map_reduce.c -I../include/
+gcc -c tester.c
+gcc map_reduce.o tester.o -o $BINARY_FILE
 
 # test case 1
 mkdir $TEMP_FOLDER
 echo "abcaa" > $TEMP_FOLDER/file1.txt
-./$BINARY_FILE $TEMP_FOLDER/file1.txt
+$BINARY_FILE $TEMP_FOLDER/file1.txt
 echo ""
 
 # test case 2
 cp ../rsrc/ana_light/ana_light1.txt $TEMP_FOLDER/file2.txt
-./$BINARY_FILE $TEMP_FOLDER/file2.txt
+$BINARY_FILE $TEMP_FOLDER/file2.txt
 echo ""
 cat ../rsrc/ana_light/ana_light1.txt
 

@@ -26,6 +26,8 @@ typedef struct Stats {
                        //(don't print for final result)
 } Stats;
 
+int isValidDir(char* dir);
+
 /**
  * Validates the command line arguments passed in by the user.
  * @param  argc The number of arguments.

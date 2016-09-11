@@ -1,7 +1,7 @@
 #!/bin/sh
 #test_analysis_reduce.sh
 #NOT WORKING
-BINARY_FILE="test.out"
+BINARY_FILE="./test.out"
 TEMP_FOLDER="temp"
 
 (cat << END > tester.c
@@ -20,9 +20,9 @@ int main(int argc, char** argv) {
 END
 )
 
-gcc -c functions.c
-gcc -c tester.c
-gcc functions.o tester.o -o $BINARY_FILE
+gcc -c map_reduce.c -I../include/
+gcc -c tester.c -I../include
+gcc map_reduce.o tester.o -o $BINARY_FILEE
 
 # test case 1
 mkdir $TEMP_FOLDER
