@@ -24,8 +24,8 @@ int main(int argc, char** argv) {
 END
 )
 
-gcc -c map_reduce.c -I../include/
-gcc -c tester.c
+gcc -c ../src/map_reduce.c -I../include/
+gcc -c ./tester.c -I../include
 gcc map_reduce.o tester.o -o $BINARY_FILE
 
 # test case 1
@@ -40,9 +40,14 @@ $BINARY_FILE $TEMP_FOLDER/file2.txt
 echo ""
 cat ../rsrc/ana_light/ana_light1.txt
 
+# test case 2
+touch $TEMP_FOLDER/file3.txt
+$BINARY_FILE $TEMP_FOLDER/file3.txt
+echo ""
+cat $TEMP_FOLDER/file3.txt
 
 # clean up
 rm *.o
 rm $BINARY_FILE
 rm -rf $TEMP_FOLDER
-# rm tester.c
+rm tester.c

@@ -12,8 +12,8 @@ int main(int argc, char** argv) {
 EOF
 ) > tester.c
 
-gcc -c map_reduce.c -I../include/
-gcc -c tester.c -I../include
+gcc -c ../src/map_reduce.c -I../include/
+gcc -c ./tester.c -I../include
 gcc map_reduce.o tester.o -o $BINARY_FILE
 
 # test case 1

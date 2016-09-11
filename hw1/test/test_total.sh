@@ -1,11 +1,12 @@
 #!/bin/sh
 #test_total.sh
-BINARY_FILE="map_reduce"
+#BINARY_FILE="map_reduce"
 TEMP_FOLDER="temp"
 
-gcc -c map_reduce.c -I../include/
-gcc -c tester.c -I../include
-gcc map_reduce.o tester.o -o $BINARY_FILE
+cd ..
+make all
+cd test
+BINARY_FILE=../bin/mapreduce
 
 # test case #1
 echo "* Expected: Print usage and exit"
@@ -44,6 +45,5 @@ $BINARY_FILE -v stats $TEMP_FOLDER
 rm -rf $TEMP_FOLDER # clean
 
 # clean up
-rm *.o
 rm $BINARY_FILE
 rm -rf $TEMP_FOLDER

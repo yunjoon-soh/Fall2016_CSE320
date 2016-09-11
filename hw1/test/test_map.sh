@@ -4,7 +4,7 @@ BINARY_FILE="./test.out"
 TEMP_FOLDER="temp"
 
 (cat << END > tester.c
-#include "main.h"
+#include "map_reduce.h"
 //Space to store the results for analysis map
 //struct Analysis analysis_space[NFILES];
 //Space to store the results for stats map
@@ -29,8 +29,8 @@ int main(int argc, char** argv) {
 END
 )
 
-gcc -c map_reduce.c -I../include/
-gcc -c tester.c -I../include
+gcc -c ../src/map_reduce.c -I../include/
+gcc -c ./tester.c -I../include
 gcc map_reduce.o tester.o -o $BINARY_FILE
 
 # test case 1
