@@ -206,14 +206,13 @@ struct Analysis analysis_reduce(int n, void* results){
     int i, j;
     struct Analysis ana_results, longest_result;
 
-    if(n <= 0) // in case n is 0
-        return longest_result;
-
     // initialize longest_result to be the first result
-    longest_result = *((struct Analysis*) results);
-    // index = 0; // init index of the longest to 0
+    memset(&longest_result, 0, sizeof(struct Analysis));
 
-    for(i = 1; i < n; i++){
+    if(n <= 0) // in case n is 0
+        return longest_result;    
+
+    for(i = 0; i < n; i++){
         ana_results = *( ((struct Analysis*) results) + i );
         if(ana_results.lnlen > longest_result.lnlen){
             longest_result = ana_results;
@@ -287,21 +286,25 @@ Stats stats_reduce(int n, void* results){
  */
 void analysis_print(struct Analysis res, int nbytes, int hist){
     int i, j;
-    fprintf(stdout, "File: %s\n", res.filename);
-    fprintf(stdout, "Longest line length: %d\n", res.lnlen);
-    fprintf(stdout, "Longest line number: %d\n", res.lnno);
-    if(hist != 0){
-   	    fprintf(stdout, "Total Bytes in directory: %d\n", nbytes);
-        for(i = 0; i < 128; i++){
-            if(res.ascii[i] != 0){
-                fprintf(stdout, "%d:", i);
-                for(j = 0; j < res.ascii[i]; j++)
-                    fprintf(stdout, "-");
-                fprintf(stdout, "\n");
+    if(res.filename == NULL){
+        fprintf(stdout, "File: -\n");
+    }else{
+        fprintf(stdout, "File: %s\n", res.filename);
+        fprintf(stdout, "Longest line length: %d\n", res.lnlen);
+        fprintf(stdout, "Longest line number: %d\n", res.lnno);
+        if(hist != 0){
+       	    fprintf(stdout, "Total Bytes in directory: %d\n", nbytes);
+            for(i = 0; i < 128; i++){
+                if(res.ascii[i] != 0){
+                    fprintf(stdout, "%d:", i);
+                    for(j = 0; j < res.ascii[i]; j++)
+                        fprintf(stdout, "-");
+                    fprintf(stdout, "\n");
+                }
             }
         }
+        fprintf(stdout, "\n");
     }
-    fprintf(stdout, "\n");
 }
 
 /**
@@ -385,19 +388,47 @@ void stats_print(Stats res, int hist){
         }
     }
     printf("Count: %d\n", res.n);
-    printf("Mean: %f\n", ((double)res.sum/(double)res.n));
-    printf("Mode: ");
-    for(i = 0; i < NVAL; i++){
-        if(res.histogram[i] != 0 && res.histogram[i] == mostFreqCnt){
-            printf("%d ", i);
+    if(res.n > 0){
+        printf("Mean: %f\n", ((double)res.sum/(double)res.n));
+        printf("Mode: ");
+        for(i = 0; i < NVAL; i++){
+            if(res.histogram[i] != 0 && res.histogram[i] == mostFreqCnt){
+                printf("%d ", i);
+            }
         }
     }
+    else{
+        printf("Mean: -\n");
+        printf("Mode: -");
+    }
+
+
     printf("\n");
-    printf("Median: %f\n", q2);
-    printf("Q1: %f\n", q1);
-    printf("Q3: %f\n", q3);
-    printf("Min: %f\n", min);
-    printf("Max: %f\n", max);
+    if(q2 == -1)
+        printf("Median: -\n");
+    else
+        printf("Median: %f\n", q2);
+
+    if(q1 == -1)
+        printf("Q1: -\n");
+    else
+        printf("Q1: %f\n", q1);
+
+    if(q3 == -1)
+        printf("Q3: -\n");
+    else
+        printf("Q3: %f\n", q3);
+
+    if(min == -1)
+        printf("Min: -\n");
+    else
+        printf("Min: %f\n", min);
+
+    if(max == -1)
+        printf("Max: -\n");
+    else
+        printf("Max: %f\n", max);
+
     printf("\n");
 }
 
