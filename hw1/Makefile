@@ -28,7 +28,7 @@ all : directories $(BINS)
 $(BINS): $(OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ $^
 
-$(BUILDDIR)/%.o : $(SRCDIR)/%.c
+$(OBJECTS) : $(BUILDDIR)/%.o : $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -c $< -I$(INCLUDEDIR) -o $@
 
 directories:

@@ -286,7 +286,7 @@ Stats stats_reduce(int n, void* results){
  */
 void analysis_print(struct Analysis res, int nbytes, int hist){
     int i, j;
-    if(res.filename == NULL){
+    if(res.lnno == 0){
         fprintf(stdout, "File: -\n");
     }else{
         fprintf(stdout, "File: %s\n", res.filename);
