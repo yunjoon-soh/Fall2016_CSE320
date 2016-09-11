@@ -1,3 +1,2 @@
-src/heredoc.sh
-*.o
-map_reduce
+bin/
+build/

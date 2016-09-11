@@ -49,9 +49,13 @@ int validateargs(int argc, char** argv){
     if(strcmp("-h", argv[1]) == 0) { // if argv[1] is "-h"
         return ret;
     } else if(strcmp("-v", argv[1]) == 0){
+    	if(argc != 4)
+    		return -1;
         indexOfFunc = 2;
         ret += 2;
     } else {
+    	if(argc != 3)
+    		return -1;
         indexOfFunc = 1;
     }
     // fprintf(stderr, "indexOfFunc is now %d\n", indexOfFunc);

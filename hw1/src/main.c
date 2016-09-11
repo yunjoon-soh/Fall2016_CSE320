@@ -47,10 +47,10 @@ int main(int argc, char** argv) {
     switch(validationValue){
     case -1:
         printUsage();
-        return -1; //TODO return on failure
+        return EXIT_FAILURE; //TODO return on failure
     case 0:
         printUsage();
-        return 0;
+        return EXIT_SUCCESS;
     case 1:
     case 2:
         dir = argv[2]; // without -v
