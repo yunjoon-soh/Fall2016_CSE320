@@ -238,11 +238,9 @@ Stats stats_reduce(int n, void* results){
     int i, j;
     Stats stats_results, current_result;
 
-    for(int i = 0; i < NVAL; i++){
-        stats_results.histogram[i] = 0;
-    }
-    stats_results.sum = 0;
-    stats_results.n = 0;
+    // initialize the result structure
+    memset(&stats_results, 0, sizeof(Stats));
+    
     stats_results.filename = NULL;
 
     if(n <= 0) // in case n is 0
@@ -326,7 +324,7 @@ void analysis_print(struct Analysis res, int nbytes, int hist){
  *             zero for printing the final result.)
  */
 void stats_print(Stats res, int hist){
-    int i, j;
+    int i, j, q1Exact, q2Exact, q3Exact, q1NotExactNextValue, q2NotExactNextValue, q3NotExactNextValue; // q1Exact == 0 means q1Cnt is not Integer
     double mostFreqCnt, min, max, cur_pos, q1, q2, q3;
     double q1Cnt, q2Cnt, q3Cnt;
 
@@ -351,9 +349,27 @@ void stats_print(Stats res, int hist){
     q2 = -1;
     q3 = -1;
 
+    q1Exact = 1;
+    q2Exact = 1;
+    q3Exact = 1;
+
+    q1NotExactNextValue = -1;
+    q2NotExactNextValue = -1;
+    q3NotExactNextValue = -1;
+
     q1Cnt = res.n * 0.25;
     q2Cnt = res.n * 0.5;
     q3Cnt = res.n * 0.75;
+
+    if(q1Cnt > ((int) q1Cnt)){
+        q1Exact = 0;
+    }
+    if(q2Cnt > ((int) q2Cnt)){
+        q2Exact = 0;
+    }
+    if(q3Cnt > ((int) q3Cnt)){
+        q3Exact = 0;
+    }
 
     cur_pos = 0;
     mostFreqCnt = 0;
@@ -369,22 +385,51 @@ void stats_print(Stats res, int hist){
             if(max < i){ // if this value is larger than max
                 max = i; // update to the new max
             }
-
+        }
+    }
+    for(i = 0; i < NVAL; i++){
+        if(res.histogram[i] != 0){
             if(res.histogram[i] > mostFreqCnt){
                 mostFreqCnt = res.histogram[i];
             }
 
             cur_pos += res.histogram[i];
             if(cur_pos >= q1Cnt && q1 == -1){
-                q1 = i;
+                if(q1Exact == 1 && q1NotExactNextValue == -1){ // q1Cnt is Integer and need to find mean between this and next, save this value
+                    q1NotExactNextValue = i;
+                    if(max == i){
+                        q1 = i;
+                    }
+                } else if(q1Exact == 1 && q1NotExactNextValue != -1){
+                    q1 = (q1NotExactNextValue + i) / 2;
+                } else {
+                    q1 = i;
+                }
             }
             if(cur_pos >= q2Cnt && q2 == -1){
-                q2 = i;
+                if(q2Exact == 1 && q2NotExactNextValue == -1){ // q2Cnt is Integer and need to find mean between this and next, save this value
+                    q2NotExactNextValue = i;
+                    if(max == i){
+                        q2 = i;
+                    }
+                } else if(q2Exact == 1 && q2NotExactNextValue != -1){
+                    q2 = (q2NotExactNextValue + i) / 2;
+                } else {
+                    q2 = i;
+                }
             }
             if(cur_pos >= q3Cnt && q3 == -1){
-                q3 = i;
+                if(q3Exact == 1 && q3NotExactNextValue == -1){ // q3Cnt is Integer and need to find mean between this and next, save this value
+                    q3NotExactNextValue = i;
+                    if(max == i){
+                        q3 = i;
+                    }
+                } else if(q3Exact == 1 && q3NotExactNextValue != -1){
+                    q3 = (q3NotExactNextValue + i) / 2;
+                } else {
+                    q3 = i;
+                }
             }
-
         }
     }
     printf("Count: %d\n", res.n);
@@ -459,12 +504,7 @@ int analysis(FILE* f, void* res, char* filename){
     cntPerLine = 0; // char counter for one line (i.e., init to 0 when '\n' is found)    
 
     // initialize the result structure
-    ((struct Analysis*) res)->lnlen = 0;
-    ((struct Analysis*) res)->lnno = 0;
-    ((struct Analysis*) res)->filename = "";
-    for(int i = 0; i < 128; i++){
-        ((struct Analysis*) res)->ascii[i] = 0;
-    }
+    memset(((struct Analysis*) res), 0, sizeof(struct Analysis));
 
     // allocate buffer
     buffer = (char*) malloc(bufferSize * sizeof(char));
@@ -537,12 +577,7 @@ int stats(FILE* f, void* res, char* filename){
     int fscanfRet, readVal;
 
     // initialize the result structure
-    for(int i = 0; i < NVAL; i++){
-        ((Stats*) res)->histogram[i] = 0;
-    }
-    ((Stats*) res)->sum = 0;
-    ((Stats*) res)->n = 0;
-    ((Stats*) res)->filename = "";
+    memset(((Stats*) res), 0, sizeof(Stats));
 
     // set filename
     ((Stats*) res)->filename = strdup(filename);

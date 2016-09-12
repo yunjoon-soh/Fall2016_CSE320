@@ -56,6 +56,13 @@ $BINARY_FILE $TEMP_FOLDER/file2.txt
 echo ""
 cat $TEMP_FOLDER/file2.txt
 
+# test case 4
+echo "Test Case 5"
+echo "9 9 9 9 9 9 9" > $TEMP_FOLDER/file3.txt
+$BINARY_FILE $TEMP_FOLDER/file3.txt
+echo ""
+cat $TEMP_FOLDER/file3.txt
+
 # clean up
 rm *.o
 rm $BINARY_FILE
