@@ -1,12 +1,11 @@
+#ifndef _UTFCONVERTER_H_
+#define _UTFCONVERTER_H_
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "utfconverter.h"
 #include <getopt.h>
-#include <utfconverter.h>
 #include <string.h>
-#include "utfconverter.c"
 #include <stdbool.h>
 
 
@@ -41,12 +40,12 @@ typedef struct Glyph {
 extern char* filename;
 
 /** The usage statement. */
-const char* USAGE = { 
+const char* USAGE[4] = { 
 "Usage:  ./utfconverter FILENAME [OPTION]\n\t",
 "./utfconverter -h\t\t\tDisplays this usage statement.\n\t",
 "./utfconverter --help\t\t\tDisplays this usage statement.\n\t"
-"./utfconverter --UTF-16=ENDIANNESS\tEndianness to convert to.\n",
-}
+"./utfconverter --UTF-16=ENDIANNESS\tEndianness to convert to.\n"
+};
 
 /** Which endianness to convert to. */
 extern endianness conversion;
@@ -61,7 +60,7 @@ extern endianness source;
  * @param glyph The pointer to the glyph struct to swap.
  * @return Returns a pointer to the glyph that has been swapped.
  */
-Glyph* swap_endianness P((Glyph*));
+Glyph* swap_endianness (Glyph* glyph);
 
 /**
  * Fills in a glyph with the given data in data[2], with the given endianness 
@@ -74,7 +73,7 @@ Glyph* swap_endianness P((Glyph*));
  * 			file.
  * @return Returns a pointer to the filled-in glyph.
  */
-Glyph* fill_glyph P((Glyph*, unsigned int, endianness, int*));
+Glyph* fill_glyph P((Glyph*, unsigned int data[2], endianness end, int* fd));
 
 /**
  * Writes the given glyph's contents to stdout.
@@ -89,12 +88,12 @@ void write_glyph P((Glyph*));
  * @param argc The number of arguments.
  * @param argv The arguments as an array of string.
  */
-void parse_args P((int, char**));
+void parse_args (int argc, char** argv);
 
 /**
  * Prints the usage statement.
  */
-void print_help P((void));
+void print_help (void);
 
 /**
  * Closes file descriptors and frees list and possibly does other
@@ -104,4 +103,12 @@ void print_help P((void));
  * the macro value NO_FD (-1) to signify that we have no open file
  * to close.
  */
-void quit_converter P((int));
+void quit_converter(int fd);
+
+static struct option long_options[] = {
+		{"help", no_argument, 0, 'h'},
+		{"h", no_argument, 0, 'h'},
+		{0, 0, 0, 0}
+};
+
+#endif

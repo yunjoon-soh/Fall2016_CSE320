@@ -1,17 +1,30 @@
 CC = gcc
-SRC = $(wildcard src/*.c)
-INCLUDE = $(wildcard include/)
 BIN = utfconverter
 CFLAGS = -g -Wall -Werror -pedantic -Wextra 
-REQ = $(SRC) $(wildcard include/*.h)
 
-all: $(BIN)
+OBJECTS = ./build/utfconverter.o
 
-$(BIN): $(REQ)
-	$(CC) $(CFLAGS) -I $(INCLUDE) $(SRC) -o $(BIN)
+# Folders
+SRCDIR=./src
+BUILDDIR=./build
+BINDIR=./bin
+INCLUDEDIR=./include
 
-.PHONY: clean
+# Commands Shortcut
+MAKE_FOLDER = mkdir -p
+RM = rm -rf
 
+all: directories $(BIN)
+
+$(BIN) : $(OBJECTS)
+	$(CC) $(CFLAGS) $^ -I$(INCLUDEDIR) -o $(BINDIR)/$@
+
+$(OBJECTS) : $(BUILDDIR)/%.o : $(SRCDIR)/%.c
+	$(CC) $(CFLAGS) -c $< -I$(INCLUDEDIR) -o $@
+
+directories:
+	@$(MAKE_FOLDER) $(BUILDDIR)
+	@$(MAKE_FOLDER) $(BINDIR)
 clean:
-	rm -f *.o $(BIN)
-
+	-@$(RM) $(BINDIR)
+	-@$(RM) $(BUILDDIR)
