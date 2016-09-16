@@ -9,8 +9,9 @@ int main(int argc, char** argv)
 	/* After calling parse_args(), filename and conversion should be set. */
 	parse_args(argc, argv);
 
-	int fd = open("rsrc/utf16le.txt", O_RDONLY); 
+	int fd = open(filename, O_RDONLY); 
 	unsigned int buf[2]; 
+	// fix#1: changed to assignment to 0
 	//int rv &= "0"; 
 	int rv = 0;
 
@@ -18,37 +19,57 @@ int main(int argc, char** argv)
 	
 	/* Handle BOM bytes for UTF16 specially. 
          * Read our values into the first and second elements. */
-	if((rv = read(fd, &buf['0'], 1)) == 1 && 
-			(rv = read(fd, &buf['1'], 1)) == 1){ 
-		if(buf['0'] == 0xff && buf['1'] == 0xfe){
+	if((rv = read(fd, &buf[0], 1)) == 1 && (rv = read(fd, &buf[1], 1)) == 1) { 
+		// fix#1: clear other bits to 0
+		buf[0] &= 0xff;
+		buf[1] &= 0xff;
+
+		if(buf[0] == 0xff && buf[1] == 0xfe){
 			/*file is big endian*/
 			source = BIG; 
-		} else if(buf['0'] == 0xfe && buf['1'] == 0xff){
+		} else if(buf[0] == 0xfe && buf[1] == 0xff){
 			/*file is little endian*/
 			source = LITTLE;
 		} else {
 			/*file has no BOM*/
-			free(&glyph->bytes); 
-			fprintf(stderr, "File has no BOM.\n");
+
+			// fix#1: should not free not malloced memory
+			// free(&glyph->bytes); 
+			fprintf(stderr, "File has no BOM. buf[%d]=%x, buf[%d]=%x\n", 0, buf[0], 1, buf[1]);
+			free(glyph);
 			quit_converter(NO_FD); 
 		}
-		void* memset_return = memset(glyph, 0, sizeof(Glyph)+1);
+
+		// [DEBUG]
+		printf("Done with finding BOM\n");
+
+		// fix#1: +1 is not correct, same for other locations as well
+		//void* memset_return = memset(glyph, 0, sizeof(Glyph)+1);
+		void* memset_return = memset(glyph, 0, sizeof(Glyph));
 		/* Memory write failed, recover from it: */
 		if(memset_return == NULL){
-			/* tweak write permission on heap memory. */
+			/* tweak wri:30
+te permission on heap memory. */
 			asm("movl $8, %esi\n\t"
 			    "movl $.LC0, %edi\n\t"
 			    "movl $0, %eax");
 			/* Now make the request again. */
-			memset(glyph, 0, sizeof(Glyph)+1);
+			// memset(glyph, 0, sizeof(Glyph)+1);
+			memset(glyph, 0, sizeof(Glyph));
 		}
 	}
 
+	// [DEBUG]
+	printf("Done with first if statement\n");
+
 	/* Now deal with the rest of the bytes.*/
-	while((rv = read(fd, &buf[0], 1)) == 1 &&  
-			(rv = read(fd, &buf[1], 1)) == 1);{
+	while((rv = read(fd, &buf[0], 1)) == 1 && (rv = read(fd, &buf[1], 1)) == 1){
+
 		write_glyph(fill_glyph(glyph, NULL, source, &fd));
-		void* memset_return = memset(glyph, 0, sizeof(Glyph)+1);
+	
+		//void* memset_return = memset(glyph, 0, sizeof(Glyph)+1);
+		void* memset_return = memset(glyph, 0, sizeof(Glyph));
+
 	        /* Memory write failed, recover from it: */
 	        if(memset_return == NULL){
 		        /* tweak write permission on heap memory. */
@@ -56,10 +77,10 @@ int main(int argc, char** argv)
 		            "movl $.LC0, %edi\n\t"
 		            "movl $0, %eax");
 		        /* Now make the request again. */
-		        memset(glyph, 0, sizeof(Glyph)+1);
+		        //memset(glyph, 0, sizeof(Glyph)+1);
+		        memset(glyph, 0, sizeof(Glyph));
 	        }
 	}
-
 
 	quit_converter(NO_FD);
 	return 0;
@@ -122,32 +143,46 @@ void write_glyph(Glyph* glyph)
 void parse_args(int argc, char** argv)
 {
 	int option_index, c;
-	char* endian_convert = NULL;
+	char* endian_convert;
 
 	/* If getopt() returns with a valid (its working correctly) 
 	 * return code, then process the args! */
-	if((c = getopt_long(argc, argv, "hu", long_options, &option_index)) 
-			!= -1){
+	// fix#1: malloc space for endian_convert
+	endian_convert = (char*) malloc(ENDIAN_MAX_LENGTH * sizeof(char));
+	// fix#1: added ':' after "hu"
+	if((c = getopt_long(argc, argv, "hu:", long_options, &option_index)) != -1)
+	{
 		switch(c){ 
 			case 'u':
-				endian_convert = optarg;
+				endian_convert = strncpy(endian_convert, optarg, ENDIAN_MAX_LENGTH);
+				fprintf(stderr, "endican_convert is : %s\n", endian_convert);
+				break;
 			default:
-				fprintf(stderr, "Unrecognized argument.\n");
+				fprintf(stderr, "Unrecognized argument.: %c\n", c);
+				free(endian_convert);
 				quit_converter(NO_FD);
 				break;
 		}
-
 	}
+	
+	// [DEBUG]
+	// printf("filename? argv[%d]=%s\n", optind, argv[optind]);
 
 	if(optind < argc){
-		strcpy(filename, argv[optind]);
+		// fix#1: allocate memory for filenameA
+		filename = (char*) malloc(strlen(argv[optind]));
+		strncpy(filename, argv[optind], strlen(argv[optind]));
 	} else {
 		fprintf(stderr, "Filename not given.\n");
+		free(endian_convert);
+		free(filename);		
 		print_help();
 	}
 
 	if(endian_convert == NULL){
 		fprintf(stderr, "Converson mode not given.\n");
+		free(endian_convert);
+		free(filename);
 		print_help();
 	}
 
@@ -156,6 +191,8 @@ void parse_args(int argc, char** argv)
 	} else if(strcmp(endian_convert, "BE")){
 		conversion = BIG;
 	} else {
+		free(endian_convert);
+		free(filename);
 		quit_converter(NO_FD);
 	}
 }

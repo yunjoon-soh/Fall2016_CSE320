@@ -8,6 +8,11 @@
 #include <string.h>
 #include <stdbool.h>
 
+// for stderror
+#include <string.h>
+// for errno
+#include <errno.h>
+
 
 #define MAX_BYTES 2
 #define SURROGATE_SIZE 2
@@ -73,14 +78,14 @@ Glyph* swap_endianness (Glyph* glyph);
  * 			file.
  * @return Returns a pointer to the filled-in glyph.
  */
-Glyph* fill_glyph P((Glyph*, unsigned int data[2], endianness end, int* fd));
+Glyph* fill_glyph (Glyph*, unsigned int data[2], endianness end, int* fd);
 
 /**
  * Writes the given glyph's contents to stdout.
  *
  * @param glyph The pointer to the glyph struct to write to stdout.
  */
-void write_glyph P((Glyph*));
+void write_glyph (Glyph*);
 
 /**
  * Calls getopt() and parses arguments.
@@ -110,5 +115,8 @@ static struct option long_options[] = {
 		{"h", no_argument, 0, 'h'},
 		{0, 0, 0, 0}
 };
+
+// my constants
+const int ENDIAN_MAX_LENGTH=5;
 
 #endif
