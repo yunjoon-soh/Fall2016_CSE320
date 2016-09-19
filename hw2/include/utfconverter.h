@@ -12,6 +12,17 @@
 #include <string.h>
 /* for errno*/
 #include <errno.h>
+/* for file size */
+#include <sys/stat.h>
+#include <sys/types.h>
+/* for fullpath*/
+#include <limits.h>
+#include <dirent.h>
+/* for hostname*/
+#include <netdb.h>
+/* for uname*/
+#include <sys/utsname.h>
+#include <rpc/rpc.h>
 
 /* fix#2: MAX_BYTES from 2 to 4*/
 #define MAX_BYTES 4
@@ -49,11 +60,21 @@ typedef struct Glyph {
 extern char* filename;
 
 /** The usage statement. */
-const char* USAGE[4] = { 
-"Usage:  ./utfconverter FILENAME [OPTION]\n\t",
-"./utfconverter -h\t\t\tDisplays this usage statement.\n\t",
-"./utfconverter --help\t\t\tDisplays this usage statement.\n\t"
-"./utfconverter --UTF-16=ENDIANNESS\tEndianness to convert to.\n"
+#define USAGE_LENGTH 13
+const char* USAGE[USAGE_LENGTH] = {
+"Command line utility for converting files from UTF-16LE to UTF-16BE or vice versa.\n\n",
+"Usage:\n",
+"\t./utf [-h|--help] -u OUT_ENC | --UTF=OUT_ENC IN_FILE [OUT_FILE]\n",
+"\t\t-h, --help\tDisplays this usage.\n",
+"\t\t-v, -vv   \tToggles the verbosity of the program to level 1 or 2.\n\n",
+"\tMandatory argument:\n",
+"\t\t-u OUT_ENC, --UTF=OUT_ENC\t Sets the output encoding.\n",
+"\t\t\t 8\tUTF-8\n",
+"\t\t\t 16LE\tUTF-16 Little Endian\n",
+"\t\t\t 16BE\tUTF-16 Big Endian\n\n"
+"\tPositional Arguments:\n",
+"\t\tIN_FILE   \tThe file to convert.\n",
+"\t\t[OUT_FILE]\tOutput file name. If not present, defaults to stdout.\n"
 };
 
 /** Which endianness to convert to. */
@@ -116,11 +137,15 @@ void quit_converter(int fd);
 
 static struct option long_options[] = {
 		{"help", no_argument, 0, 'h'},
-		{"h", no_argument, 0, 'h'},
+		{"verbose", no_argument, 0, 'v'},
+		{"UTF", required_argument, 0, 'u'},
 		{0, 0, 0, 0}
 };
 
 /* my constants */
 const int ENDIAN_MAX_LENGTH=5;
 
+/* my variables*/
+int opt_v = 0;
+int opt_u = 0;
 #endif

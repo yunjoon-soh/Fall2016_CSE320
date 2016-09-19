@@ -30,7 +30,7 @@ $(BIN) : $(OBJECTS) $(HDRS)
 
 #$(OBJECTS): $(BUILDDIR)/%.o : $(SRCDIR)/%.c $(HDRS)
 
-$(BUILDDIR)/%.o : $(SRCDIR)/%.c
+$(BUILDDIR)/%.o : $(SRCDIR)/%.c $(HDRS)
 	$(CC) $(CFLAGS) -c $< -I$(INCLUDEDIR) -o $@
 
 directories:
@@ -38,5 +38,5 @@ directories:
 	@$(MAKE_FOLDER) $(BINDIR)
 
 clean:
-	-@$(RM) $(BINDIR
+	-@$(RM) $(BINDIR)
 	-@$(RM) $(BUILDDIR)

@@ -10,6 +10,10 @@ int main(int argc, char** argv)
 	int fd, rv;
 	char chr[2];
 	Glyph* glyph;
+	struct stat statbuf;
+	char* fullpath;
+	char* hostname;
+	struct utsname osname;
 
 	/* After calling parse_args(), filename and conversion should be set. */
 	parse_args(argc, argv);
@@ -18,6 +22,16 @@ int main(int argc, char** argv)
 	if(fd == NO_FD){
 		fprintf(stderr, "%s: %s\n", "File not opened: ", strerror(errno));
 		quit_converter(NO_FD);
+	}
+
+	if(opt_v >= 1){
+		fstat(fd, &statbuf);
+		fprintf(stderr, "Input file size: %lu bytes\n", statbuf.st_size);
+
+		fullpath = (char*) malloc(PATH_MAX + 1);
+		realpath(filename, fullpath);
+		fprintf(stderr, "Input file path: %s\n", fullpath);
+		free(fullpath);
 	}
 
 	glyph = (Glyph*) malloc(sizeof(Glyph) + 1); 
@@ -71,6 +85,31 @@ int main(int argc, char** argv)
 			/* Now make the request again. */
 			 memset(glyph, 0, sizeof(Glyph)+1);
 		}
+	}
+	
+	if(opt_v >= 1){
+		if(source == BIG){
+			fprintf(stderr, "Input file encoding: UTF16-BE\n");
+		}
+		else if(source == LITTLE){
+			fprintf(stderr, "Input file encoding: UTF16-LE\n");
+		}
+
+		if(conversion == BIG){
+			fprintf(stderr, "Output file encoding: UTF16-BE\n");
+		}
+		else if(conversion == LITTLE){
+			fprintf(stderr, "Output file encoding: UTF16-LE\n");
+		}
+		
+		hostname = (char*)malloc(MAXHOSTNAMELEN + 1);
+		gethostname(hostname, MAXHOSTNAMELEN + 1);
+		fprintf(stderr, "Hostmachine: %s\n", hostname);
+		free(hostname);
+
+		//osname = (char*) malloc(sysconf(_SC_HOST_NAME_MAX + 1));
+		uname(&osname);
+		fprintf(stderr, "Operating System: %s\n", osname.sysname);
 	}
 
 	/* [DEBUG] */
@@ -210,22 +249,46 @@ void parse_args(int argc, char** argv)
 	// fix#1: malloc space for endian_convert
 	endian_convert = (char*) malloc(ENDIAN_MAX_LENGTH * sizeof(char));
 	// fix#1: added ':' after "hu"
-	if((c = getopt_long(argc, argv, "hu:", long_options, &option_index)) != -1)
+	while((c = getopt_long(argc, argv, "hu:v", long_options, &option_index)) != -1)
 	{
 		switch(c){ 
+			case 'h':
+				print_help();
+				free(endian_convert);
+				quit_converter(NO_FD);
+				break;
 			case 'u':
+				opt_u++;
 				endian_convert = strncpy(endian_convert, optarg, ENDIAN_MAX_LENGTH);
 
 				/* [DEBUG] */
 				// fprintf(stderr, "endian_convert is : %s\n", endian_convert);
 
 				break;
+			case 'v':
+				opt_v++;
+				break;
+			case '?':
+				print_help();
+				free(endian_convert);
+				quit_converter(NO_FD);
+				break;
 			default:
-				fprintf(stderr, "Unrecognized argument.: %c\n", c);
+				fprintf(stderr, "%s: %s=%c\n", "Unrecognized argument.\n", strerror(errno), c);
 				free(endian_convert);
 				quit_converter(NO_FD);
 				break;
 		}
+	}
+
+	if(opt_u != 1){
+		if(opt_u > 1){
+			fprintf(stderr, "Too many UTF options set\n");
+		} else if(opt_u == 0){
+			fprintf(stderr, "Required argument not passed: -u or --UTF=OUT_ENC\n");
+		}
+		free(endian_convert);
+		quit_converter(NO_FD);
 	}
 	
 	/* [DEBUG] */
@@ -261,7 +324,7 @@ void parse_args(int argc, char** argv)
 
 void print_help(void) {
 	int i;
-	for(i = 0; i < 4; i++){
+	for(i = 0; i < USAGE_LENGTH; i++){
 		printf("%s", USAGE[i]); 
 	}
 	quit_converter(NO_FD);
