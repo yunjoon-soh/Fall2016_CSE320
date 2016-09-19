@@ -1,36 +1,41 @@
 #include "utfconverter.h"
-
+#define LITTLE_ENDIAN_SYSTEM
 char* filename;
 endianness source;
 endianness conversion;
 
 int main(int argc, char** argv)
 {
+	unsigned int buf[2];
+	int fd, rv;
+	char chr[2];
+	Glyph* glyph;
+
 	/* After calling parse_args(), filename and conversion should be set. */
 	parse_args(argc, argv);
 
-	int fd = open(filename, O_RDONLY);
+	fd = open(filename, O_RDONLY);
 	if(fd == NO_FD){
 		fprintf(stderr, "%s: %s\n", "File not opened: ", strerror(errno));
 		quit_converter(NO_FD);
 	}
-	unsigned int buf[2]; 
-	// fix#1: changed to assignment to 0
-	//int rv &= "0"; 
-	int rv = 0;
 
-	Glyph* glyph = (Glyph*) malloc(sizeof(Glyph) + 1); 
+	glyph = (Glyph*) malloc(sizeof(Glyph) + 1); 
 	glyph = memset(glyph, 0, sizeof(Glyph)+1);
 	
 	/* Handle BOM bytes for UTF16 specially. 
          * Read our values into the first and second elements. */
+	rv = 0;
+	buf[0] = 0;
+	buf[1] = 0;
 	if((rv = read(fd, &buf[0], 1)) == 1 && (rv = read(fd, &buf[1], 1)) == 1) { 
-		// fix#1: clear other bits to 0
-		buf[0] &= 0xff;
-		buf[1] &= 0xff;
+		#ifndef LITTLE_ENDIAN_SYSTEM
+		buf[0] = buf[0] >> 24;
+		buf[1] = buf[1] >> 24;
+		#endif
 
-		glyph->bytes[0] = buf[0];
-		glyph->bytes[1] = buf[1];
+		glyph->bytes[FIRST] = buf[0];
+		glyph->bytes[SECOND] = buf[1];
 
 		if(buf[0] == 0xff && buf[1] == 0xfe){
 			/*file is big endian*/
@@ -41,57 +46,51 @@ int main(int argc, char** argv)
 		} else {
 			/*file has no BOM*/
 
-			// fix#1: should not free not malloced memory
-			// free(&glyph->bytes); 
 			fprintf(stderr, "File has no BOM. buf[%d]=%x, buf[%d]=%x\n", 0, buf[0], 1, buf[1]);
 			free(glyph);
 			quit_converter(fd);
 		}
 
-		// [DEBUG]
-		printf("Done with finding BOM\n");
+		/* [DEBUG] */
+		/* printf("Done with finding BOM\n"); */
 
-		// fix#1: +1 is not correct, same for other locations as well
-		//void* memset_return = memset(glyph, 0, sizeof(Glyph)+1);
-		//void* memset_return = memset(glyph, 0, sizeof(Glyph));
+		/* for writing glyph */
+		if(source != conversion){
+			swap_endianness(glyph);
+		}
+		write_glyph(glyph);
+
+		void* memset_return = memset(glyph, 0, sizeof(Glyph)+1);
+		
 		/* Memory write failed, recover from it: */
-		//if(memset_return == NULL){
-			/* tweak wri:30
-te permission on heap memory. */
+		if(memset_return == NULL){
+		/* tweak write permission on heap memory. */
 			//asm("movl $8, %esi\n\t"
-			  //  "movl $.LC0, %edi\n\t"
-			    //"movl $0, %eax");
+			//    "movl $.LC0, %edi\n\t"
+			//    "movl $0, %eax");
 			/* Now make the request again. */
-			// memset(glyph, 0, sizeof(Glyph)+1);
-			//memset(glyph, 0, sizeof(Glyph));
-		//}
+			 memset(glyph, 0, sizeof(Glyph)+1);
+		}
 	}
 
-	// for writing glyph
-	if(source != conversion){
-		swap_endianness(glyph);
-	}
-	write_glyph(glyph);
-
-	// [DEBUG]
-	printf("Done with first if statement\n");
+	/* [DEBUG] */
+	/* printf("Done with first if statement\n"); */
 	/*char tmp;
 	while((rv=read(fd, &tmp, 1))==1){
 		printf("%c\n", tmp);
 	}*/
 
 	/* Now deal with the rest of the bytes.*/
-	char chr[2];
 	while((rv = read(fd, &chr, 2)) == 2){
 		buf[0] = chr[0] & 0xff;
 		buf[1] = chr[1] & 0xff;
 
-		// [DEBUG]
+		/* [DEBUG] */
 		// printf("Inside while loop: 0x%02x 0x%02x\n", buf[0], buf[1]);
 
 		fill_glyph(glyph, buf, source, &fd);
 
-		// [DEBUG]
+		/* [DEBUG] */
 		// fprintf(stderr, "source_end = %u, conversion_end = %u", source, conversion);
 		if(source != conversion){
 			swap_endianness(glyph);
@@ -99,19 +98,17 @@ te permission on heap memory. */
 
 		write_glyph(glyph);
 
-		//void* memset_return = memset(glyph, 0, sizeof(Glyph)+1);
-		// void* memset_return = memset(glyph, 0, sizeof(Glyph));
+		void* memset_return = memset(glyph, 0, sizeof(Glyph)+1);
 
 	        /* Memory write failed, recover from it: */
-	        // if(memset_return == NULL){
+	         if(memset_return == NULL){
 		        /* tweak write permission on heap memory. */
-		        // asm("movl $8, %esi\n\t"
-		           // "movl $.LC0, %edi\n\t"
-		           // "movl $0, %eax");
+		        //asm("movl $8, %esi\n\t"
+		        //    "movl $.LC0, %edi\n\t"
+		        //    "movl $0, %eax");
 		        /* Now make the request again. */
-		        //memset(glyph, 0, sizeof(Glyph)+1);
-			//memset(glyph, 0, sizeof(Glyph));
-	      //  }
+		        memset(glyph, 0, sizeof(Glyph)+1);
+	        }
 	}
 
 	free(glyph);
@@ -123,14 +120,14 @@ Glyph* swap_endianness(Glyph* glyph)
 {
 	unsigned char tmp;
 
-	tmp = glyph->bytes[0];
+	tmp = glyph->bytes[FIRST];
 	/* Use XOR to be more efficient with how we swap values. */
-	glyph->bytes[0] = glyph->bytes[1];
-	glyph->bytes[1] = tmp;
+	glyph->bytes[FIRST] = glyph->bytes[SECOND];
+	glyph->bytes[SECOND] = tmp;
 	if(glyph->surrogate){  /* If a surrogate pair, swap the next two bytes. */
-		tmp = glyph->bytes[2];
-		glyph->bytes[2] = glyph->bytes[3];
-		glyph->bytes[3] = tmp;
+		tmp = glyph->bytes[THIRD];
+		glyph->bytes[THIRD] = glyph->bytes[FOURTH];
+		glyph->bytes[FOURTH] = tmp;
 	}
 	glyph->end = conversion;
 	return glyph;
@@ -139,12 +136,13 @@ Glyph* swap_endianness(Glyph* glyph)
 // fix#2: changed FIRST SECOND THIRD FOURTH to indices
 Glyph* fill_glyph(Glyph* glyph, unsigned int data[2], endianness end, int* fd)
 {
-	glyph->bytes[0] = data[0];
-	glyph->bytes[1] = data[1];
+	unsigned int bits;
+	glyph->bytes[FIRST] = data[0];
+	glyph->bytes[SECOND] = data[1];
 
 	// fix#2: change '0' to 0
 	//unsigned int bits = '0';
-	unsigned int bits = 0;
+	bits = 0;
 	bits |= (data[0] + (data[1] << 8));
 
 
@@ -160,6 +158,10 @@ Glyph* fill_glyph(Glyph* glyph, unsigned int data[2], endianness end, int* fd)
 		// This block means yes surrogate pair
 		if(read(*fd, &data[0], 1) == 1 && read(*fd, &(data[1]), 1) == 1)
 		{
+			#ifndef LITTLE_ENDIAN_SYSTEM
+			data[0] = data[0] >> 24;
+			data[1] = data[1] >> 24;
+			#endif
 			// fix#2
 			//bits = '0'; /* bits |= (bytes[FIRST] + (bytes[SECOND] << 8)) */
 			bits = 0; /* bits |= (bytes[FIRST] + (bytes[SECOND] << 8)) */
@@ -174,17 +176,17 @@ Glyph* fill_glyph(Glyph* glyph, unsigned int data[2], endianness end, int* fd)
 	}
 
 	if(!glyph->surrogate){
-		glyph->bytes[2] = 0;
-		glyph->bytes[3] = 0;
+		glyph->bytes[THIRD] = 0;
+		glyph->bytes[FOURTH] = 0;
 	} else {
-		glyph->bytes[2] = data[0]; 
-		glyph->bytes[3] = data[1];
+		glyph->bytes[THIRD] = data[0]; 
+		glyph->bytes[FOURTH] = data[1];
 	}
 
 	glyph->end = end;
 
-	// [DEBUG]
-	// fprintf(stderr, "\nbytes={0x%02x, 0x%02x, 0x%02x, 0x%02x}", glyph->bytes[0], glyph->bytes[1], glyph->bytes[2], glyph->bytes[3]);
+	/* [DEBUG] */
+//	fprintf(stderr, "\nbytes={0x%02x, 0x%02x, 0x%02x, 0x%02x}", glyph->bytes[0], glyph->bytes[1], glyph->bytes[2], glyph->bytes[3]);
 	return glyph;
 }
 
@@ -214,7 +216,7 @@ void parse_args(int argc, char** argv)
 			case 'u':
 				endian_convert = strncpy(endian_convert, optarg, ENDIAN_MAX_LENGTH);
 
-				// [DEBUG]
+				/* [DEBUG] */
 				// fprintf(stderr, "endian_convert is : %s\n", endian_convert);
 
 				break;
@@ -226,7 +228,7 @@ void parse_args(int argc, char** argv)
 		}
 	}
 	
-	// [DEBUG]
+	/* [DEBUG] */
 	// printf("filename? argv[%d]=%s\n", optind, argv[optind]);
 
 	if(optind < argc){
@@ -258,7 +260,8 @@ void parse_args(int argc, char** argv)
 }
 
 void print_help(void) {
-	for(int i = 0; i < 4; i++){
+	int i;
+	for(i = 0; i < 4; i++){
 		printf("%s", USAGE[i]); 
 	}
 	quit_converter(NO_FD);

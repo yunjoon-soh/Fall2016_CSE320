@@ -9,12 +9,15 @@ BIN = utf
 
 # Compiler related
 CC = gcc
-CFLAGS = -g -Wall -Werror -pedantic -Wextra 
+CFLAGS = -g -Wall -Werror -pedantic -Wextra
 
 # Makefile related
-SRCS = $(wildcard $(SRCDIR)/*.c)
-OBJECTS = $(patsubst $(SRCDIR)/%.c, $(BUILDDIR)/%.o, $(SRCS))
-HDRS = $(wildcard $(INCLUDEDIR)/*.h)
+#SRCS = $(wildcard $(SRCDIR)/*.c)
+SRCS= $(SRCDIR)/utfconverter.c
+#OBJECTS = $(patsubst $(SRCDIR)/%.c, $(BUILDDIR)/%.o, $(SRCS))
+OBJECTS = $(BUILDDIR)/utfconverter.o
+#HDRS = $(wildcard $(INCLUDEDIR)/*.h)
+HDRS = $(INCLUDEDIR)/utfconverter.h
 
 # Commands Shortcut
 MAKE_FOLDER = mkdir -p
@@ -25,7 +28,9 @@ all: directories $(BIN)
 $(BIN) : $(OBJECTS) $(HDRS)
 	$(CC) $(CFLAGS) $(OBJECTS) -I$(INCLUDEDIR) -o $(BINDIR)/$@
 
-$(OBJECTS): $(BUILDDIR)/%.o : $(SRCDIR)/%.c $(HDRS)
+#$(OBJECTS): $(BUILDDIR)/%.o : $(SRCDIR)/%.c $(HDRS)
+
+$(BUILDDIR)/%.o : $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -c $< -I$(INCLUDEDIR) -o $@
 
 directories:
@@ -33,5 +38,5 @@ directories:
 	@$(MAKE_FOLDER) $(BINDIR)
 
 clean:
-	-@$(RM) $(BINDIR)
+	-@$(RM) $(BINDIR
 	-@$(RM) $(BUILDDIR)

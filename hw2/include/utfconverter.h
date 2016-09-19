@@ -8,26 +8,26 @@
 #include <string.h>
 #include <stdbool.h>
 
-// for stderror
+/* for stderror */
 #include <string.h>
-// for errno
+/* for errno*/
 #include <errno.h>
 
-// fix#2: MAX_BYTES from 2 to 4
+/* fix#2: MAX_BYTES from 2 to 4*/
 #define MAX_BYTES 4
 
-// fix#2: SURROGATE_SIZE 2 to 4, NON_SURROGATE_SIZE 1 to 2
+/* fix#2: SURROGATE_SIZE 2 to 4, NON_SURROGATE_SIZE 1 to 2*/
 #define SURROGATE_SIZE 4
 #define NON_SURROGATE_SIZE 2
 
 #define NO_FD -1
-// fix#2: OFFSET from 4 to 2
+/* fix#2: OFFSET from 4 to 2*/
 #define OFFSET 2
 
-#define FIRST  10000000
-#define SECOND 20000000
-#define THIRD  30000000
-#define FOURTH 40000000
+#define FIRST  0
+#define SECOND 1
+#define THIRD  2
+#define FOURTH 3
 
 #ifdef __STDC__
 #define P(x) x
@@ -120,7 +120,7 @@ static struct option long_options[] = {
 		{0, 0, 0, 0}
 };
 
-// my constants
+/* my constants */
 const int ENDIAN_MAX_LENGTH=5;
 
 #endif
