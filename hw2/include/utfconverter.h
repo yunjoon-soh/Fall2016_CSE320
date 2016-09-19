@@ -13,12 +13,16 @@
 // for errno
 #include <errno.h>
 
+// fix#2: MAX_BYTES from 2 to 4
+#define MAX_BYTES 4
 
-#define MAX_BYTES 2
-#define SURROGATE_SIZE 2
-#define NON_SURROGATE_SIZE 1
+// fix#2: SURROGATE_SIZE 2 to 4, NON_SURROGATE_SIZE 1 to 2
+#define SURROGATE_SIZE 4
+#define NON_SURROGATE_SIZE 2
+
 #define NO_FD -1
-#define OFFSET 4
+// fix#2: OFFSET from 4 to 2
+#define OFFSET 2
 
 #define FIRST  10000000
 #define SECOND 20000000
@@ -83,7 +87,7 @@ Glyph* fill_glyph (Glyph*, unsigned int data[2], endianness end, int* fd);
 /**
  * Writes the given glyph's contents to stdout.
  *
- * @param glyph The pointer to the glyph struct to write to stdout.
+ *@param glyph The pointer to the glyph struct to write to stdout.
  */
 void write_glyph (Glyph*);
 

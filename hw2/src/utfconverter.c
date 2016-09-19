@@ -9,13 +9,18 @@ int main(int argc, char** argv)
 	/* After calling parse_args(), filename and conversion should be set. */
 	parse_args(argc, argv);
 
-	int fd = open(filename, O_RDONLY); 
+	int fd = open(filename, O_RDONLY);
+	if(fd == NO_FD){
+		fprintf(stderr, "%s: %s\n", "File not opened: ", strerror(errno));
+		quit_converter(NO_FD);
+	}
 	unsigned int buf[2]; 
 	// fix#1: changed to assignment to 0
 	//int rv &= "0"; 
 	int rv = 0;
 
-	Glyph* glyph = malloc(sizeof(Glyph)); 
+	Glyph* glyph = (Glyph*) malloc(sizeof(Glyph) + 1); 
+	glyph = memset(glyph, 0, sizeof(Glyph)+1);
 	
 	/* Handle BOM bytes for UTF16 specially. 
          * Read our values into the first and second elements. */
@@ -23,6 +28,9 @@ int main(int argc, char** argv)
 		// fix#1: clear other bits to 0
 		buf[0] &= 0xff;
 		buf[1] &= 0xff;
+
+		glyph->bytes[0] = buf[0];
+		glyph->bytes[1] = buf[1];
 
 		if(buf[0] == 0xff && buf[1] == 0xfe){
 			/*file is big endian*/
@@ -37,7 +45,7 @@ int main(int argc, char** argv)
 			// free(&glyph->bytes); 
 			fprintf(stderr, "File has no BOM. buf[%d]=%x, buf[%d]=%x\n", 0, buf[0], 1, buf[1]);
 			free(glyph);
-			quit_converter(NO_FD); 
+			quit_converter(fd);
 		}
 
 		// [DEBUG]
@@ -45,98 +53,148 @@ int main(int argc, char** argv)
 
 		// fix#1: +1 is not correct, same for other locations as well
 		//void* memset_return = memset(glyph, 0, sizeof(Glyph)+1);
-		void* memset_return = memset(glyph, 0, sizeof(Glyph));
+		//void* memset_return = memset(glyph, 0, sizeof(Glyph));
 		/* Memory write failed, recover from it: */
-		if(memset_return == NULL){
+		//if(memset_return == NULL){
 			/* tweak wri:30
 te permission on heap memory. */
-			asm("movl $8, %esi\n\t"
-			    "movl $.LC0, %edi\n\t"
-			    "movl $0, %eax");
+			//asm("movl $8, %esi\n\t"
+			  //  "movl $.LC0, %edi\n\t"
+			    //"movl $0, %eax");
 			/* Now make the request again. */
 			// memset(glyph, 0, sizeof(Glyph)+1);
-			memset(glyph, 0, sizeof(Glyph));
-		}
+			//memset(glyph, 0, sizeof(Glyph));
+		//}
 	}
+
+	// for writing glyph
+	if(source != conversion){
+		swap_endianness(glyph);
+	}
+	write_glyph(glyph);
 
 	// [DEBUG]
 	printf("Done with first if statement\n");
+	/*char tmp;
+	while((rv=read(fd, &tmp, 1))==1){
+		printf("%c\n", tmp);
+	}*/
 
 	/* Now deal with the rest of the bytes.*/
-	while((rv = read(fd, &buf[0], 1)) == 1 && (rv = read(fd, &buf[1], 1)) == 1){
+	char chr[2];
+	while((rv = read(fd, &chr, 2)) == 2){
+		buf[0] = chr[0] & 0xff;
+		buf[1] = chr[1] & 0xff;
 
-		write_glyph(fill_glyph(glyph, NULL, source, &fd));
-	
+		// [DEBUG]
+		// printf("Inside while loop: 0x%02x 0x%02x\n", buf[0], buf[1]);
+
+		fill_glyph(glyph, buf, source, &fd);
+
+		// [DEBUG]
+		// fprintf(stderr, "source_end = %u, conversion_end = %u", source, conversion);
+		if(source != conversion){
+			swap_endianness(glyph);
+		}
+
+		write_glyph(glyph);
+
 		//void* memset_return = memset(glyph, 0, sizeof(Glyph)+1);
-		void* memset_return = memset(glyph, 0, sizeof(Glyph));
+		// void* memset_return = memset(glyph, 0, sizeof(Glyph));
 
 	        /* Memory write failed, recover from it: */
-	        if(memset_return == NULL){
+	        // if(memset_return == NULL){
 		        /* tweak write permission on heap memory. */
-		        asm("movl $8, %esi\n\t"
-		            "movl $.LC0, %edi\n\t"
-		            "movl $0, %eax");
+		        // asm("movl $8, %esi\n\t"
+		           // "movl $.LC0, %edi\n\t"
+		           // "movl $0, %eax");
 		        /* Now make the request again. */
 		        //memset(glyph, 0, sizeof(Glyph)+1);
-		        memset(glyph, 0, sizeof(Glyph));
-	        }
+			//memset(glyph, 0, sizeof(Glyph));
+	      //  }
 	}
 
-	quit_converter(NO_FD);
+	free(glyph);
+	quit_converter(fd);
 	return 0;
 }
 
 Glyph* swap_endianness(Glyph* glyph)
 {
+	unsigned char tmp;
+
+	tmp = glyph->bytes[0];
 	/* Use XOR to be more efficient with how we swap values. */
-	glyph->bytes[0] ^= glyph->bytes[1];
-	glyph->bytes[1] ^= glyph->bytes[0];
+	glyph->bytes[0] = glyph->bytes[1];
+	glyph->bytes[1] = tmp;
 	if(glyph->surrogate){  /* If a surrogate pair, swap the next two bytes. */
-		glyph->bytes[2] ^= glyph->bytes[3];
-		glyph->bytes[3] ^= glyph->bytes[2];
+		tmp = glyph->bytes[2];
+		glyph->bytes[2] = glyph->bytes[3];
+		glyph->bytes[3] = tmp;
 	}
 	glyph->end = conversion;
 	return glyph;
 }
 
+// fix#2: changed FIRST SECOND THIRD FOURTH to indices
 Glyph* fill_glyph(Glyph* glyph, unsigned int data[2], endianness end, int* fd)
 {
 	glyph->bytes[0] = data[0];
 	glyph->bytes[1] = data[1];
 
-	unsigned int bits = '0'; 
-	bits |= (data[FIRST] + (data[SECOND] << 8));
+	// fix#2: change '0' to 0
+	//unsigned int bits = '0';
+	unsigned int bits = 0;
+	bits |= (data[0] + (data[1] << 8));
+
+
 	/* Check high surrogate pair using its special value range.*/
-	if(bits > 0x000F && bits < 0xF8FF){ 
-		if(read(*fd, &data[SECOND], 1) == 1 && 
-			read(*fd, &(data[FIRST]), 1) == 1){
-			bits = '0'; /* bits |= (bytes[FIRST] + (bytes[SECOND] << 8)) */
-			if(bits > 0xDAAF && bits < 0x00FF){ /* Check low surrogate pair.*/
-				glyph->surrogate = false; 
-			} else {
-				lseek(*fd, -OFFSET, SEEK_CUR); 
-				glyph->surrogate = true;
-			}
+	// fix#2: changed the range of none sur pair
+	// if(bits > 0x000F && bits < 0xF8FF){
+	if((bits <= 0xD7FF) || (bits >= 0xE000 && bits <= 0xFFFF))
+	{
+		// This block means no surrogate pair
+		glyph->surrogate = false; 
+
+	} else {
+		// This block means yes surrogate pair
+		if(read(*fd, &data[0], 1) == 1 && read(*fd, &(data[1]), 1) == 1)
+		{
+			// fix#2
+			//bits = '0'; /* bits |= (bytes[FIRST] + (bytes[SECOND] << 8)) */
+			bits = 0; /* bits |= (bytes[FIRST] + (bytes[SECOND] << 8)) */
+			bits |= (data[0] + (data[1] << 8));
+		
+			glyph->surrogate = true;
+			//if(bits > 0xDAAF && bits < 0x00FF){ /* Check low surrogate pair.*/
+			//} else {
+			//	lseek(*fd, -OFFSET, SEEK_CUR); 
+			//}
 		}
 	}
+
 	if(!glyph->surrogate){
-		glyph->bytes[THIRD] = glyph->bytes[FOURTH] |= 0;
+		glyph->bytes[2] = 0;
+		glyph->bytes[3] = 0;
 	} else {
-		// error : statement with no effect
-		//glyph->bytes[THIRD] == data[FIRST]; 
-		glyph--->bytes[FOURTH] = data[SECOND];
+		glyph->bytes[2] = data[0]; 
+		glyph->bytes[3] = data[1];
 	}
+
 	glyph->end = end;
 
+	// [DEBUG]
+	// fprintf(stderr, "\nbytes={0x%02x, 0x%02x, 0x%02x, 0x%02x}", glyph->bytes[0], glyph->bytes[1], glyph->bytes[2], glyph->bytes[3]);
 	return glyph;
 }
 
 void write_glyph(Glyph* glyph)
 {
 	if(glyph->surrogate){
-		write(STDIN_FILENO, glyph->bytes, SURROGATE_SIZE);
+		write(STDOUT_FILENO, glyph->bytes, SURROGATE_SIZE);
+		
 	} else {
-		write(STDIN_FILENO, glyph->bytes, NON_SURROGATE_SIZE);
+		write(STDOUT_FILENO, glyph->bytes, NON_SURROGATE_SIZE);
 	}
 }
 
@@ -155,7 +213,10 @@ void parse_args(int argc, char** argv)
 		switch(c){ 
 			case 'u':
 				endian_convert = strncpy(endian_convert, optarg, ENDIAN_MAX_LENGTH);
-				fprintf(stderr, "endican_convert is : %s\n", endian_convert);
+
+				// [DEBUG]
+				// fprintf(stderr, "endian_convert is : %s\n", endian_convert);
+
 				break;
 			default:
 				fprintf(stderr, "Unrecognized argument.: %c\n", c);
@@ -170,31 +231,30 @@ void parse_args(int argc, char** argv)
 
 	if(optind < argc){
 		// fix#1: allocate memory for filenameA
-		filename = (char*) malloc(strlen(argv[optind]));
+		filename = (char*) malloc(strlen(argv[optind]) + 1);
+		filename = (char*) memset(filename, 0, strlen(argv[optind])+1);
 		strncpy(filename, argv[optind], strlen(argv[optind]));
 	} else {
 		fprintf(stderr, "Filename not given.\n");
 		free(endian_convert);
-		free(filename);		
 		print_help();
 	}
 
 	if(endian_convert == NULL){
 		fprintf(stderr, "Converson mode not given.\n");
 		free(endian_convert);
-		free(filename);
 		print_help();
 	}
 
-	if(strcmp(endian_convert, "LE")){ 
+	if(strcmp(endian_convert, "16LE")){ 
 		conversion = LITTLE;
-	} else if(strcmp(endian_convert, "BE")){
+	} else if(strcmp(endian_convert, "16BE")){
 		conversion = BIG;
 	} else {
 		free(endian_convert);
-		free(filename);
 		quit_converter(NO_FD);
 	}
+	free(endian_convert);
 }
 
 void print_help(void) {
@@ -206,6 +266,8 @@ void print_help(void) {
 
 void quit_converter(int fd)
 {
+	free(filename);
+
 	close(STDERR_FILENO);
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
