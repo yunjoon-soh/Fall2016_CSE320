@@ -23,6 +23,10 @@
 /* for uname*/
 #include <sys/utsname.h>
 #include <rpc/rpc.h>
+/* for timing*/
+#include <time.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 /* fix#2: MAX_BYTES from 2 to 4*/
 #define MAX_BYTES 4
@@ -145,7 +149,16 @@ static struct option long_options[] = {
 /* my constants */
 const int ENDIAN_MAX_LENGTH=5;
 
+typedef enum {READ, CONVERT, WRITE} measure;
+
 /* my variables*/
 int opt_v = 0;
 int opt_u = 0;
+int ASCII_cnt = 0;
+int surrogate_cnt = 0;
+int glyph_cnt = 0;
+
+/* my helper functions*/
+void rusage_start(void);
+void rusage_end(measure m);
 #endif

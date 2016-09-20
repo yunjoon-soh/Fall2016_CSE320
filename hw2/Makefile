@@ -9,7 +9,8 @@ BIN = utf
 
 # Compiler related
 CC = gcc
-CFLAGS = -g -Wall -Werror -pedantic -Wextra
+CFLAGS = -g -Wall -pedantic -Wextra
+#TODO: -Werror
 
 # Makefile related
 #SRCS = $(wildcard $(SRCDIR)/*.c)

@@ -4,11 +4,18 @@ char* filename;
 endianness source;
 endianness conversion;
 
+struct rusage usage;
+struct timeval user_Start, user_End, sys_Start, sys_End;
+
+clock_t R_Start, R_End, C_Start, C_End, W_Start, W_End;
+double real_R_Time, real_C_Time, real_W_Time;
+double user_R_Time, user_C_Time, user_W_Time;
+double sys_R_Time, sys_C_Time, sys_W_Time;
+
 int main(int argc, char** argv)
 {
 	unsigned int buf[2];
 	int fd, rv;
-	char chr[2];
 	Glyph* glyph;
 	struct stat statbuf;
 	char* fullpath;
@@ -42,7 +49,21 @@ int main(int argc, char** argv)
 	rv = 0;
 	buf[0] = 0;
 	buf[1] = 0;
+	real_R_Time = 0;
+	real_C_Time = 0;
+	real_W_Time = 0;
+
+	R_Start = clock();
+	rusage_start();
+
 	if((rv = read(fd, &buf[0], 1)) == 1 && (rv = read(fd, &buf[1], 1)) == 1) { 
+		R_End = clock();
+		real_R_Time += (R_End - R_Start);
+		rusage_end(READ);
+
+		/* CONVERT START */
+		C_Start = clock();
+		rusage_start();
 		#ifndef LITTLE_ENDIAN_SYSTEM
 		buf[0] = buf[0] >> 24;
 		buf[1] = buf[1] >> 24;
@@ -52,27 +73,37 @@ int main(int argc, char** argv)
 		glyph->bytes[SECOND] = buf[1];
 
 		if(buf[0] == 0xff && buf[1] == 0xfe){
-			/*file is big endian*/
-			source = BIG; 
-		} else if(buf[0] == 0xfe && buf[1] == 0xff){
 			/*file is little endian*/
 			source = LITTLE;
+		} else if(buf[0] == 0xfe && buf[1] == 0xff){
+			/*file is big endian*/
+			source = BIG; 
 		} else {
 			/*file has no BOM*/
-
 			fprintf(stderr, "File has no BOM. buf[%d]=%x, buf[%d]=%x\n", 0, buf[0], 1, buf[1]);
 			free(glyph);
 			quit_converter(fd);
 		}
 
-		/* [DEBUG] */
-		/* printf("Done with finding BOM\n"); */
-
 		/* for writing glyph */
 		if(source != conversion){
 			swap_endianness(glyph);
 		}
+		C_End = clock();
+		real_C_Time += (C_End - C_Start);
+		rusage_end(CONVERT);
+		/* CONVERT END */
+
+		/* WRITE START */
+		W_Start = clock();
+		rusage_start();
+
 		write_glyph(glyph);
+
+		W_End = clock();
+		real_W_Time = (W_End - W_Start);
+		rusage_end(WRITE);
+		/* WRITE END */
 
 		void* memset_return = memset(glyph, 0, sizeof(Glyph)+1);
 		
@@ -88,19 +119,8 @@ int main(int argc, char** argv)
 	}
 	
 	if(opt_v >= 1){
-		if(source == BIG){
-			fprintf(stderr, "Input file encoding: UTF16-BE\n");
-		}
-		else if(source == LITTLE){
-			fprintf(stderr, "Input file encoding: UTF16-LE\n");
-		}
-
-		if(conversion == BIG){
-			fprintf(stderr, "Output file encoding: UTF16-BE\n");
-		}
-		else if(conversion == LITTLE){
-			fprintf(stderr, "Output file encoding: UTF16-LE\n");
-		}
+		fprintf(stderr, "Input file encoding: %s\n", (source==0)?"UTF16-LE":"UTF16-BE");
+		fprintf(stderr, "Output file encoding: %s\n", (conversion==0)?"UTF16-LE":"UTF16-BE");
 		
 		hostname = (char*)malloc(MAXHOSTNAMELEN + 1);
 		gethostname(hostname, MAXHOSTNAMELEN + 1);
@@ -120,34 +140,54 @@ int main(int argc, char** argv)
 	}*/
 
 	/* Now deal with the rest of the bytes.*/
-	while((rv = read(fd, &chr, 2)) == 2){
-		buf[0] = chr[0] & 0xff;
-		buf[1] = chr[1] & 0xff;
+	R_Start = clock();
+	rusage_start();
+	while((rv = read(fd, &buf[0], 1)) == 1 && (rv = read(fd, &buf[1], 1)) == 1) { 
+		R_End = clock();
+		real_R_Time += (R_End - R_Start);
+		rusage_end(READ);
 
-		/* [DEBUG] */
-		// printf("Inside while loop: 0x%02x 0x%02x\n", buf[0], buf[1]);
+		C_Start = clock();
+		rusage_start();
 
 		fill_glyph(glyph, buf, source, &fd);
 
-		/* [DEBUG] */
-		// fprintf(stderr, "source_end = %u, conversion_end = %u", source, conversion);
-		if(source != conversion){
+		if(source == conversion){
+			// fprintf(stderr, "Source=%d, Conversion=%d swap started...\n", source, conversion);
 			swap_endianness(glyph);
 		}
 
+		C_End = clock();
+		real_C_Time += (C_End - C_Start);
+		rusage_end(CONVERT);
+
+		W_Start = clock();
+		rusage_start();
 		write_glyph(glyph);
+		W_End = clock();
+		real_W_Time = (W_End - W_Start);
+		rusage_end(WRITE);
 
 		void* memset_return = memset(glyph, 0, sizeof(Glyph)+1);
 
-	        /* Memory write failed, recover from it: */
-	         if(memset_return == NULL){
-		        /* tweak write permission on heap memory. */
-		        //asm("movl $8, %esi\n\t"
-		        //    "movl $.LC0, %edi\n\t"
-		        //    "movl $0, %eax");
-		        /* Now make the request again. */
-		        memset(glyph, 0, sizeof(Glyph)+1);
-	        }
+		/* Memory write failed, recover from it: */
+		if(memset_return == NULL){
+			/* tweak write permission on heap memory. */
+			//asm("movl $8, %esi\n\t"
+			//    "movl $.LC0, %edi\n\t"
+			//    "movl $0, %eax");
+			/* Now make the request again. */
+			memset(glyph, 0, sizeof(Glyph)+1);
+		}
+	}
+
+	if(opt_v >= 2){
+		fprintf(stderr, "Reading: real=%f, user=%f, sys=%f\n", real_R_Time, user_R_Time, sys_R_Time);
+		fprintf(stderr, "Converting: real=%f, user=%f, sys=%f\n", real_C_Time, user_C_Time, sys_C_Time);
+		fprintf(stderr, "Writing: real=%f, user=%f, sys=%f\n", real_W_Time, user_W_Time, sys_W_Time);
+		fprintf(stderr, "ASCII: %f%%\n", 100*(((double)ASCII_cnt)/((double)glyph_cnt)));
+		fprintf(stderr, "Surrogates: %f%%\n", 100*(((double)surrogate_cnt)/((double)glyph_cnt)));
+		fprintf(stderr, "Glyphs: %d\n", glyph_cnt);
 	}
 
 	free(glyph);
@@ -176,13 +216,23 @@ Glyph* swap_endianness(Glyph* glyph)
 Glyph* fill_glyph(Glyph* glyph, unsigned int data[2], endianness end, int* fd)
 {
 	unsigned int bits;
-	glyph->bytes[FIRST] = data[0];
-	glyph->bytes[SECOND] = data[1];
+
+	glyph->bytes[FIRST] = data[1];
+	glyph->bytes[SECOND] = data[0];
 
 	// fix#2: change '0' to 0
 	//unsigned int bits = '0';
 	bits = 0;
-	bits |= (data[0] + (data[1] << 8));
+	if(end == LITTLE)
+		bits |= ((glyph->bytes[FIRST] << 8) + glyph->bytes[SECOND]);
+	else
+		bits |= ((glyph->bytes[SECOND] << 8) + glyph->bytes[FIRST]);
+
+	/* [DEBUG] */
+	// fprintf(stderr, "\nFill_glyph, end is %d\n", end);
+	// fprintf(stderr, "Address of data[%d]=%08x, val=%08x\n", 0, (int) &data[0], data[0]);
+	// fprintf(stderr, "Address of data[%d]=%08x, val=%08x\n", 1, (int) &data[1], data[1]);
+	// fprintf(stderr, "Bits: %08x\n", bits);
 
 
 	/* Check high surrogate pair using its special value range.*/
@@ -192,8 +242,12 @@ Glyph* fill_glyph(Glyph* glyph, unsigned int data[2], endianness end, int* fd)
 	{
 		// This block means no surrogate pair
 		glyph->surrogate = false; 
+		if(bits <= 0x007f){
+			ASCII_cnt++;
+		}
 
 	} else {
+
 		// This block means yes surrogate pair
 		if(read(*fd, &data[0], 1) == 1 && read(*fd, &(data[1]), 1) == 1)
 		{
@@ -201,11 +255,15 @@ Glyph* fill_glyph(Glyph* glyph, unsigned int data[2], endianness end, int* fd)
 			data[0] = data[0] >> 24;
 			data[1] = data[1] >> 24;
 			#endif
-			// fix#2
-			//bits = '0'; /* bits |= (bytes[FIRST] + (bytes[SECOND] << 8)) */
-			bits = 0; /* bits |= (bytes[FIRST] + (bytes[SECOND] << 8)) */
-			bits |= (data[0] + (data[1] << 8));
-		
+
+			glyph->bytes[THIRD] = data[1];
+			glyph->bytes[FOURTH] = data[0];
+
+			/* [DEBUG] */
+			// fprintf(stderr, "Address of data[%d]=%08x, val=%08x\n", 0, (int) &data[0], data[0]);
+			// fprintf(stderr, "Address of data[%d]=%08x, val=%08x\n", 1, (int) &data[1], data[1]);
+			// fprintf(stderr, "Bits: %08x\n", bits);
+
 			glyph->surrogate = true;
 			//if(bits > 0xDAAF && bits < 0x00FF){ /* Check low surrogate pair.*/
 			//} else {
@@ -218,25 +276,32 @@ Glyph* fill_glyph(Glyph* glyph, unsigned int data[2], endianness end, int* fd)
 		glyph->bytes[THIRD] = 0;
 		glyph->bytes[FOURTH] = 0;
 	} else {
-		glyph->bytes[THIRD] = data[0]; 
-		glyph->bytes[FOURTH] = data[1];
+		surrogate_cnt++;
 	}
 
 	glyph->end = end;
-
+	glyph_cnt++;
+	
 	/* [DEBUG] */
-//	fprintf(stderr, "\nbytes={0x%02x, 0x%02x, 0x%02x, 0x%02x}", glyph->bytes[0], glyph->bytes[1], glyph->bytes[2], glyph->bytes[3]);
+	// fprintf(stderr, "bytes={0x%02x, 0x%02x, 0x%02x, 0x%02x} isLitte(0 if little)=%d\n", glyph->bytes[FIRST], glyph->bytes[SECOND], glyph->bytes[THIRD], glyph->bytes[FOURTH], glyph->end);
 	return glyph;
 }
 
 void write_glyph(Glyph* glyph)
 {
+	write(STDOUT_FILENO, &glyph->bytes[FIRST], 1);
+	write(STDOUT_FILENO, &glyph->bytes[SECOND], 1);
+
 	if(glyph->surrogate){
-		write(STDOUT_FILENO, glyph->bytes, SURROGATE_SIZE);
-		
-	} else {
-		write(STDOUT_FILENO, glyph->bytes, NON_SURROGATE_SIZE);
+		write(STDOUT_FILENO, &glyph->bytes[THIRD], 1);
+		write(STDOUT_FILENO, &glyph->bytes[FOURTH], 1);
 	}
+	// if(glyph->surrogate){
+	// 	write(STDOUT_FILENO, glyph->bytes, 4);
+	// }
+	// else {
+	// 	write(STDOUT_FILENO, glyph->bytes, 2);
+	// }
 }
 
 void parse_args(int argc, char** argv)
@@ -311,9 +376,9 @@ void parse_args(int argc, char** argv)
 		print_help();
 	}
 
-	if(strcmp(endian_convert, "16LE")){ 
+	if(strcmp(endian_convert, "16LE") == 0){ 
 		conversion = LITTLE;
-	} else if(strcmp(endian_convert, "16BE")){
+	} else if(strcmp(endian_convert, "16BE") == 0){
 		conversion = BIG;
 	} else {
 		free(endian_convert);
@@ -341,4 +406,46 @@ void quit_converter(int fd)
 		close(fd);
 	exit(0);
 	/* Ensure that the file is included regardless of where we start compiling from. */
+}
+
+void rusage_start(void){
+	int ret;
+	ret = getrusage(RUSAGE_SELF, &usage);
+
+	if(ret == -1)
+		fprintf(stderr, "%s: %s\n", "getrusage() failed", strerror(errno));
+
+	user_Start = usage.ru_utime;
+	sys_Start = usage.ru_stime;
+}
+
+void rusage_end(measure m){
+	int ret;
+
+	ret = getrusage(RUSAGE_SELF, &usage);
+
+	if(ret == -1)
+		fprintf(stderr, "%s: %s\n", "getrusage() failed", strerror(errno));
+
+	user_End = usage.ru_utime;
+	sys_End = usage.ru_stime;
+
+	switch(m){
+		case READ:
+			user_R_Time += ((user_End.tv_sec * 1000000 + user_End.tv_usec) - (user_Start.tv_sec * 1000000 + user_Start.tv_usec));
+			sys_R_Time += ((sys_End.tv_sec * 1000000 + sys_End.tv_usec) - (sys_Start.tv_sec * 1000000 + sys_Start.tv_usec)) ;
+			break;
+		case CONVERT:
+			user_C_Time += ((user_End.tv_sec * 1000000 + user_End.tv_usec) - (user_Start.tv_sec * 1000000 + user_Start.tv_usec));
+			sys_C_Time += ((sys_End.tv_sec * 1000000 + sys_End.tv_usec) - (sys_Start.tv_sec * 1000000 + sys_Start.tv_usec)) ;
+			break;
+		case WRITE:
+			user_W_Time += ((user_End.tv_sec * 1000000 + user_End.tv_usec) - (user_Start.tv_sec * 1000000 + user_Start.tv_usec));
+			sys_W_Time += ((sys_End.tv_sec * 1000000 + sys_End.tv_usec) - (sys_Start.tv_sec * 1000000 + sys_Start.tv_usec)) ;
+			break;
+	}
+
+	/* [DEBUG] */
+	//fprintf(stderr,"This is user_End: %lu, %lu\n", user_End.tv_sec, user_End.tv_usec);
+	//fprintf(stderr, "This is sys_End: %lu, %lu\n", sys_End.tv_sec, sys_End.tv_usec);
 }
