@@ -5,8 +5,8 @@ OUTPUTDIR=./output
 # test files
 TEST_16BE_Special=./rsrc/utf16BE-special.txt
 TEST_16LE_Special=./rsrc/utf16LE-special.txt
-# TEST_16LE=./rsrc/LongLEBOM.txt
-TEST_16LE=./rsrc/16le.txt
+#TEST_16LE=./rsrc/LongLEBOM.txt
+TEST_16LE=./rsrc/utf16le.txt
 TEST_16BE=./rsrc/16be.txt
 
 TEST_OUTPUT=./test/out.txt

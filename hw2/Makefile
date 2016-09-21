@@ -9,16 +9,15 @@ BIN = utf
 
 # Compiler related
 CC = gcc
-CFLAGS = -g -Wall -pedantic -Wextra
-#TODO: -Werror
+CFLAGS = -g -Wall -Werror -pedantic -Wextra
 
 # Makefile related
 #SRCS = $(wildcard $(SRCDIR)/*.c)
-SRCS= $(SRCDIR)/utfconverter.c
+SRCS= $(SRCDIR)/utfconverter.c $(SRCDIR)/filemanager.c
 #OBJECTS = $(patsubst $(SRCDIR)/%.c, $(BUILDDIR)/%.o, $(SRCS))
-OBJECTS = $(BUILDDIR)/utfconverter.o
+OBJECTS = $(BUILDDIR)/utfconverter.o $(BUILDDIR)/filemanager.o
 #HDRS = $(wildcard $(INCLUDEDIR)/*.h)
-HDRS = $(INCLUDEDIR)/utfconverter.h
+HDRS = $(INCLUDEDIR)/main.h $(INCLUDEDIR)/utfconverter.h $(INCLUDEDIR)/filemanager.h
 
 # Commands Shortcut
 MAKE_FOLDER = mkdir -p
