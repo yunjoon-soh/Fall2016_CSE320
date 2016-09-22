@@ -78,14 +78,14 @@ Glyph* swap_endianness (Glyph* glyph);
  * 			file.
  * @return Returns a pointer to the filled-in glyph.
  */
-Glyph* fill_glyph (Glyph*, unsigned int data[2], endianness end);
+Glyph* fill_glyph (Glyph* glyph, unsigned char data[2], endianness end);
 
 /**
  * Writes the given glyph's contents to stdout.
  *
  *@param glyph The pointer to the glyph struct to write to stdout.
  */
-void write_glyph (Glyph*);
+void write_glyph (Glyph* glyph, int n);
 
 /**
  * Calls getopt() and parses arguments.
@@ -135,5 +135,10 @@ int glyph_cnt = 0;
 void rusage_start();
 void rusage_end(measure m);
 void resetGlyph(Glyph* glyph);
+
+int howManyMoreByte(unsigned char c);
+void convert(Glyph* glyph, unsigned int codePoint, endianness end);
+int calCodePoint(Glyph* glyph);
+void print_Glyph(Glyph* glyph);
 
 #endif

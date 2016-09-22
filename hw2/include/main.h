@@ -31,7 +31,7 @@
 
 
 /** The enum for endianness. */
-typedef enum {NO_BOM, LITTLE, BIG} endianness;
+typedef enum {NO_BOM, LITTLE, BIG, EIGHT} endianness;
 
 endianness checkBom(int fd);
 void writeBom(int fd, endianness end);

@@ -5,7 +5,7 @@
 
 /* All returns -1 on failure*/
 int openToRead(char* filename);
-int openToWrite(char* filename, endianness end);
+int openToWrite(char* filename, endianness target);
 int openToCreate(char* filename);
 int openToAppend(char* filename);
 
