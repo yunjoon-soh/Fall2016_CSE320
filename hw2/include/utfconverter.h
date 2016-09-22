@@ -35,7 +35,7 @@ typedef struct Glyph {
 extern char* filename;
 
 /** The usage statement. */
-#define USAGE_LENGTH 13
+#define USAGE_LENGTH 12
 const char* USAGE[USAGE_LENGTH] = {
 "Command line utility for converting files from UTF-16LE to UTF-16BE or vice versa.\n\n",
 "Usage:\n",
@@ -138,7 +138,7 @@ void resetGlyph(Glyph* glyph);
 
 int howManyMoreByte(unsigned char c);
 void convert(Glyph* glyph, unsigned int codePoint, endianness end);
-int calCodePoint(Glyph* glyph);
+int calCodePoint(Glyph* glyph, int total_bytes);
 void print_Glyph(Glyph* glyph);
 
 #endif

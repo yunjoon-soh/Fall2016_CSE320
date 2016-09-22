@@ -1,8 +1,6 @@
 #include "utfconverter.h"
 #include "filemanager.h"
 
-#define LITTLE_ENDIAN_SYSTEM
-
 char* filename, *outfilename;
 endianness source, conversion;
 int infile_fd, outfileFd;
@@ -43,23 +41,113 @@ int main(int argc, char** argv)
 	/* After calling parse_args(), filename, outfilename, infile_fd, outfileFd and conversion should be set. */
 	parse_args(argc, argv);
 
-	/* open files */
+	/* open infile */
 	infile_fd = openToRead(filename);
 	if(infile_fd == NO_FD){
 		quit_converter(NO_FD);
+		exit(EXIT_FAILURE);
 	}
 	
 	/* checkBom of infile */
 	source = checkBom(infile_fd);
+	if(source == NO_BOM){
+		quit_converter(infile_fd);
+		exit(EXIT_FAILURE);
+	}
 
+	/* open outfile */
 	outfileFd = openToWrite(outfilename, conversion);
 	if(outfileFd == NO_FD){
 		quit_converter(infile_fd);
+		exit(EXIT_FAILURE);
 	}
 
+	/* check if both files have the same fd */
 	if(infile_fd == outfileFd){
+		fprintf(stderr, "Cannot target the same file as the input file\n");
 		close(infile_fd);
 		quit_converter(outfileFd);
+		exit(EXIT_FAILURE);
+	}	
+
+	/* Now deal with the rest of the bytes.*/
+	buf[0] = 0;
+	buf[1] = 0;
+	rv = 0;
+
+	if(source == LITTLE || source == BIG) {
+		rusage_start();
+		while(((rv = read(infile_fd, &buf[0], 1)) == 1) && ((rv = read(infile_fd, &buf[1], 1)) == 1)) { 
+			rusage_end(READ);
+
+			rusage_start();
+
+			/* Can fill UTF16LE/BE */
+			fill_glyph(&glyph, buf, source);
+
+			if(conversion == LITTLE || conversion == BIG){
+				if(source != conversion){
+					// fprintf(stderr, "Source=%d, Conversion=%d swap started...\n", source, conversion);
+					swap_endianness(&glyph);
+				}
+				rusage_end(CONVERT);
+
+				rusage_start();
+				write_glyph(&glyph, (glyph.surrogate)?SURROGATE_SIZE:NON_SURROGATE_SIZE);
+				rusage_end(WRITE);
+				
+			} else if (conversion == EIGHT){
+				codePoint = calCodePoint(&glyph, -1); /* In this case we can ignore the total_byte size */
+
+				convert(&glyph, codePoint, EIGHT);
+
+				rusage_end(CONVERT);
+
+				total_bytes = howManyMoreByte(glyph.bytes[0]);
+
+				rusage_start();
+				write_glyph(&glyph, total_bytes);
+				rusage_end(WRITE);
+			} else {
+				fprintf(stderr, "Should not reach here, i.e. conversion=NO_BOM\n");
+			}			
+
+			resetGlyph(&glyph);
+		}
+	} else if(source == EIGHT) {
+		rusage_start();
+		while((rv = read(infile_fd, &buf[0], 1)) == 1) { 
+			total_bytes = howManyMoreByte(buf[0]);
+
+			glyph.bytes[0] = buf[0];
+			for(i = 1; i < total_bytes; i++){
+				rv = read(infile_fd, &buf[0], 1);
+				glyph.bytes[i] = buf[0];
+			}
+			glyph.end = EIGHT;
+			glyph.surrogate = false;
+			glyph_cnt++;
+			rusage_end(READ);
+			
+
+			rusage_start();
+			codePoint = calCodePoint(&glyph, total_bytes);
+			if(codePoint <= 0x7F){
+				ASCII_cnt++;
+			}
+			
+			convert(&glyph, codePoint, conversion);
+			
+			rusage_end(CONVERT);
+
+			rusage_start();
+			write_glyph(&glyph, (glyph.surrogate)?(SURROGATE_SIZE):(NON_SURROGATE_SIZE));
+			rusage_end(WRITE);
+
+			resetGlyph(&glyph);
+		}
+	} else {
+		fprintf(stderr, "Should not reach here, i.e. conversion=NO_BOM\n");
 	}
 
 	if(opt_v >= 1){
@@ -110,77 +198,12 @@ int main(int argc, char** argv)
 		fprintf(stderr, "Operating System: %s\n", osname.sysname);
 	}
 
-	/* Now deal with the rest of the bytes.*/
-	buf[0] = 0;
-	buf[1] = 0;
-	rv = 0;
-
-	if(source == LITTLE || source == BIG) {
-		rusage_start();
-		while((rv = read(infile_fd, &buf[0], 1)) == 1 && (rv = read(infile_fd, &buf[1], 1)) == 1) { 
-			rusage_end(READ);
-
-			rusage_start();
-
-			/* Can fill UTF16LE/BE */
-			fill_glyph(&glyph, buf, source);
-
-			if(conversion == LITTLE || conversion == BIG){
-				if(source == conversion){
-					// fprintf(stderr, "Source=%d, Conversion=%d swap started...\n", source, conversion);
-					swap_endianness(&glyph);
-				}
-			} else if (conversion == EIGHT){
-
-			} else {
-				fprintf(stderr, "Should not reach here, i.e. conversion=NO_BOM\n");
-			}
-			rusage_end(CONVERT);
-
-			rusage_start();
-			write_glyph(&glyph, (glyph.surrogate)?SURROGATE_SIZE:NON_SURROGATE_SIZE);
-			rusage_end(WRITE);
-
-			resetGlyph(&glyph);
-		}
-	} else if(source == EIGHT) {
-		rusage_start();
-		while((rv = read(infile_fd, &buf[0], 1)) == 1) { 
-			total_bytes = howManyMoreByte(buf[0]);
-
-			glyph.bytes[0] = buf[0];
-			for(i = 1; i <= total_bytes; i++){
-				rv = read(infile_fd, &buf[0], 1);
-				glyph.bytes[i] = buf[0];
-			}
-			glyph.end = EIGHT;
-			glyph.surrogate = false;
-			rusage_end(READ);
-
-			rusage_start();
-			codePoint = calCodePoint(&glyph);
-			if(codePoint <= 0xFF){
-				ASCII_cnt++;
-			}
-			convert(&glyph, codePoint, conversion);
-			rusage_end(CONVERT);
-
-			rusage_start();
-			write_glyph(&glyph, total_bytes);
-			rusage_end(WRITE);
-
-			resetGlyph(&glyph);
-		}
-	} else {
-		fprintf(stderr, "Should not reach here, i.e. conversion=NO_BOM\n");
-	}
-
 	if(opt_v >= 2){
-		fprintf(stderr, "Reading: real=%f, user=%f, sys=%f\n", real_R_Time, user_R_Time, sys_R_Time);
-		fprintf(stderr, "Converting: real=%f, user=%f, sys=%f\n", real_C_Time, user_C_Time, sys_C_Time);
-		fprintf(stderr, "Writing: real=%f, user=%f, sys=%f\n", real_W_Time, user_W_Time, sys_W_Time);
-		fprintf(stderr, "ASCII: %f%%\n", 100*(((double)ASCII_cnt)/((double)glyph_cnt)));
-		fprintf(stderr, "Surrogates: %f%%\n", 100*(((double)surrogate_cnt)/((double)glyph_cnt)));
+		fprintf(stderr, "Reading: real=%.1f, user=%.1f, sys=%.1f\n", real_R_Time/1000000, user_R_Time/1000000, sys_R_Time/1000000);
+		fprintf(stderr, "Converting: real=%.1f, user=%.1f, sys=%.1f\n", real_C_Time/1000000, user_C_Time/1000000, sys_C_Time/1000000);
+		fprintf(stderr, "Writing: real=%.1f, user=%.1f, sys=%.1f\n", real_W_Time/1000000, user_W_Time/1000000, sys_W_Time/1000000);
+		fprintf(stderr, "ASCII: %.0f%%\n", 100*(((double)ASCII_cnt)/((double)glyph_cnt)));
+		fprintf(stderr, "Surrogates: %.0f%%\n", 100*(((double)surrogate_cnt)/((double)glyph_cnt)));
 		fprintf(stderr, "Glyphs: %d\n", glyph_cnt);
 	}
 
@@ -210,18 +233,13 @@ Glyph* fill_glyph(Glyph* glyph, unsigned char data[2], endianness end)
 {
 	unsigned int bits;
 
-	#ifndef LITTLE_ENDIAN_SYSTEM
-	data[0] = data[0] >> 24;
-	data[1] = data[1] >> 24;
-	#endif
-
-	glyph->bytes[FIRST] = data[1];
-	glyph->bytes[SECOND] = data[0];
+	glyph->bytes[FIRST] = data[0];
+	glyph->bytes[SECOND] = data[1];
 
 	// fix#2: change '0' to 0
 	//unsigned int bits = '0';
 	bits = 0;
-	if(end == LITTLE)
+	if(end == BIG)
 		bits |= ((glyph->bytes[FIRST] << 8) + glyph->bytes[SECOND]);
 	else
 		bits |= ((glyph->bytes[SECOND] << 8) + glyph->bytes[FIRST]);
@@ -231,7 +249,6 @@ Glyph* fill_glyph(Glyph* glyph, unsigned char data[2], endianness end)
 	// fprintf(stderr, "Address of data[%d]=%08x, val=%08x\n", 0, (int) &data[0], data[0]);
 	// fprintf(stderr, "Address of data[%d]=%08x, val=%08x\n", 1, (int) &data[1], data[1]);
 	// fprintf(stderr, "Bits: %08x\n", bits);
-
 
 	/* Check high surrogate pair using its special value range.*/
 	// fix#2: changed the range of none sur pair
@@ -249,13 +266,8 @@ Glyph* fill_glyph(Glyph* glyph, unsigned char data[2], endianness end)
 		// This block means yes surrogate pair
 		if(read(infile_fd, &data[0], 1) == 1 && read(infile_fd, &(data[1]), 1) == 1)
 		{
-			#ifndef LITTLE_ENDIAN_SYSTEM
-			data[0] = data[0] >> 24;
-			data[1] = data[1] >> 24;
-			#endif
-
-			glyph->bytes[THIRD] = data[1];
-			glyph->bytes[FOURTH] = data[0];
+			glyph->bytes[THIRD] = data[0];
+			glyph->bytes[FOURTH] = data[1];
 
 			/* [DEBUG] */
 			// fprintf(stderr, "Address of data[%d]=%08x, val=%08x\n", 0, (int) &data[0], data[0]);
@@ -304,7 +316,6 @@ void parse_args(int argc, char** argv)
 	int option_index, c;
 	char* endian_convert;
 	
-
 	/* If getopt() returns with a valid (its working correctly) 
 	 * return code, then process the args! */
 	endian_convert = (char*) malloc(ENDIAN_MAX_LENGTH * sizeof(char));
@@ -315,7 +326,7 @@ void parse_args(int argc, char** argv)
 			case 'h':
 				print_help();
 				free(endian_convert);
-				quit_converter(NO_FD);
+				exit(EXIT_SUCCESS);
 				break;
 			case 'u':
 				opt_u++;
@@ -327,12 +338,12 @@ void parse_args(int argc, char** argv)
 			case '?':
 				print_help();
 				free(endian_convert);
-				quit_converter(NO_FD);
+				exit(EXIT_FAILURE);
 				break;
 			default:
 				fprintf(stderr, "%s: %s=%c\n", "Unrecognized argument.\n", strerror(errno), c);
 				free(endian_convert);
-				quit_converter(NO_FD);
+				exit(EXIT_FAILURE);
 				break;
 		}
 	}
@@ -352,14 +363,17 @@ void parse_args(int argc, char** argv)
 			conversion = LITTLE;
 		} else if(strcmp(endian_convert, "16BE") == 0){
 			conversion = BIG;
-		} else {
+		} else if(strcmp(endian_convert, "8") == 0){
+			conversion = EIGHT;
+		} else{
 			fprintf(stderr, "Invalid UTF option passed: %s\n", endian_convert);
 			opt_u=-1;
 		}
 	}
 	if(opt_u == -1){
 		free(endian_convert);
-		quit_converter(NO_FD);
+		print_help();
+		exit(EXIT_FAILURE);
 	}
 
 	/* Check for filenames */
@@ -370,9 +384,6 @@ void parse_args(int argc, char** argv)
 
 		optind++;
 
-		/* [DEBUG] */
-		// fprintf(stderr, "%d - %d\n", argc, optind);
-
 		if(argc - optind == 1){
 			outfilename = (char*) malloc(strlen(argv[optind]) + 1);
 			outfilename = (char*) memset(outfilename, 0, strlen(argv[optind]) + 1);
@@ -380,12 +391,14 @@ void parse_args(int argc, char** argv)
 		}
 	}
 	else if((argc-optind) > 2){
-		fprintf(stderr, "Filename not given.\n");
+		fprintf(stderr, "Too many arguments passed, aborting...\n");
 		print_help();
+		exit(EXIT_FAILURE);
 	}
 	else {
 		fprintf(stderr, "Filename not given.\n");
 		print_help();
+		exit(EXIT_FAILURE);
 	}
 }
 
@@ -394,21 +407,22 @@ void print_help(void) {
 	for(i = 0; i < USAGE_LENGTH; i++){
 		printf("%s", USAGE[i]); 
 	}
-	quit_converter(NO_FD);
 }
 
 void quit_converter(int fd)
 {
-	free(filename);
-	free(outfilename);
+	if(filename != NULL){
+		free(filename);
+	}
+	if(outfilename != NULL){
+		free(outfilename);
+	}
 
 	if(outfileFd != STDOUT_FILENO)
 		close(outfileFd);
 
 	if(fd != NO_FD)
 		close(fd);
-
-	exit(0);
 	/* Ensure that the file is included regardless of where we start compiling from. */
 }
 
@@ -483,11 +497,6 @@ endianness checkBom(int fd){
 	buf[0] = 0;
 	buf[1] = 0;
 	if((rv = read(fd, &buf[0], 1)) == 1 && (rv = read(fd, &buf[1], 1)) == 1) { 
-		#ifndef LITTLE_ENDIAN_SYSTEM
-		buf[0] = buf[0] >> 24;
-		buf[1] = buf[1] >> 24;
-		#endif
-
 		if(buf[0] == 0xff && buf[1] == 0xfe){
 			/*file is little endian*/
 			return LITTLE;
@@ -542,19 +551,13 @@ void writeBom(int fd, endianness end){
 	}
 }
 
-
-int calCodePoint(Glyph* glyph){
+int calCodePoint(Glyph* glyph, int total_bytes){
 	unsigned int codePoint, tmp_i;
-	int total_bytes;
 	unsigned char tmp;
 
 	codePoint = 0;
-	total_bytes = howManyMoreByte(glyph->bytes[FIRST]);
-
-	printf("There are %d bytes\n", total_bytes);
 	
-	if(glyph->end == EIGHT){
-		printf("EIGHT\n");		
+	if(glyph->end == EIGHT){	
 		if(total_bytes == 1){
 			codePoint += glyph->bytes[FIRST];
 		} else if(total_bytes == 2){
@@ -580,7 +583,6 @@ int calCodePoint(Glyph* glyph){
 			codePoint += tmp;
 		}
 	} else if(glyph->end == LITTLE){
-		printf("LITTLE\n");
 		if(glyph->surrogate){
 			tmp_i = (glyph->bytes[SECOND] << 8) + glyph->bytes[FIRST];
 			tmp_i -= 0xD800;
@@ -639,6 +641,7 @@ void convert(Glyph* glyph, unsigned int codePoint, endianness end){
 			tmp2 = (tmp & 0x3FF) + 0xDC00;
 			glyph->bytes[2] = (tmp2 >> 8);
 			glyph->bytes[3] = (tmp2 & 0x000000FF);
+			glyph->surrogate = true;
 		} else {
 			tmp = codePoint;
 			glyph->bytes[0] = (tmp >> 8);
@@ -654,11 +657,11 @@ void convert(Glyph* glyph, unsigned int codePoint, endianness end){
 			glyph->bytes[1] = ((tmp << (32 - (6 * 1))) >> 26) + 0x80 ; // 1000 0000
 		} else if(codePoint <= 0xFFFF){
 			glyph->bytes[0] = (tmp >> (6 * 2)) + 0xE0 ; //1110 0000
-			glyph->bytes[1] = ((tmp << (32 - (6 * 2))) >> 26) + 0x80 ; // 1000 0000
+			glyph->bytes[1] = ((tmp << (32 - (6 * 2))) >> 26) + 0x80 ; // 1011 1111
 			glyph->bytes[2] = ((tmp << (32 - (6 * 1))) >> 26) + 0x80 ; // 1011 1111
 		} else if(codePoint <= 0x1FFFFF){
 			glyph->bytes[0] = (tmp >> (6 * 3)) + 0xF0 ; //1111 0000
-			glyph->bytes[1] = ((tmp << (32 - (6 * 3))) >> 26) + 0x80 ; // 1000 0000
+			glyph->bytes[1] = ((tmp << (32 - (6 * 3))) >> 26) + 0x80 ; // 1011 1111
 			glyph->bytes[2] = ((tmp << (32 - (6 * 2))) >> 26) + 0x80 ; // 1011 1111
 			glyph->bytes[3] = ((tmp << (32 - (6 * 1))) >> 26) + 0x80 ; // 1011 1111
 		}
@@ -701,7 +704,6 @@ int howManyMoreByte(unsigned char c){
 
 	return -1;
 }
-
 
 void print_Glyph(Glyph* glyph){
 	printf("Glyph->end %d\n", glyph->end);

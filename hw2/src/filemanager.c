@@ -4,7 +4,7 @@ int openToRead(char* filename){
 	int ret;
 	ret = open(filename, O_RDONLY);
 	if(ret == NO_FD){
-		fprintf(stderr, "%s: %s\n", "File not opened to read: ", strerror(errno));
+		fprintf(stderr, "%s: %s(%s)\n", "File not opened to read: ", strerror(errno), filename);
 		return NO_FD;
 	}
 	else{
@@ -44,9 +44,9 @@ int openToWrite(char* filename, endianness target){
 	else { /* if file does exists go for append mode */
 		readFd = openToRead(filename);
 		if(readFd == NO_FD){
-			fprintf(stderr, "Cannot open existing file... Changing to default stdout\n");
+			fprintf(stderr, "Cannot open existing file... Aborting\n");
 			writeBom(STDOUT_FILENO, target);
-			return STDOUT_FILENO;
+			return NO_FD;
 		}
 
 		currentFileEnd = checkBom(readFd);
