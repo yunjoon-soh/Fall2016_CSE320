@@ -21,7 +21,7 @@ make clean
 make all
 clear
 
-
+############################################
 # test case 1 : LE->LE
 echo ***Running: $BIN -vvu 16LE $TEST_16LE
 $BIN -vvu 16LE $TEST_16LE > $TEST_OUTPUT
@@ -75,7 +75,7 @@ if [ $RET -ne 0 ]; then
 fi
 
 
-#########################################3
+############################################
 # UTF8 OUTPUT
 
 # test case 5 : BE->8
@@ -111,7 +111,7 @@ fi
 #########################################3
 # UTF8 INPUT
 
-test case 7 : 8->BE
+# test case 7 : 8->BE
 rm $TEST_OUTPUT
 echo ***Running: $BIN -vvu 16BE $TEST_8 $TEST_OUTPUT
 $BIN -vvu 16BE $TEST_8 $TEST_OUTPUT
@@ -143,7 +143,25 @@ if [ $RET -ne 0 ]; then
 	exit 1
 fi
 
+############################################
+
+# test case 9 : 8->8
+rm $TEST_OUTPUT
+echo ***Running: $BIN -vvu 8 $TEST_8 $TEST_OUTPUT
+$BIN -vvu 8 $TEST_8 $TEST_OUTPUT
+echo ***cmp $TEST_OUTPUT $TEST_8
+cmp $TEST_OUTPUT $TEST_8
+RET=$?
+if [ $RET -ne 0 ]; then
+	echo Expected:
+	xxd $TEST_8
+	echo Acutal:
+	xxd $TEST_OUTPUT
+	exit 1
+fi
+
 # clean up
+echo ***End of test cases, cleaning up
+rm $TEST_OUTPUT
 make clean
 cd test
-

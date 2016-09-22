@@ -28,8 +28,7 @@ int openToWrite(char* filename, endianness target){
 		/* if file does not exists go for create mode */
 		retFd = openToCreate(filename);
 		if(retFd == NO_FD){
-			writeBom(STDOUT_FILENO, target);
-			return STDOUT_FILENO;
+			return NO_FD;
 		}
 		else{
 			writeBom(retFd, target);
@@ -37,38 +36,32 @@ int openToWrite(char* filename, endianness target){
 		}
 	}
 	else if(ret < 0){ /* if stat failed for some reason*/
-		fprintf(stderr, "%s: %s\n", "Outfile verification failed... changing to default stdout", strerror(errno));
-		writeBom(STDOUT_FILENO, target);
-		return STDOUT_FILENO;
+		fprintf(stderr, "%s: %s\n", "Outfile verification failed... Aborting", strerror(errno));
+		return NO_FD;
 	}
 	else { /* if file does exists go for append mode */
 		readFd = openToRead(filename);
 		if(readFd == NO_FD){
 			fprintf(stderr, "Cannot open existing file... Aborting\n");
-			writeBom(STDOUT_FILENO, target);
 			return NO_FD;
 		}
 
 		currentFileEnd = checkBom(readFd);
 		if(currentFileEnd == NO_BOM){
-			fprintf(stderr, "Cannot append to existing file... Existing file has no BOM... changing to default stdout\n");
-			writeBom(STDOUT_FILENO, target);
-			return STDOUT_FILENO;
+			fprintf(stderr, "Cannot append to existing file... Existing file has no BOM... Aborting\n");
+			return NO_FD;
 		}
 
 		close(readFd);
 
 		if(currentFileEnd != target){
-			fprintf(stderr, "Cannot append to existing file... Targetted encoding: %d, existing file encoding: %d... changing to default stdout\n", target, currentFileEnd);
-			writeBom(STDOUT_FILENO, target);
-			return STDOUT_FILENO;
+			fprintf(stderr, "Cannot append to existing file... Targetted encoding: %d, existing file encoding: %d... Aborting\n", target, currentFileEnd);
+			return NO_FD;
 		}
 
 		retFd = openToAppend(filename);
-
 		if(retFd == NO_FD){
-			writeBom(STDOUT_FILENO, target);
-			return STDOUT_FILENO;
+			return NO_FD;
 		}
 		else{ /* File exists and successfully opens with append mode*/
 			unsigned char newLine = '\n';

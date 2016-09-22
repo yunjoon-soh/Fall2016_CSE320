@@ -87,7 +87,6 @@ int main(int argc, char** argv)
 
 			if(conversion == LITTLE || conversion == BIG){
 				if(source != conversion){
-					// fprintf(stderr, "Source=%d, Conversion=%d swap started...\n", source, conversion);
 					swap_endianness(&glyph);
 				}
 				rusage_end(CONVERT);
@@ -141,7 +140,10 @@ int main(int argc, char** argv)
 			rusage_end(CONVERT);
 
 			rusage_start();
-			write_glyph(&glyph, (glyph.surrogate)?(SURROGATE_SIZE):(NON_SURROGATE_SIZE));
+			if(conversion == BIG || conversion == LITTLE)
+				write_glyph(&glyph, (glyph.surrogate)?(SURROGATE_SIZE):(NON_SURROGATE_SIZE));
+			else
+				write_glyph(&glyph, total_bytes);
 			rusage_end(WRITE);
 
 			resetGlyph(&glyph);
@@ -228,7 +230,6 @@ Glyph* swap_endianness(Glyph* glyph)
 	return glyph;
 }
 
-// fix#2: changed FIRST SECOND THIRD FOURTH to indices
 Glyph* fill_glyph(Glyph* glyph, unsigned char data[2], endianness end)
 {
 	unsigned int bits;
@@ -236,50 +237,31 @@ Glyph* fill_glyph(Glyph* glyph, unsigned char data[2], endianness end)
 	glyph->bytes[FIRST] = data[0];
 	glyph->bytes[SECOND] = data[1];
 
-	// fix#2: change '0' to 0
-	//unsigned int bits = '0';
 	bits = 0;
 	if(end == BIG)
 		bits |= ((glyph->bytes[FIRST] << 8) + glyph->bytes[SECOND]);
 	else
 		bits |= ((glyph->bytes[SECOND] << 8) + glyph->bytes[FIRST]);
 
-	/* [DEBUG] */
-	// fprintf(stderr, "\nFill_glyph, end is %d\n", end);
-	// fprintf(stderr, "Address of data[%d]=%08x, val=%08x\n", 0, (int) &data[0], data[0]);
-	// fprintf(stderr, "Address of data[%d]=%08x, val=%08x\n", 1, (int) &data[1], data[1]);
-	// fprintf(stderr, "Bits: %08x\n", bits);
-
 	/* Check high surrogate pair using its special value range.*/
-	// fix#2: changed the range of none sur pair
-	// if(bits > 0x000F && bits < 0xF8FF){
 	if((bits <= 0xD7FF) || (bits >= 0xE000 && bits <= 0xFFFF))
 	{
-		// This block means no surrogate pair
+		/* This block means no surrogate pair */
 		glyph->surrogate = false; 
 		if(bits <= 0x007f){
 			ASCII_cnt++;
 		}
 	}
 	else {
-
-		// This block means yes surrogate pair
+		/* This block means yes surrogate pair */
 		if(read(infile_fd, &data[0], 1) == 1 && read(infile_fd, &(data[1]), 1) == 1)
 		{
 			glyph->bytes[THIRD] = data[0];
 			glyph->bytes[FOURTH] = data[1];
 
-			/* [DEBUG] */
-			// fprintf(stderr, "Address of data[%d]=%08x, val=%08x\n", 0, (int) &data[0], data[0]);
-			// fprintf(stderr, "Address of data[%d]=%08x, val=%08x\n", 1, (int) &data[1], data[1]);
-			// fprintf(stderr, "Bits: %08x\n", bits);
-
 			glyph->surrogate = true;
-			//if(bits > 0xDAAF && bits < 0x00FF){ /* Check low surrogate pair.*/
-			//} else {
-			//	lseek(*fd, -OFFSET, SEEK_CUR); 
-			//}
 		}
+		glyph->surrogate = true;
 	}
 
 	if(!glyph->surrogate){
@@ -292,8 +274,6 @@ Glyph* fill_glyph(Glyph* glyph, unsigned char data[2], endianness end)
 	glyph->end = end;
 	glyph_cnt++;
 	
-	/* [DEBUG] */
-	// fprintf(stderr, "bytes={0x%02x, 0x%02x, 0x%02x, 0x%02x} isLitte(0 if little)=%d\n", glyph->bytes[FIRST], glyph->bytes[SECOND], glyph->bytes[THIRD], glyph->bytes[FOURTH], glyph->end);
 	return glyph;
 }
 
@@ -326,10 +306,12 @@ void parse_args(int argc, char** argv)
 			case 'h':
 				print_help();
 				free(endian_convert);
+				quit_converter(NO_FD);
 				exit(EXIT_SUCCESS);
 				break;
 			case 'u':
 				opt_u++;
+				
 				endian_convert = strncpy(endian_convert, optarg, ENDIAN_MAX_LENGTH);
 				break;
 			case 'v':
@@ -338,11 +320,13 @@ void parse_args(int argc, char** argv)
 			case '?':
 				print_help();
 				free(endian_convert);
+				quit_converter(NO_FD);
 				exit(EXIT_FAILURE);
 				break;
 			default:
 				fprintf(stderr, "%s: %s=%c\n", "Unrecognized argument.\n", strerror(errno), c);
 				free(endian_convert);
+				quit_converter(NO_FD);
 				exit(EXIT_FAILURE);
 				break;
 		}
@@ -370,9 +354,11 @@ void parse_args(int argc, char** argv)
 			opt_u=-1;
 		}
 	}
+	free(endian_convert);
+
 	if(opt_u == -1){
-		free(endian_convert);
 		print_help();
+		quit_converter(NO_FD);
 		exit(EXIT_FAILURE);
 	}
 
@@ -393,11 +379,13 @@ void parse_args(int argc, char** argv)
 	else if((argc-optind) > 2){
 		fprintf(stderr, "Too many arguments passed, aborting...\n");
 		print_help();
+		quit_converter(NO_FD);
 		exit(EXIT_FAILURE);
 	}
 	else {
 		fprintf(stderr, "Filename not given.\n");
 		print_help();
+		quit_converter(NO_FD);
 		exit(EXIT_FAILURE);
 	}
 }
@@ -423,6 +411,10 @@ void quit_converter(int fd)
 
 	if(fd != NO_FD)
 		close(fd);
+
+	close(STDIN_FILENO);
+	close(STDERR_FILENO);
+	close(STDOUT_FILENO);
 	/* Ensure that the file is included regardless of where we start compiling from. */
 }
 
@@ -467,10 +459,6 @@ void rusage_end(measure m){
 			sys_W_Time += ((sys_End.tv_sec * 1000000 + sys_End.tv_usec) - (sys_Start.tv_sec * 1000000 + sys_Start.tv_usec)) ;
 			break;
 	}
-
-	/* [DEBUG] */
-	//fprintf(stderr,"This is user_End: %lu, %lu\n", user_End.tv_sec, user_End.tv_usec);
-	//fprintf(stderr, "This is sys_End: %lu, %lu\n", sys_End.tv_sec, sys_End.tv_usec);
 }
 
 void resetGlyph(Glyph* glyph){
@@ -478,14 +466,13 @@ void resetGlyph(Glyph* glyph){
 		
 	/* Memory write failed, recover from it: */
 	if(memset_return == NULL){
-		/* tweak write permission on heap memory. */
-
-		//asm("movl $8, %esi\n\t"
-		//    "movl $.LC0, %edi\n\t"
-		//    "movl $0, %eax");
-
-		/* Now make the request again. */
-		 memset(glyph, 0, sizeof(Glyph));
+		 /* Manually reset the glyph*/
+		glyph->bytes[FIRST] = 0;
+		glyph->bytes[SECOND] = 0;
+		glyph->bytes[THIRD] = 0;
+		glyph->bytes[FOURTH] = 0;
+		glyph->surrogate = 0;
+		glyph->end = 0;
 	}
 }
 
@@ -530,7 +517,7 @@ void writeBom(int fd, endianness end){
 	unsigned char bb = 0xbb;
 	unsigned char bf = 0xbf;
 
-	// 0xef, 0xbb 0xbf is for utf8
+	/* 0xef, 0xbb 0xbf is for utf8 */
 
 	switch(end){
 		case LITTLE:
@@ -561,25 +548,25 @@ int calCodePoint(Glyph* glyph, int total_bytes){
 		if(total_bytes == 1){
 			codePoint += glyph->bytes[FIRST];
 		} else if(total_bytes == 2){
-			tmp = glyph->bytes[FIRST] & 0x1F; // 0001 1111
+			tmp = glyph->bytes[FIRST] & 0x1F; 
 			codePoint += tmp << 6;
-			tmp = glyph->bytes[SECOND] & 0x3F; // 0011 1111
+			tmp = glyph->bytes[SECOND] & 0x3F;
 			codePoint += tmp;
 		} else if(total_bytes == 3){
-			tmp = glyph->bytes[FIRST] & 0x0F; // 0000 1111
+			tmp = glyph->bytes[FIRST] & 0x0F;
 			codePoint += tmp << (6 * 2);
-			tmp = glyph->bytes[SECOND] & 0x3F; // 0011 1111
+			tmp = glyph->bytes[SECOND] & 0x3F;
 			codePoint += tmp << 6;
-			tmp = glyph->bytes[THIRD] & 0x3F; // 0011 1111
+			tmp = glyph->bytes[THIRD] & 0x3F;
 			codePoint += tmp;
 		} else if(total_bytes == 4){
-			tmp = glyph->bytes[FIRST] & 0x07; // 0000 0111
+			tmp = glyph->bytes[FIRST] & 0x07;
 			codePoint += tmp << (6 * 3);
-			tmp = glyph->bytes[SECOND] & 0x3F; // 0011 1111
+			tmp = glyph->bytes[SECOND] & 0x3F;
 			codePoint += tmp << (6 * 2);
-			tmp = glyph->bytes[THIRD] & 0x3F; // 0011 1111
+			tmp = glyph->bytes[THIRD] & 0x3F;
 			codePoint += tmp << 6;
-			tmp = glyph->bytes[FOURTH] & 0x3F; // 0011 1111
+			tmp = glyph->bytes[FOURTH] & 0x3F;
 			codePoint += tmp;
 		}
 	} else if(glyph->end == LITTLE){
@@ -653,17 +640,17 @@ void convert(Glyph* glyph, unsigned int codePoint, endianness end){
 		if(codePoint <= 0x7F){
 			glyph->bytes[0] = codePoint;
 		} else if(codePoint <= 0x7FF){
-			glyph->bytes[0] = (tmp >> (6 * 1)) + 0xC0 ; //1100 0000
-			glyph->bytes[1] = ((tmp << (32 - (6 * 1))) >> 26) + 0x80 ; // 1000 0000
+			glyph->bytes[0] = (tmp >> (6 * 1)) + 0xC0 ; /*1100 0000 */
+			glyph->bytes[1] = ((tmp << (32 - (6 * 1))) >> 26) + 0x80 ; /* 1000 0000 */
 		} else if(codePoint <= 0xFFFF){
-			glyph->bytes[0] = (tmp >> (6 * 2)) + 0xE0 ; //1110 0000
-			glyph->bytes[1] = ((tmp << (32 - (6 * 2))) >> 26) + 0x80 ; // 1011 1111
-			glyph->bytes[2] = ((tmp << (32 - (6 * 1))) >> 26) + 0x80 ; // 1011 1111
+			glyph->bytes[0] = (tmp >> (6 * 2)) + 0xE0 ; /*1110 0000 */
+			glyph->bytes[1] = ((tmp << (32 - (6 * 2))) >> 26) + 0x80 ; /* 1011 1111*/
+			glyph->bytes[2] = ((tmp << (32 - (6 * 1))) >> 26) + 0x80 ; /* 1011 1111*/
 		} else if(codePoint <= 0x1FFFFF){
-			glyph->bytes[0] = (tmp >> (6 * 3)) + 0xF0 ; //1111 0000
-			glyph->bytes[1] = ((tmp << (32 - (6 * 3))) >> 26) + 0x80 ; // 1011 1111
-			glyph->bytes[2] = ((tmp << (32 - (6 * 2))) >> 26) + 0x80 ; // 1011 1111
-			glyph->bytes[3] = ((tmp << (32 - (6 * 1))) >> 26) + 0x80 ; // 1011 1111
+			glyph->bytes[0] = (tmp >> (6 * 3)) + 0xF0 ; /*1111 0000*/
+			glyph->bytes[1] = ((tmp << (32 - (6 * 3))) >> 26) + 0x80 ; /* 1011 1111*/
+			glyph->bytes[2] = ((tmp << (32 - (6 * 2))) >> 26) + 0x80 ; /* 1011 1111*/
+			glyph->bytes[3] = ((tmp << (32 - (6 * 1))) >> 26) + 0x80 ; /* 1011 1111*/
 		}
 		break;
 	default:
