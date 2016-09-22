@@ -115,7 +115,7 @@ int main(int argc, char** argv)
 			resetGlyph(&glyph);
 		}
 
-		if (rv1 != 0 || rv2 != 0){ /* end of reading incorrect*/
+		if (rv1 == 1 && rv2 != 1){ /* end of reading incorrect*/
 			fprintf(stderr, "Truncated UTF16 file... Aborting without discarding conversion\n");
 			quit_converter(infile_fd);
 			exit(EXIT_FAILURE);
@@ -129,7 +129,7 @@ int main(int argc, char** argv)
 			glyph.bytes[0] = buf[0];
 			for(i = 1; i < total_bytes; i++){
 				rv1 = read(infile_fd, &buf[0], 1);
-				if(rv1 == 0){
+				if(rv1 != 1){
 					fprintf(stderr, "Truncated UTF8 file... Aborting without discarding conversion\n");
 					quit_converter(infile_fd);
 					exit(EXIT_FAILURE);
@@ -278,7 +278,7 @@ Glyph* fill_glyph(Glyph* glyph, unsigned char data[2], endianness end)
 			glyph->surrogate = true;
 		}
 
-		if (rv1 != 0 || rv2 != 0){ /* end of reading incorrect*/
+		if (rv1 != 1 || rv2 != 1){ /* end of reading incorrect*/
 			fprintf(stderr, "Truncated UTF16 file... Aborting without discarding conversion\n");
 			quit_converter(infile_fd);
 			exit(EXIT_FAILURE);

@@ -6,25 +6,19 @@ OUTPUTDIR=./output
 OPTIONS=-v
 
 # test files
-TEST_16LE=./rsrc/random16le.txt
-TEST_16BE=./rsrc/random16be.txt
-TEST_8=./rsrc/random8.txt
+TEST_16LE=./rsrc/trunk16le.txt
+TEST_16BE=./rsrc/trunk16be.txt
+TEST_8=./rsrc/trunk8.txt
 
 TEST_OUTPUT=./test/out.txt
-
-POST_JOB=chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 
 cd ../
 make clean
 make all
-clear
 
-rm $TEST_OUTPUT
-##############################################################################
 # test case 1 : LE->LE
 echo *Running: $BIN $OPTIONS-u 16LE $TEST_16LE
 $BIN $OPTIONS -u 16LE $TEST_16LE > $TEST_OUTPUT
-chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_16LE
 cmp $TEST_OUTPUT $TEST_16LE
 RET=$?
@@ -40,7 +34,6 @@ fi
 # test case 2 : LE->BE
 echo *Running: $BIN $OPTIONS -u 16BE $TEST_16LE
 $BIN $OPTIONS -u 16BE $TEST_16LE > $TEST_OUTPUT
-chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_16BE
 cmp $TEST_OUTPUT $TEST_16BE
 RET=$?
@@ -56,7 +49,6 @@ fi
 # test case 3 : BE->LE
 echo *Running: $BIN $OPTIONS -u 16LE $TEST_16BE
 $BIN $OPTIONS -u 16LE $TEST_16BE > $TEST_OUTPUT
-chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_16LE
 cmp $TEST_OUTPUT $TEST_16LE
 RET=$?
@@ -72,7 +64,6 @@ fi
 # test case 4 : BE->BE
 echo *Running: $BIN $OPTIONS -u 16BE $TEST_16BE
 $BIN $OPTIONS -u 16BE $TEST_16BE > $TEST_OUTPUT
-chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_16BE
 cmp $TEST_OUTPUT $TEST_16BE
 RET=$?
@@ -90,7 +81,6 @@ fi
 # test case 5 : 8->LE
 echo *Running: $BIN $OPTIONS-u 16LE $TEST_8
 $BIN $OPTIONS -u 16LE $TEST_8 > $TEST_OUTPUT
-chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_16LE
 cmp $TEST_OUTPUT $TEST_16LE
 RET=$?
@@ -106,7 +96,6 @@ fi
 # test case 6 : 8->BE
 echo *Running: $BIN $OPTIONS -u 16BE $TEST_8
 $BIN $OPTIONS -u 16BE $TEST_8 > $TEST_OUTPUT
-chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_16BE
 cmp $TEST_OUTPUT $TEST_16BE
 RET=$?
@@ -123,7 +112,6 @@ fi
 # test case 7 : BE->8
 echo *Running: $BIN $OPTIONS -u 8 $TEST_16BE
 $BIN $OPTIONS -u 8 $TEST_16BE > $TEST_OUTPUT
-chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_8
 cmp $TEST_OUTPUT $TEST_8
 RET=$?
@@ -139,7 +127,6 @@ fi
 # test case 8 : LE->8
 echo *Running: $BIN $OPTIONS -u 8 $TEST_16LE
 $BIN $OPTIONS -u 8 $TEST_16LE > $TEST_OUTPUT
-chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_8
 cmp $TEST_OUTPUT $TEST_8
 RET=$?

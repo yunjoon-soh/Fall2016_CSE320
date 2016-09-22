@@ -6,15 +6,17 @@ OUTPUTDIR=./output
 TEST_16BE_Special=./rsrc/utf16BE-special.txt
 TEST_16LE_Special=./rsrc/utf16LE-special.txt
 
-# TEST_16LE=./rsrc/LongLEBOM.txt
-# TEST_16BE=./rsrc/LongBEBOM.txt
-# TEST_8=./rsrc/Long8.txt
+TEST_16LE=./rsrc/LongLEBOM.txt
+TEST_16BE=./rsrc/LongBEBOM.txt
+TEST_8=./rsrc/Long8.txt
 
-TEST_16LE=./rsrc/shotle.txt
-TEST_16BE=./rsrc/shotbe.txt
-TEST_8=./rsrc/shot8.txt
+# TEST_16LE=./rsrc/shotle.txt
+# TEST_16BE=./rsrc/shotbe.txt
+# TEST_8=./rsrc/shot8.txt
 
 TEST_OUTPUT=./test/out.txt
+
+POST_JOB=chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 
 cd ../
 make clean
@@ -25,6 +27,7 @@ clear
 # test case 1 : LE->LE
 echo ***Running: $BIN -vvu 16LE $TEST_16LE
 $BIN -vvu 16LE $TEST_16LE > $TEST_OUTPUT
+$TEST_OUTPUT
 echo ***cmp $TEST_OUTPUT $TEST_16LE
 cmp $TEST_OUTPUT $TEST_16LE
 RET=$?
@@ -38,6 +41,7 @@ fi
 # test case 2 : LE->BE
 echo ***Running: $BIN -vvu 16BE $TEST_16LE
 $BIN -vvu 16BE $TEST_16LE > $TEST_OUTPUT
+$TEST_OUTPUT
 echo ***cmp $TEST_OUTPUT $TEST_16BE
 cmp $TEST_OUTPUT $TEST_16BE
 RET=$?
@@ -51,6 +55,7 @@ fi
 # test case 3 : BE->LE
 echo ***Running: $BIN -vvu 16LE $TEST_16BE
 $BIN -vvu 16LE $TEST_16BE > $TEST_OUTPUT
+$TEST_OUTPUT
 echo ***cmp $TEST_OUTPUT $TEST_16LE
 cmp $TEST_OUTPUT $TEST_16LE
 RET=$?
@@ -64,6 +69,7 @@ fi
 # test case 4 : BE->BE
 echo ***Running: $BIN -vvu 16BE $TEST_16BE
 $BIN -vvu 16BE $TEST_16BE > $TEST_OUTPUT
+$TEST_OUTPUT
 echo ***cmp $TEST_OUTPUT $TEST_16BE
 cmp $TEST_OUTPUT $TEST_16BE
 RET=$?
@@ -82,6 +88,7 @@ fi
 rm $TEST_OUTPUT
 echo ***Running: $BIN $OPTIONS -vvu 8 $TEST_16BE
 $BIN $OPTIONS -vvu 8 $TEST_16BE $TEST_OUTPUT
+$TEST_OUTPUT
 echo ***cmp $TEST_OUTPUT $TEST_8
 cmp $TEST_OUTPUT $TEST_8
 RET=$?
@@ -97,6 +104,7 @@ fi
 rm $TEST_OUTPUT
 echo ***Running: $BIN $OPTIONS -vvu 8 $TEST_16LE
 $BIN $OPTIONS -vvu 8 $TEST_16LE $TEST_OUTPUT
+$TEST_OUTPUT
 echo ***cmp $TEST_OUTPUT $TEST_8
 cmp $TEST_OUTPUT $TEST_8
 RET=$?
@@ -115,6 +123,7 @@ fi
 rm $TEST_OUTPUT
 echo ***Running: $BIN -vvu 16BE $TEST_8 $TEST_OUTPUT
 $BIN -vvu 16BE $TEST_8 $TEST_OUTPUT
+$TEST_OUTPUT
 echo ***cmp $TEST_OUTPUT $TEST_16BE
 cmp $TEST_OUTPUT $TEST_16BE
 RET=$?
@@ -132,6 +141,7 @@ fi
 rm $TEST_OUTPUT
 echo ***Running: $BIN -vvu 16LE $TEST_8 $TEST_OUTPUT
 $BIN -vvu 16LE $TEST_8 $TEST_OUTPUT
+$TEST_OUTPUT
 echo ***cmp $TEST_OUTPUT $TEST_16LE
 cmp $TEST_OUTPUT $TEST_16LE
 RET=$?
@@ -149,6 +159,7 @@ fi
 rm $TEST_OUTPUT
 echo ***Running: $BIN -vvu 8 $TEST_8 $TEST_OUTPUT
 $BIN -vvu 8 $TEST_8 $TEST_OUTPUT
+$TEST_OUTPUT
 echo ***cmp $TEST_OUTPUT $TEST_8
 cmp $TEST_OUTPUT $TEST_8
 RET=$?

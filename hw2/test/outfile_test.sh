@@ -12,15 +12,19 @@ TEST_8=./rsrc/shot8.txt
 
 TEST_OUTPUT=./test/out.txt
 
+POST_JOB=chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
+
 cd ../
 make clean
 make all
+clear
 
 rm $TEST_OUTPUT
 ##############################################################################
 # test case 3 : LE->LE
 echo *Running: $BIN $OPTIONS-u 16LE $TEST_16LE $TEST_OUTPUT
 $BIN $OPTIONS -u 16LE $TEST_16LE $TEST_OUTPUT
+chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_16LE
 cmp $TEST_OUTPUT $TEST_16LE
 RET=$?
@@ -39,6 +43,7 @@ echo
 # test case 4 : LE->BE
 echo *Running: $BIN $OPTIONS -u 16BE $TEST_16LE
 $BIN $OPTIONS -u 16BE $TEST_16LE $TEST_OUTPUT
+chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_16BE
 cmp $TEST_OUTPUT $TEST_16BE
 RET=$?
@@ -57,6 +62,7 @@ echo
 # test case 5 : BE->LE
 echo *Running: $BIN $OPTIONS -u 16LE $TEST_16BE
 $BIN $OPTIONS -u 16LE $TEST_16BE $TEST_OUTPUT
+chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_16LE
 cmp $TEST_OUTPUT $TEST_16LE
 RET=$?
@@ -76,6 +82,7 @@ echo
 # test case 6 : BE->BE
 echo *Running: $BIN $OPTIONS -u 16BE $TEST_16BE
 $BIN $OPTIONS -u 16BE $TEST_16BE $TEST_OUTPUT
+chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_16BE
 cmp $TEST_OUTPUT $TEST_16BE
 RET=$?
@@ -93,6 +100,7 @@ echo
 # test for appending BE to file with BE BOM
 echo *Running: $BIN $OPTIONS -u 16BE $TEST_16BE
 $BIN $OPTIONS -u 16BE $TEST_16BE $TEST_OUTPUT
+chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_16BE
 cmp $TEST_OUTPUT $TEST_16BE
 RET=$?
@@ -110,6 +118,7 @@ echo
 # test case 7: BE->LE
 echo *Running: $BIN $OPTIONS -u 16LE $TEST_16BE
 $BIN $OPTIONS -u 16LE $TEST_16BE $TEST_OUTPUT
+chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_16BE
 cmp $TEST_OUTPUT $TEST_16LE
 RET=$?
@@ -127,6 +136,7 @@ echo
 # test for appending LE to file with LE BOM
 echo *Running: $BIN $OPTIONS -u 16LE $TEST_16BE
 $BIN $OPTIONS -u 16LE $TEST_16BE $TEST_OUTPUT
+chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_16BE
 cmp $TEST_OUTPUT $TEST_16LE
 RET=$?
@@ -143,6 +153,7 @@ echo
 # test case 7: BE->8
 echo *Running: $BIN $OPTIONS -u 8 $TEST_16BE
 $BIN $OPTIONS -u 8 $TEST_16BE $TEST_OUTPUT
+chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_8
 cmp $TEST_OUTPUT $TEST_8
 RET=$?
@@ -160,6 +171,7 @@ echo
 # test for appending 8 to file with 8 BOM
 echo *Running: $BIN $OPTIONS -u 8 $TEST_16BE
 $BIN $OPTIONS -u 8 $TEST_16BE $TEST_OUTPUT
+chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo *cmp $TEST_OUTPUT $TEST_8
 cmp $TEST_OUTPUT $TEST_8
 RET=$?
@@ -173,6 +185,7 @@ rm $TEST_OUTPUT
 echo
 
 # clean up
-#make clean
+echo ***End of test cases, cleaning up
+make clean
 cd test
 

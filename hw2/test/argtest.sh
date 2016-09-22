@@ -13,15 +13,18 @@ TEST_OUTPUT=./test/out.txt
 
 TEST_NOT_EXISTING=./asdkljfklejnv_lqkwejrlkjasd.txt
 
+POST_JOB=chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
+_
 cd ../
 make clean
 make all
 clear
 
+rm $TEST_OUTPUT
 ################################################################
 # Cases expected to fail
 ################################################################
-test case 0-1 : Help message along the argument
+# test case 0-1 : Help message along the argument
 echo *Running: $BIN -h
 echo *Expected: PRINT_USAGE and SUCCESS
 $BIN -h
@@ -152,6 +155,7 @@ if [ $RET -ne 0 ]; then
 	echo *Test failed... aborting
 	exit 1
 fi
+chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo ***cmp $TEST_16LE $TEST_NOT_EXISTING
 cmp $TEST_16LE $TEST_NOT_EXISTING
 RET=$?
@@ -176,6 +180,7 @@ if [ $RET -ne 0 ]; then
 	echo *Test failed... aborting
 	exit 1
 fi
+chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 echo ***cmp $TEST_16BE $TEST_NOT_EXISTING
 cmp $TEST_16BE $TEST_NOT_EXISTING
 RET=$?
@@ -201,6 +206,7 @@ if [ $RET = 0 ]; then
 	echo *Test failed... aborting
 	exit 1
 fi
+chmod 777 $TEST_OUTPUT $TEST_NOT_EXISTING
 rm $TEST_NOT_EXISTING
 
 # clean up

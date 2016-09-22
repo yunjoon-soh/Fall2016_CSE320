@@ -10,7 +10,6 @@ BIN = utf
 # Compiler related
 CC = gcc
 CFLAGS = -Wall -Werror -pedantic -Wextra
-EXTRA_FLAG=
 
 # Makefile related
 #SRCS = $(wildcard $(SRCDIR)/*.c)
@@ -25,17 +24,18 @@ MAKE_FOLDER = mkdir -p
 RM = rm -rf
 
 # To support debug compilation
-debug : CFLAGS += -g
-
 all: directories $(BIN)
 
-debug : clean all
+debug: directories $(SRCS) $(HDRS)
+	$(CC) $(CFLAGS) -g -c -I$(INCLUDEDIR) $(SRCDIR)/utfconverter.c -o $(BUILDDIR)/utfconverter.o
+	$(CC) $(CFLAGS) -g -c -I$(INCLUDEDIR) $(SRCDIR)/filemanager.c -o $(BUILDDIR)/filemanager.o
+	$(CC) $(CFLAGS) -g $(BUILDDIR)/utfconverter.o $(BUILDDIR)/filemanager.o -I$(INCLUDEDIR) -o $(BINDIR)/$(BIN)
 
 $(BIN) : $(OBJECTS) $(HDRS)
-	$(CC) $(CFLAGS) $(EXTRA_FLAG) $(OBJECTS) -I$(INCLUDEDIR) -o $(BINDIR)/$@
+	$(CC) $(CFLAGS) $(OBJECTS) -I$(INCLUDEDIR) -o $(BINDIR)/$@
 
 $(BUILDDIR)/%.o : $(SRCDIR)/%.c $(HDRS)
-	$(CC) $(CFLAGS) $(EXTRA_FLAG) -c $< -I$(INCLUDEDIR) -o $@
+	$(CC) $(CFLAGS) -c $< -I$(INCLUDEDIR) -o $@
 
 directories:
 	@$(MAKE_FOLDER) $(BUILDDIR)
