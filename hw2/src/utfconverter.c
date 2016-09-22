@@ -15,7 +15,7 @@ clock_t clock_Start, clock_End;
 int main(int argc, char** argv)
 {
 	unsigned char buf[2];
-	int rv, total_bytes, i, codePoint;
+	int rv1, rv2, total_bytes, i, codePoint;
 	Glyph glyph;
 	struct stat statbuf;
 	char* fullpath;
@@ -73,11 +73,12 @@ int main(int argc, char** argv)
 	/* Now deal with the rest of the bytes.*/
 	buf[0] = 0;
 	buf[1] = 0;
-	rv = 0;
+	rv1 = 0;
+	rv2 = 0;
 
 	if(source == LITTLE || source == BIG) {
 		rusage_start();
-		while(((rv = read(infile_fd, &buf[0], 1)) == 1) && ((rv = read(infile_fd, &buf[1], 1)) == 1)) { 
+		while(((rv1 = read(infile_fd, &buf[0], 1)) == 1) && ((rv2 = read(infile_fd, &buf[1], 1)) == 1)) { 
 			rusage_end(READ);
 
 			rusage_start();
@@ -113,14 +114,26 @@ int main(int argc, char** argv)
 
 			resetGlyph(&glyph);
 		}
+
+		if (rv1 != 0 || rv2 != 0){ /* end of reading incorrect*/
+			fprintf(stderr, "Truncated UTF16 file... Aborting without discarding conversion\n");
+			quit_converter(infile_fd);
+			exit(EXIT_FAILURE);
+		}
+
 	} else if(source == EIGHT) {
 		rusage_start();
-		while((rv = read(infile_fd, &buf[0], 1)) == 1) { 
+		while((rv1 = read(infile_fd, &buf[0], 1)) == 1) { 
 			total_bytes = howManyMoreByte(buf[0]);
 
 			glyph.bytes[0] = buf[0];
 			for(i = 1; i < total_bytes; i++){
-				rv = read(infile_fd, &buf[0], 1);
+				rv1 = read(infile_fd, &buf[0], 1);
+				if(rv1 == 0){
+					fprintf(stderr, "Truncated UTF8 file... Aborting without discarding conversion\n");
+					quit_converter(infile_fd);
+					exit(EXIT_FAILURE);
+				}
 				glyph.bytes[i] = buf[0];
 			}
 			glyph.end = EIGHT;
@@ -210,7 +223,7 @@ int main(int argc, char** argv)
 	}
 
 	quit_converter(infile_fd);
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 Glyph* swap_endianness(Glyph* glyph)
@@ -233,6 +246,9 @@ Glyph* swap_endianness(Glyph* glyph)
 Glyph* fill_glyph(Glyph* glyph, unsigned char data[2], endianness end)
 {
 	unsigned int bits;
+	int rv1, rv2;
+	rv1 = 0;
+	rv2 = 0;
 
 	glyph->bytes[FIRST] = data[0];
 	glyph->bytes[SECOND] = data[1];
@@ -254,13 +270,20 @@ Glyph* fill_glyph(Glyph* glyph, unsigned char data[2], endianness end)
 	}
 	else {
 		/* This block means yes surrogate pair */
-		if(read(infile_fd, &data[0], 1) == 1 && read(infile_fd, &(data[1]), 1) == 1)
+		if((rv1 = read(infile_fd, &data[0], 1)) == 1 && (rv2 = read(infile_fd, &(data[1]), 1)) == 1)
 		{
 			glyph->bytes[THIRD] = data[0];
 			glyph->bytes[FOURTH] = data[1];
 
 			glyph->surrogate = true;
 		}
+
+		if (rv1 != 0 || rv2 != 0){ /* end of reading incorrect*/
+			fprintf(stderr, "Truncated UTF16 file... Aborting without discarding conversion\n");
+			quit_converter(infile_fd);
+			exit(EXIT_FAILURE);
+		}
+
 		glyph->surrogate = true;
 	}
 
