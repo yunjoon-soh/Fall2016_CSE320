@@ -22,7 +22,7 @@ TIME=2
 VALGRIND="valgrind --track-fds=yes "
 cd ../
 make clean
-make all
+make debug
 clear
 
 ################################################################
