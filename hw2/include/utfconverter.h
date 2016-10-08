@@ -1,28 +1,6 @@
+#include "main.h"
 #ifndef _UTFCONVERTER_H_
 #define _UTFCONVERTER_H_
-#include <stdio.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <getopt.h>
-#include <string.h>
-#include <stdbool.h>
-
-/* for stderror */
-#include <string.h>
-/* for errno*/
-#include <errno.h>
-/* for file size */
-#include <sys/stat.h>
-#include <sys/types.h>
-/* for fullpath*/
-#include <limits.h>
-#include <dirent.h>
-/* for hostname*/
-#include <netdb.h>
-/* for uname*/
-#include <sys/utsname.h>
-#include <rpc/rpc.h>
 
 /* fix#2: MAX_BYTES from 2 to 4*/
 #define MAX_BYTES 4
@@ -31,7 +9,6 @@
 #define SURROGATE_SIZE 4
 #define NON_SURROGATE_SIZE 2
 
-#define NO_FD -1
 /* fix#2: OFFSET from 4 to 2*/
 #define OFFSET 2
 
@@ -46,8 +23,6 @@
 #define P(x) ()
 #endif
 
-/** The enum for endianness. */
-typedef enum {LITTLE, BIG} endianness;
 
 /** The struct for a codepoint glyph. */
 typedef struct Glyph {
@@ -60,7 +35,7 @@ typedef struct Glyph {
 extern char* filename;
 
 /** The usage statement. */
-#define USAGE_LENGTH 13
+#define USAGE_LENGTH 12
 const char* USAGE[USAGE_LENGTH] = {
 "Command line utility for converting files from UTF-16LE to UTF-16BE or vice versa.\n\n",
 "Usage:\n",
@@ -103,14 +78,14 @@ Glyph* swap_endianness (Glyph* glyph);
  * 			file.
  * @return Returns a pointer to the filled-in glyph.
  */
-Glyph* fill_glyph (Glyph*, unsigned int data[2], endianness end, int* fd);
+Glyph* fill_glyph (Glyph* glyph, unsigned char data[2], endianness end);
 
 /**
  * Writes the given glyph's contents to stdout.
  *
  *@param glyph The pointer to the glyph struct to write to stdout.
  */
-void write_glyph (Glyph*);
+void write_glyph (Glyph* glyph, int n);
 
 /**
  * Calls getopt() and parses arguments.
@@ -145,7 +120,25 @@ static struct option long_options[] = {
 /* my constants */
 const int ENDIAN_MAX_LENGTH=5;
 
+typedef enum {READ, CONVERT, WRITE} measure;
+
+Glyph NEWLINE_GLYPH = { {0x0A, 0, 0, 0}, LITTLE, false };
+
 /* my variables*/
 int opt_v = 0;
 int opt_u = 0;
+int ASCII_cnt = 0;
+int surrogate_cnt = 0;
+int glyph_cnt = 0;
+
+/* my helper functions*/
+void rusage_start();
+void rusage_end(measure m);
+void resetGlyph(Glyph* glyph);
+
+int howManyMoreByte(unsigned char c);
+void convert(Glyph* glyph, unsigned int codePoint, endianness end);
+int calCodePoint(Glyph* glyph, int total_bytes);
+void print_Glyph(Glyph* glyph);
+
 #endif
