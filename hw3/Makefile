@@ -3,7 +3,7 @@ BIN = bin
 BLD = build
 SRC = src
 INC = include
-CFLAGS = -Wall -Werror -I$(INC) -g -lcriterion
+CFLAGS = -Wall -Werror -I$(INC) -g -lcriterion -DDEBUG
 UTIL = $(BLD)/sfutil.o
 
 .PHONY: all clean
