@@ -37,8 +37,7 @@ Validate-Args-Test-09,1,,"Valid arguments test.
 Args: bin/mapreduce -h ana ../gdata/testfiles/ana/n_small
 Expected Return Value: 0
 Max Pts: 1"
-Validate-Args-Test-10,0,"Error: Invalid return value.
-","Valid arguments test.
+Validate-Args-Test-10,1,,"Valid arguments test.
 Args: bin/mapreduce -h -v ana ../gdata/testfiles/ana/n_small
 Expected Return Value: 0
 Max Pts: 1"
@@ -84,8 +83,7 @@ Max Pts: 2"
 Map-Return-Val-Test-02,2,,"Map test with act as graderfunc on 100 entry directory.
 Expected Return Value: 100
 Max Pts: 2"
-Map-Return-Val-Test-03,0,"Error: Invalid return value.
-","Map test with act as graderfunc where graderfunc fails.
+Map-Return-Val-Test-03,2,,"Map test with act as graderfunc where graderfunc fails.
 Expected Return Value: -1
 Max Pts: 2"
 Analysis-Test-01,1,"Error: Incorrect longest line length.
@@ -134,8 +132,7 @@ Max Pts: 2"
 Map-Test-06,2,,"Map run with grader stats function on empty directory.
 Expected Return Value: 0
 Max Pts: 2"
-Map-Test-07,0,"Error: Invalid return value.
-","Map run with grader stats function on directory containing files with bad characters.
+Map-Test-07,2,,"Map run with grader stats function on directory containing files with bad characters.
 Expected Return Value: -1
 Max Pts: 2"
 Reduce-Test-01,1,,"Analysis: Reduce data for 100 different files (Data populated by grader map function).
@@ -144,9 +141,9 @@ Reduce-Test-02,2,,"Stats: Reduce data for 100 different files (Data populated by
 Max Pts: 2"
 Print-Test-01,2,,"Analysis: Print an analysis struct without histogram.
 Max Pts: 2"
-Print-Test-02,0,,"Analysis: Print an analysis struct with histogram.
+Print-Test-02,2,,"Analysis: Print an analysis struct with histogram.
 Max Pts: 2"
-Print-Test-03,0,,"Stats: Print a stats struct without histogram.
+Print-Test-03,2.0,,"Stats: Print a stats struct without histogram.
 Max Pts: 4"
 Print-Test-04,0,,"Stats: Print a stats struct with histogram.
 Max Pts: 4"
@@ -167,7 +164,7 @@ Main-Test-04,0.375,,"Student program success test.
 Args: -v ana gdata/testfiles/ana/onefile_small
 Expected Exit Code: 0
 Max Pts: 1.5"
-Main-Test-05,0.9375,,"Student program success test.
+Main-Test-05,1.5,,"Student program success test.
 Args: -v stats gdata/testfiles/stats/onefile_small
 Expected Exit Code: 0
 Max Pts: 1.5"
@@ -183,11 +180,11 @@ Main-Test-08,0.375,,"Student program success test.
 Args: -v ana gdata/testfiles/ana/onefile_large
 Expected Exit Code: 0
 Max Pts: 1.5"
-Main-Test-09,0.9375,,"Student program success test.
+Main-Test-09,1.5,,"Student program success test.
 Args: -v stats gdata/testfiles/stats/onefile_large
 Expected Exit Code: 0
 Max Pts: 1.5"
-Main-Test-10,0.375,,"Student program success test.
+Main-Test-10,0.9375,,"Student program success test.
 Args: ana gdata/testfiles/ana/files_large
 Expected Exit Code: 0
 Max Pts: 1.5"
@@ -199,7 +196,7 @@ Main-Test-12,0.375,,"Student program success test.
 Args: ana gdata/testfiles/ana/var_low
 Expected Exit Code: 0
 Max Pts: 1.5"
-Main-Test-13,0.375,,"Student program success test.
+Main-Test-13,1.5,,"Student program success test.
 Args: stats gdata/testfiles/stats/var_low
 Expected Exit Code: 0
 Max Pts: 1.5"
@@ -223,4 +220,4 @@ Main-Test-18,1.5,,"Help menu test.
 Args: -h
 Expected Exit Code: 0
 Max Pts: 1.5"
-Total,61.5/100,,
+Total,73.3125/100,,
