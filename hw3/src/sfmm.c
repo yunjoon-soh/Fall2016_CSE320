@@ -274,13 +274,138 @@ void *sf_malloc(size_t size){
 	return (void*)(((char*)now) + SF_HEADER_SIZE);
 }
 
-void sf_free(void *ptr){
-	// check if the ptr is valid pointer
-	// if it is invalid, return error??? //TODO check the behaviour of this situation
-	// if it is a valid, free the block
-	// check for possible coalescing
-	// if coalescing, coalesce
-	// add to the front of the freelist //TODO check if this is correct
+bool validatePointer(void *ptr); // return 0 if invalid
+int checkCoalesce(void *ptr, sf_free_header *bHead, sf_free_header *aHead, sf_footer *bFoot, sf_footer *aFoot);
+void removeNodeFromDoublyLinkedList(sf_free_header* target);
+// it also sets before/after free block's header and footer, if applicable
+// return 0, if block before and after are alloced
+// return 1, if block before is alloced but not block after is free
+// return 2, if block before is free but not block after is alloced
+// return 3, if block before and after are free
+
+bool validatePointer(void *ptr){  // return 0 if invalid
+	return 1;
+}
+
+// TODO: pointer to pointer?
+int checkCoalesce(void *ptr, sf_free_header *bHead, sf_free_header *aHead, sf_footer *bFoot, sf_footer *aFoot){
+	if(bHead->header.alloc == 1){
+		if(aHead->header.alloc == 1){
+			return 0;
+		}
+		else{
+			return 1;
+		}
+	} else{
+		bHead = NULL;
+		if(aHead->header.alloc == 1){
+			return 2;
+		}
+		else{
+			return 3;
+		}
+	}
+}
+
+void removeNodeFromDoublyLinkedList(sf_free_header* target);
+
+void sf_free(void *ptr){ // input is the address sf_malloc returned, not start address of header
+	bool validPointerToReturn;
+	int coalesceType;
+	sf_free_header *header, *beforeBlockHeader, *afterBlockHeader;
+	sf_footer *footer, *beforeBlockFooter, *afterBlockFooter;
+
+	header = NULL;
+	beforeBlockHeader = NULL;
+	afterBlockHeader = NULL;
+	footer = NULL;
+	// 1. Validate Argument, i.e., check if the ptr is actual pointer that has been assigned
+	debug("1. Validate Argument, i.e., check if the ptr is actual pointer that has been assigned\n");
+
+	validPointerToReturn = validatePointer(ptr);
+
+	// 1-1. If it is invalid, return and do nothing
+	if(validPointerToReturn == 0){ // pointer is invalide
+		debug("1-1. If it is invalid, return and do nothing\n");
+		return;
+	}
+	// 1-2. If it is a valid ptr, free the block
+	else{
+		debug("1-2. If it is a valid, free the block\n");
+
+		// first find the address of header and footer
+		header = (sf_header *)((char*) ptr - SF_HEADER_SIZE);
+		footer = (sf_footer *)((char*) header + (header->header.block_size << 4) - SF_FOOTER_SIZE);
+
+		header->alloc = 0;
+		header->paddingSize = 0;
+		// Note. block_size is not changed
+		header->next = NULL;
+		header->prev = NULL;
+
+		footer->alloc = 0;
+		// Note. block_size is not changed
+	}
+	
+	// 2. Check for possible coalescing
+	coalesceType = checkCoalesce(ptr, beforeBlockHeader, afterBlockHeader, beforeBlockFooter, afterBlockFooter);
+	debug("2. Check for possible coalescing (coalesceType=%d)\n", coalesceType);
+
+	// 2-1. If coalescing, coalesce
+	if(coalesceType == 0){
+		// do nothing
+	} else if(coalesceType == 1){
+		// set the header block_size to proper value
+		header->header.block_size += afterBlockHeader->header.block_size;
+
+		// set the footer block_size the same
+		afterBlockFooter->block_size = header->header.block_size;
+
+		// remove the free block node from the list
+		removeNodeFromDoublyLinkedList(afterBlockHeader);
+
+		// set the new head as header
+		// header = header; // No need to do this
+	} else if(coalesceType == 2){ // return 2, if block before is free but not block after is alloced
+		// set the header block_size to proper value
+		beforeBlockHeader->header.block_size += header->header.block_size;
+
+		// set the footer block_size the same
+		footer->block_size = beforeBlockHeader->header.block_size;
+
+		// remove the free block node from the list
+		// removeNodeFromDoublyLinkedList(header); // don't have to because it is not in the list anyways
+
+		// set the new head as header
+		header = beforeBlockHeader;
+	} else if(coalesceType == 3){
+		// set the header block_size to proper value
+		beforeBlockHeader->header.block_size += (header->header.block_size + afterBlockHeader->header.block_size);
+
+		// set the footer block_size the same
+		afterBlockFooter->block_size = beforeBlockHeader->header.block_size;
+
+		// remove the free block node from the list
+		removeNodeFromDoublyLinkedList(beforeBlockHeader);
+		removeNodeFromDoublyLinkedList(afterBlockHeader);
+
+		// set the new head as header
+		header = beforeBlockHeader;
+	} else{
+		error("coalesceType failed! coalesceType=%d\n", coalesceType);
+		return;
+	}
+
+	// 2-2. Add to the front of the freelist
+	debug("2-2. Add to the front of the freelist\n");
+	header->next = freelist_head;
+	header->prev = NULL;
+	if(freelist_head != NULL){
+		freelist_head->prev = header;
+		// Note. freelist_head->next is not modified
+	} else {
+		freelist_head = header;
+	}
 }
 
 void *sf_realloc(void *ptr, size_t size){
