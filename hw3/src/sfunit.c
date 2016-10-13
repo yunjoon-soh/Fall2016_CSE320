@@ -54,7 +54,7 @@ Test(sf_memsuite, Coalesce_no_coalescing, .init = sf_mem_init, .fini = sf_mem_fi
     // All of the below should be true if there was no coalescing
     cr_assert(headofx->header.alloc == 0);
     cr_assert(headofx->header.block_size << 4 == 32);
-    cr_assert(headofx->header.padding_size == 12);
+    cr_assert(headofx->header.padding_size == 0);
 
     cr_assert(footofx->alloc == 0);
     cr_assert(footofx->block_size << 4 == 32);
