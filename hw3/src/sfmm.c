@@ -111,7 +111,8 @@ void *sf_malloc(size_t size){
 	bool noFit = 0;
 
 	// 1. Parameter check
-	debug("1. Parameter check (size = %lu)\n", size);
+	debug("=================================================================================\n");
+	debug("1. Parameter check (size = %lu, size in hex: %x)\n", size, (unsigned int)size);
 	if(size <= 0){ // if the parameter is 0, return NULL pointer //TODO whether it is <= or ==
 		return NULL;
 	}
@@ -120,7 +121,7 @@ void *sf_malloc(size_t size){
 	numOfRequiredBytes = size + SF_HEADER_SIZE + SF_FOOTER_SIZE + paddingSize;
 
 	// 2. Check free block
-	debug("2. Check free block\n");
+	debug("2. Check free block numOfRequiredBytes=%d\n", numOfRequiredBytes);
 	if(freelist_head == NULL){ 	// if free_header is null, ask for more space
 		// new block
 		allocAddr = (void *)((char *)sf_sbrk(0)); // location to save the data
@@ -132,21 +133,24 @@ void *sf_malloc(size_t size){
 		// if numOfNewBytes is >=, then we can create a whole new block
 			sbrk_ret = sf_sbrk(1); // non-zero value to ask for one page (4096 bytes)
 			if(sbrk_ret == (void*)-1){
+				error("sf_sbrk return -1\n");
 				return NULL;
 			}
 			else{
+				debug("Current(sf_sbrk_call=%d)=%p, numOfNewBytes=%d, numOfRequiredBytes=%d\n", sf_sbrk_call, sbrk_ret, numOfNewBytes, numOfRequiredBytes);
 				sf_sbrk_call++;
 				numOfNewBytes += 4096; // added 4096 more bytes
 			}
 		}
-
+		debug("Outside While Loop: Current(sf_sbrk_call=%d)=%p, numOfNewBytes=%d, numOfRequiredBytes=%d\n", sf_sbrk_call, sbrk_ret, numOfNewBytes, numOfRequiredBytes);
 		((sf_free_header*) allocAddr)->header.alloc = 0;
 		((sf_free_header*) allocAddr)->header.block_size = numOfNewBytes >> 4;
 		((sf_free_header*) allocAddr)->header.padding_size = 0;
 		((sf_free_header*) allocAddr)->next = NULL;
 		((sf_free_header*) allocAddr)->prev = NULL;
 
-		sf_footer* footer = (sf_footer*)(((char*)allocAddr) + (((sf_free_header *) allocAddr)->header.block_size << 4)- SF_HEADER_SIZE);
+		sf_footer* footer = (sf_footer*)( ((char*)allocAddr) + ( (((sf_free_header *)allocAddr)->header.block_size << 4) - SF_FOOTER_SIZE ) );
+		debug("Footer Addr:%p\n", footer);
 		footer->alloc = 0;
 		footer->block_size = numOfNewBytes >> 4;
 
@@ -154,7 +158,6 @@ void *sf_malloc(size_t size){
 
 		now = freelist_head;
 
-		debug("allocAddr=%p\n", allocAddr);
 		// sf_varprint(allocAddr); // this returns strange value...
 		// sf_varprint((char*)allocAddr+ 8);
 		// sf_snapshot(true);
@@ -259,13 +262,14 @@ void *sf_malloc(size_t size){
 	now->header.padding_size = paddingSize;
 
 	// set footer
-	sf_footer* footer = (sf_footer*)(((char*)now) + numOfBlockBytes - SF_HEADER_SIZE);
+	sf_footer* footer = (sf_footer*)(((char*)now) + ( ((now)->header.block_size << 4) - SF_HEADER_SIZE ) );
+	debug("Address:%p, Moving:%x, Footer Addr:%p\n", now, ( ((now)->header.block_size << 4) - SF_HEADER_SIZE ), footer);
 	footer->alloc = 1;
 	footer->block_size = numOfBlockBytes >> 4;
 
 	// 4. Return the correct address
-	debug("4. Return the correct address\n");
-
+	debug("4. Return the correct address sf_sbrk_call=%d\n", sf_sbrk_call);
+	debug("=================================================================================\n");
 	return (void*)(((char*)now) + SF_HEADER_SIZE);
 }
 
@@ -336,6 +340,7 @@ int checkCoalesce(void *ptr, sf_free_header **bHead, sf_free_header **aHead, sf_
 			return 3;
 		}
 	}
+
 }
 
 void removeNodeFromDoublyLinkedList(sf_free_header* now){
@@ -368,6 +373,7 @@ void sf_free(void *ptr){ // input is the address sf_malloc returned, not start a
 	afterBlockHeader = NULL;
 	footer = NULL;
 	// 1. Validate Argument, i.e., check if the ptr is actual pointer that has been assigned
+	debug("=================================================================================\n");
 	debug("1. Validate Argument, i.e., check if the ptr is actual pointer that has been assigned\n");
 
 	validPointerToReturn = validatePointer(ptr);
@@ -459,6 +465,8 @@ void sf_free(void *ptr){ // input is the address sf_malloc returned, not start a
 		debug("freelist_head is null\n");
 		freelist_head = free_header;
 	}
+
+	debug("=================================================================================\n");
 }
 
 void *sf_realloc(void *ptr, size_t size){
