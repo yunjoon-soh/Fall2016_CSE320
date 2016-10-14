@@ -6,29 +6,41 @@
 #include <unistd.h>
 #include "sfmm.h"
 
+#include <time.h>
+
 /**
  *  HERE ARE OUR TEST CASES NOT ALL SHOULD BE GIVEN STUDENTS
  *  REMINDER MAX ALLOCATIONS MAY NOT EXCEED 4 * 4096 or 16384 or 128KB
  */
 
 void checkHeaderFooter(void *x, bool isAlloc, int expectedBlockSizeInBytes, int expectedPaddingSize);
-void checkFreeHeaderFooter(void *x, int expectedBlockSizeInBytes, int expectedPaddingSize);
+void checkFreelist();
+void checkFreelist(){
+    sf_free_header *now = freelist_head;
+    cr_assert(now->prev == NULL);
+
+    while(now != NULL){
+        cr_assert(now->header.alloc == 0);
+        cr_assert(( (sf_footer *)( (char*)now + ( (now->header.block_size << 4) - 8) ) )->alloc == 0);
+        now = now->next;
+    }
+}
 
 void checkHeaderFooter(void *x, bool isAlloc, int expectedBlockSizeInBytes, int expectedPaddingSize){ // if allocated block set isAlloc to 1, else 0
-	sf_header *headofx = (sf_header*) (x-8);
+	cr_assert(x != NULL);
+    sf_header *headofx = (sf_header*) (x-8);
 	sf_footer *footofx = (sf_footer*) (x - 8 + (headofx->block_size << 4) - 8);
-	cr_assert((headofx->alloc) == isAlloc);
+
+	cr_assert((headofx->alloc) == isAlloc,
+        "Header alloc differs.. Read:%d vs Expected:%d (Note. expectedBlockSizeInBytes:%d)\n", (headofx->alloc), isAlloc, expectedBlockSizeInBytes);
     cr_assert(headofx->padding_size == expectedPaddingSize);
     cr_assert(headofx->block_size << 4 == expectedBlockSizeInBytes, 
         "Header block size differs.. Real: %d vs Expected: %d\n", headofx->block_size << 4, expectedBlockSizeInBytes);
 
-	cr_assert((footofx->alloc) == isAlloc);
+	cr_assert((footofx->alloc) == isAlloc, 
+        "Footer alloc differs.. Read:%d vs Expected:%d (Note. expectedBlockSizeInBytes:%d)\n", (footofx->alloc), isAlloc, expectedBlockSizeInBytes);
     cr_assert(footofx->block_size << 4 == expectedBlockSizeInBytes, 
         "Footer block size differs.. Real: %d vs Expectdd: %d\n", headofx->block_size << 4, expectedBlockSizeInBytes);
-}
-
-void checkFreeHeaderFooter(void *x, int expectedBlockSizeInBytes, int expectedPaddingSize){
-    checkHeaderFooter(x, 0, expectedBlockSizeInBytes, expectedPaddingSize);
 }
 
 Test(sf_memsuite, Malloc_an_Integer, .init = sf_mem_init, .fini = sf_mem_fini) {
@@ -70,7 +82,7 @@ Test(sf_memsuite, Coalesce_no_coalescing, .init = sf_mem_init, .fini = sf_mem_fi
     sf_free_header *headofx = (sf_free_header*) (x-8);
     sf_footer *footofx = (sf_footer*) (x - 8 + (headofx->header.block_size << 4)) - 8;
 
-    sf_blockprint((sf_free_header*)((void*)x-8));
+    // sf_blockprint((sf_free_header*)((void*)x-8));
     // All of the below should be true if there was no coalescing
     cr_assert(headofx->header.alloc == 0);
     cr_assert(headofx->header.block_size << 4 == 32);
@@ -132,7 +144,6 @@ Test(sf_memsuite, Malloc_With_Enough_Freeblock, .init = sf_mem_init, .fini = sf_
     void *tmp = sf_malloc(96); checkHeaderFooter(tmp, 1, 112, 0);
 
     void *tmp2 = sf_malloc(16);
-    sf_blockprint((sf_free_header*)((void*)tmp2-8));
     checkHeaderFooter(tmp2, 1, 32, 0);
 
     sf_free(tmp); checkHeaderFooter(tmp, 0, 112, 0);
@@ -151,18 +162,18 @@ Test(sf_memsuite, Malloc_With_Enough_Freeblock, .init = sf_mem_init, .fini = sf_
     checkHeaderFooter(x, 1, expectedBlockSizeInBytes, expectedPaddingSize);
 }
 
-Test(sf_memsuite, Malloc_With_Not_Enough_First_Freeblock, .init = sf_mem_init, .fini = sf_mem_fini) {
+Test(sf_memsuite, Malloc_With_Not_Enough_First_Page, .init = sf_mem_init, .fini = sf_mem_fini) {
     cr_assert(freelist_head == NULL);
-    void *tmp = sf_malloc(16); checkHeaderFooter(tmp, 1, 32, 0);
-    void *tmp2 = sf_malloc(32); checkHeaderFooter(tmp2, 1, 48, 0);
-    sf_free(tmp); checkHeaderFooter(tmp, 0, 32, 0);
+    void *tmp = sf_malloc(4048); checkHeaderFooter(tmp, 1, 4064, 0); // 4096 - 32 - 16
+    void *tmp2 = sf_malloc(15); checkHeaderFooter(tmp2, 1, 32, 1);
+    sf_free(tmp2); checkHeaderFooter(tmp2, 0, 32, 0);
 
     // check freelist
     cr_assert(freelist_head != NULL);
     checkHeaderFooter((char*)freelist_head + 8, 0, 32, 0); // + 8 because it expects addr of payload
 
     // Now ask for large space
-    int askedFor = 80; // now total of 96 bytes in block
+    int askedFor = 4096 + 16; // now total of 96 bytes in block
     int expectedPaddingSize = 0;
     int expectedBlockSizeInBytes = 16 + expectedPaddingSize + askedFor;
     void *x = sf_malloc(askedFor);
@@ -171,6 +182,118 @@ Test(sf_memsuite, Malloc_With_Not_Enough_First_Freeblock, .init = sf_mem_init, .
     checkHeaderFooter(x, 1, expectedBlockSizeInBytes, expectedPaddingSize);
 }
 
+Test(sf_memsuite, Malloc_With_Not_Enough_First_Page_AvoidSplinter, .init = sf_mem_init, .fini = sf_mem_fini) {
+    cr_assert(freelist_head == NULL);
+    void *tmp = sf_malloc(4048); checkHeaderFooter(tmp, 1, 4064, 0); // 4096 - 32 - 16
+    void *tmp2 = sf_malloc(15); checkHeaderFooter(tmp2, 1, 32, 1);
+    sf_free(tmp2); checkHeaderFooter(tmp2, 0, 32, 0);
+
+    // check freelist
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 32, 0); // + 8 because it expects addr of payload
+
+    // Now ask for large space
+    int askedFor = 4096; // now total of 96 bytes in block
+    int expectedPaddingSize = 0;
+    int expectedBlockSizeInBytes = 16 + expectedPaddingSize + askedFor;
+    void *x = sf_malloc(askedFor);
+    cr_assert(x != NULL);
+
+    checkHeaderFooter(x, 1, expectedBlockSizeInBytes + 16, expectedPaddingSize); // another 16 was added to avoid splinter
+}
+
+Test(sf_memsuite, Malloc_With_Not_Enough_Second_Page, .init = sf_mem_init, .fini = sf_mem_fini) {
+    cr_assert(freelist_head == NULL);
+    void *tmp = sf_malloc(4048 + 4096); checkHeaderFooter(tmp, 1, 4064 + 4096, 0); // 4096 - 32 - 16
+    void *tmp2 = sf_malloc(15); checkHeaderFooter(tmp2, 1, 32, 1);
+    sf_free(tmp2); checkHeaderFooter(tmp2, 0, 32, 0);
+
+    // check freelist
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 32, 0); // + 8 because it expects addr of payload
+    
+    // Now ask for large space
+    int askedFor = 4096 + 16; // now total of 96 bytes in block
+    int expectedPaddingSize = 0;
+    int expectedBlockSizeInBytes = 16 + expectedPaddingSize + askedFor;
+    void *x = sf_malloc(askedFor);
+    cr_assert(x != NULL);
+
+    checkHeaderFooter(x, 1, expectedBlockSizeInBytes, expectedPaddingSize);
+}
+
+Test(sf_memsuite, Malloc_With_Not_Enough_Second_Page_AvoidSplinter, .init = sf_mem_init, .fini = sf_mem_fini) {
+    cr_assert(freelist_head == NULL);
+    void *tmp = sf_malloc(4048 + 4096); checkHeaderFooter(tmp, 1, 4064 + 4096, 0); // 4096 - 32 - 16
+    void *tmp2 = sf_malloc(15); checkHeaderFooter(tmp2, 1, 32, 1);
+    sf_free(tmp2); checkHeaderFooter(tmp2, 0, 32, 0);
+
+    // check freelist
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 32, 0); // + 8 because it expects addr of payload
+
+    // Now ask for large space
+    int askedFor = 4096; // now total of 96 bytes in block
+    int expectedPaddingSize = 0;
+    int expectedBlockSizeInBytes = 16 + expectedPaddingSize + askedFor;
+    void *x = sf_malloc(askedFor);
+    cr_assert(x != NULL);
+
+    checkHeaderFooter(x, 1, expectedBlockSizeInBytes + 16, expectedPaddingSize); // another 16 was added to avoid splinter
+}
+
+Test(sf_memsuite, Malloc_With_Not_Enough_Third_Page, .init = sf_mem_init, .fini = sf_mem_fini) {
+    cr_assert(freelist_head == NULL);
+    void *tmp = sf_malloc(4048 + 4096 * 2); checkHeaderFooter(tmp, 1, 4064 + 4096 * 2, 0); // 4096 - 32 - 16
+    void *tmp2 = sf_malloc(15); checkHeaderFooter(tmp2, 1, 32, 1);
+    sf_free(tmp2); checkHeaderFooter(tmp2, 0, 32, 0);
+
+    // check freelist
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 32, 0); // + 8 because it expects addr of payload
+    
+    // Now ask for large space
+    int askedFor = 4096 + 16; // now total of 96 bytes in block
+    int expectedPaddingSize = 0;
+    int expectedBlockSizeInBytes = 16 + expectedPaddingSize + askedFor;
+    void *x = sf_malloc(askedFor);
+    cr_assert(x != NULL);
+
+    checkHeaderFooter(x, 1, expectedBlockSizeInBytes, expectedPaddingSize);
+}
+
+Test(sf_memsuite, Malloc_With_Not_Enough_Third_Page_AvoidSplinter, .init = sf_mem_init, .fini = sf_mem_fini) {
+    cr_assert(freelist_head == NULL);
+    void *tmp = sf_malloc(4048 + 4096 * 2); checkHeaderFooter(tmp, 1, 4064 + 4096 * 2, 0); // 4096 - 32 - 16
+    void *tmp2 = sf_malloc(15); checkHeaderFooter(tmp2, 1, 32, 1);
+    sf_free(tmp2); checkHeaderFooter(tmp2, 0, 32, 0);
+
+    // check freelist
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 32, 0); // + 8 because it expects addr of payload
+
+    // Now ask for large space
+    int askedFor = 4096; // now total of 96 bytes in block
+    int expectedPaddingSize = 0;
+    int expectedBlockSizeInBytes = 16 + expectedPaddingSize + askedFor;
+    void *x = sf_malloc(askedFor);
+    cr_assert(x != NULL);
+
+    checkHeaderFooter(x, 1, expectedBlockSizeInBytes + 16, expectedPaddingSize); // another 16 was added to avoid splinter
+}
+
+/* Splinter related tests
+///////////////////////////////////////////////////////////////////////////////
+*/
+
+Test(sf_memsuite, Check_If_Splinter_Is_Created, .init = sf_mem_init, .fini = sf_mem_fini) {
+    void *x = sf_malloc(24); checkHeaderFooter(x, 1, 24 + 16 + 8, 8);
+    void *y = sf_malloc(16); checkHeaderFooter(y, 1, 16 + 16 + 0, 0);
+    sf_free(x); checkHeaderFooter(x, 0, 24 + 16 + 8, 0);
+
+    x = sf_malloc(8); checkHeaderFooter(x, 1, 8 + 16 + 8 + 16, 8);
+    // 8 : payload, 16: h/f, 8: pad, 16: avoid Splinters
+}
 
 /* sf_sbrk() * 4 related tests
 ///////////////////////////////////////////////////////////////////////////////
@@ -186,7 +309,6 @@ Test(sf_memsuite, Ask_Max_Bytes_Success, .init = sf_mem_init, .fini = sf_mem_fin
 	checkHeaderFooter(x, 1, 16384, 0);
 }
 
-
 Test(sf_memsuite, Ask_Over_Max_Bytes_Fail, .init = sf_mem_init, .fini = sf_mem_fini) {
     int MAX_BYTES = 16369;
     for(int i = 0; i < 1; i++){
@@ -198,7 +320,6 @@ Test(sf_memsuite, Ask_Over_Max_Bytes_Fail, .init = sf_mem_init, .fini = sf_mem_f
     }
 }
 
-#include <time.h>
 Test(sf_memsuite, Ask_Over_Max_After_Mallocs, .init = sf_mem_init, .fini = sf_mem_fini) {
 	int MAX_BYTES = 16368;
 	srand(time(0));
@@ -221,25 +342,130 @@ Test(sf_memsuite, Ask_Over_Max_After_Mallocs, .init = sf_mem_init, .fini = sf_me
 	cr_assert(y == NULL);
 }
 
-/* Check Splinter
+/* sf_free() : invalid ptr
 ///////////////////////////////////////////////////////////////////////////////
 */
 
-// Test(sf_memsuite, Check_If_Splinter_Is_Created, .init = sf_mem_init, .fini = sf_mem_fini) {
-//     void *x = sf_malloc(24);
-//     cr_assert(x != NULL);
-//     checkHeaderFooter(x, 1, 24);
+Test(sf_memsuite, Check_Invalid_Ptr_SF_Free_Not_Mult_Of_16, .init = sf_mem_init, .fini = sf_mem_fini) {
+    cr_assert(freelist_head == NULL);
+    void *x = sf_malloc(1); checkHeaderFooter(x, 1, 1 + 16 + 15, 15); // 32: b_size
 
-//     void *y = sf_malloc(16);
-//     cr_assert(y != NULL);
-//     checkHeaderFooter(y, 1, 16);
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32, 0);
 
-//     sf_free(x);
-//     checkHeaderFooter(x, 0, 24);
+    sf_free((char*) x + 3); // pass invalid pointer
 
-//     x = sf_malloc(8);
-//     cr_assert(x != NULL);
-//     checkHeaderFooter(x, 1, 8);
+    // same test as before sf_free(), i.e., n/a change
+    checkHeaderFooter(x, 1, 1 + 16 + 15, 15);
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32, 0);
+}
 
-//     sf_snapshot(true);
-// }
+Test(sf_memsuite, Check_Invalid_Ptr_SF_Free_Before_Heap, .init = sf_mem_init, .fini = sf_mem_fini) {
+    cr_assert(freelist_head == NULL);
+    void *x = sf_malloc(1); checkHeaderFooter(x, 1, 1 + 16 + 15, 15); // 32: b_size
+
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32, 0);
+
+    sf_free((char*) x - 16); // pass invalid pointer
+
+    // same test as before sf_free(), i.e., n/a change
+    checkHeaderFooter(x, 1, 1 + 16 + 15, 15);
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32, 0);
+}
+
+Test(sf_memsuite, Check_Invalid_Ptr_SF_Free_After_Heap, .init = sf_mem_init, .fini = sf_mem_fini) {
+    cr_assert(freelist_head == NULL);
+    void *x = sf_malloc(1); checkHeaderFooter(x, 1, 1 + 16 + 15, 15); // 32: b_size
+
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32, 0);
+
+    sf_free((char*) x + 4096); // pass invalid pointer
+
+    // same test as before sf_free(), i.e., n/a change
+    checkHeaderFooter(x, 1, 1 + 16 + 15, 15);
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32, 0);
+}
+
+/* sf_free() : freelist
+///////////////////////////////////////////////////////////////////////////////
+*/
+Test(sf_memsuite, Check_If_FreeList_Created_From_First_Malloc, .init = sf_mem_init, .fini = sf_mem_fini) {
+    cr_assert(freelist_head == NULL);
+    void *x = sf_malloc(1); checkHeaderFooter(x, 1, 1 + 16 + 15, 15); // 32: b_size
+    cr_assert(freelist_head != NULL);
+
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32, 0);
+}
+
+Test(sf_memsuite, Check_If_FreeList_Created_From_Two_Malloc_And_First_One_Freed, .init = sf_mem_init, .fini = sf_mem_fini) {
+    cr_assert(freelist_head == NULL);
+    void *x = sf_malloc(1); checkHeaderFooter(x, 1, 1 + 16 + 15, 15); // 32: b_size
+    
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32, 0); // current head
+
+    void *y = sf_malloc(2); checkHeaderFooter(y, 1, 2 + 16 + 14, 14); // payload, h/f, pad
+
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32 - 32, 0); // current head remains the same
+
+    sf_free(x); checkHeaderFooter(x, 0, 1 + 16 + 15, 0);
+
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 1 + 16 + 15, 0); // current head updated
+}
+
+/* sf_free() : Different types of coalescing
+///////////////////////////////////////////////////////////////////////////////
+*/
+Test(sf_memsuite, Coalesce_alloc_alloc, .init = sf_mem_init, .fini = sf_mem_fini) {
+    cr_assert(freelist_head == NULL);
+    void *x = sf_malloc(1); checkHeaderFooter(x, 1, 1 + 16 + 15, 15); // 32: b_size
+
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32, 0);
+
+    void *y = sf_malloc(4); checkHeaderFooter(y, 1, 4 + 16 + 12, 12); // 32: b_size
+    
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32 - 32, 0);
+
+    void *z = sf_malloc(12); checkHeaderFooter(z, 1, 12 + 16 + 4, 4);
+
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32 - 32 - 32, 0);
+
+    sf_free(y);
+
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 32, 0);
+    checkHeaderFooter((char*)(freelist_head->next) + 8, 0, 4096 -32 -32 -32, 0);    
+}
+
+Test(sf_memsuite, Coalesce_alloc_free, .init = sf_mem_init, .fini = sf_mem_fini) {
+    cr_assert(freelist_head == NULL);
+    void *x = sf_malloc(1); checkHeaderFooter(x, 1, 1 + 16 + 15, 15); // 32: b_size
+
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32, 0);
+
+    void *y = sf_malloc(4); checkHeaderFooter(y, 1, 4 + 16 + 12, 12); // 32: b_size
+    
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32 - 32, 0);
+
+    sf_free(y); // x(alloc) -> y(free) ->freelist_head(free)
+
+    sf_snapshot(true);
+    sf_blockprint((char*)y - 8);
+    sf_blockprint(freelist_head);
+
+    cr_assert(freelist_head != NULL);
+    cr_assert((void*)freelist_head == (void*)((char*)y - 8), "freelist_head %p vs y %p\n", freelist_head, (char*)y - 8);
+    checkHeaderFooter(freelist_head, 0, 4096 - 32, 0);
+}

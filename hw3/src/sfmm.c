@@ -132,6 +132,7 @@ void fillHeader(void* ptr, int isAlloc, int blockSize, int paddingSize, bool isP
 		((sf_free_header*)header)->prev = NULL;
 	}
 }
+
 void *fillFooter(void* headerAddr, int isAlloc, int blockSize){ 
 	sf_footer *footer = (sf_footer *)( (char*)headerAddr + ((blockSize << 4) - SF_FOOTER_SIZE) );
 	footer->alloc = isAlloc;
@@ -141,11 +142,30 @@ void *fillFooter(void* headerAddr, int isAlloc, int blockSize){
 
 // check if the ptr is actual pointer that has been assigned
 bool validatePointer(void *ptr){  // return 0 if invalid
+	if( (unsigned long)ptr % 16 != 0){
+		return 0;
+	}
 	sf_header* header = (sf_header*)((char*)ptr - SF_HEADER_SIZE);
 	sf_footer* footer = (sf_footer*)((char*)header + (header->block_size << 4)- SF_FOOTER_SIZE);
+
+	unsigned long superHeapStart = (unsigned long) sf_sbrk(0);
+	unsigned long superHeapEnd = superHeapStart - 4096 * sf_sbrk_call;
+
+	if( (unsigned long)header > superHeapStart || (unsigned long)footer > superHeapStart ){
+		return 0;
+	}
+
+	if( (unsigned long)header < superHeapEnd || (unsigned long)footer < superHeapEnd ){
+		return 0;
+	}
+
 	debug("validatePointer(%p) Result: header: %p, footer: %p\n", ptr, header, footer);
 	debug("block_size: %d vs %d, alloc: %d vs %d\n", header->block_size << 4, footer->block_size << 4, header->alloc, footer->alloc);
-	return header->block_size == footer->block_size && header->alloc==footer->alloc;
+	if(header->block_size == footer->block_size && header->alloc==footer->alloc){
+		return 1;
+	} else {
+		return 0;
+	}
 }
 
 /* checkCoalese(..) it also sets before/after free block's header and footer, if applicable
@@ -405,18 +425,14 @@ void sf_free(void *ptr){ // input is the address sf_malloc returned, not start a
 		debug("1-2. If it is a valid, free the block\n");
 
 		// first find the address of header and footer
+		// Note. it is needed for later code!
 		header = (sf_header *)((char*) ptr - SF_HEADER_SIZE);
 		footer = (sf_footer *)((char*) header + (header->block_size << 4) - SF_FOOTER_SIZE);
-		fillHeader(header, 0, header->block_size, 0, 0);// Note. block_size is not changed
-		// header->alloc = 0;
-		// header->padding_size = 0;
 
+		fillHeader(header, 0, header->block_size, 0, 0);// Note. block_size is not changed
 		fillFooter(header, 0, header->block_size);// Note. block_size is not changed
-		// footer->alloc = 0;
 
 		free_header = (sf_free_header*)header;
-		// free_header->next = NULL;
-		// free_header->prev = NULL;
 	}
 	
 	coalesceType = checkCoalesce(ptr, &beforeBlockHeader, &afterBlockHeader, &beforeBlockFooter, &afterBlockFooter);
