@@ -70,10 +70,8 @@ bool validatePointer(void *ptr); // return 0 if invalid
 */
 int checkCoalesce(void *ptr, sf_free_header **bHead, sf_free_header **aHead, sf_footer **bFoot, sf_footer **aFoot);
 
-
-// void fillHeaderAndFooter(void* ptr, int isAlloc, int blockSize, bool isPayloadAddr); // if is PayloadAddr == 1, then ptr is payload addr
 void fillHeader(void* ptr, int isAlloc, int blockSize, int paddingSize, bool isPayloadAddr);
-void fillFooter(void* headerAddr, int isAlloc, int blockSize);
+void *fillFooter(void* headerAddr, int isAlloc, int blockSize);
 
 void addToHead(sf_free_header* newHead);
 void removeNodeFromDoublyLinkedList(sf_free_header* target);
@@ -111,22 +109,6 @@ void *needSplit(sf_free_header* now, int numOfNewBytes, int numOfRequiredBytes){
 	return (void*)(((char*)now) + numOfRequiredBytes);
 }
 
-// void fillHeaderAndFooter(void* ptr, int isAlloc, int blockSize, bool isPayloadAddr){ // if is PayloadAddr == 1, then ptr is payload addr
-// 	sf_header *header;
-
-// 	if(isPayloadAddr != 1){ // it is header addr
-// 		header = (sf_header *)ptr;
-// 	}
-// 	else {
-// 		header = (sf_header *)ptr - SF_HEADER_SIZE;
-// 	}
-
-// 	header->alloc = isAlloc;
-// 	header->block_size = blockSize;
-
-// 	fillFooter(header, isAlloc, blockSize);
-// }
-
 void fillHeader(void* ptr, int isAlloc, int blockSize, int paddingSize, bool isPayloadAddr){
 	sf_header *header;
 
@@ -150,10 +132,11 @@ void fillHeader(void* ptr, int isAlloc, int blockSize, int paddingSize, bool isP
 		((sf_free_header*)header)->prev = NULL;
 	}
 }
-void fillFooter(void* headerAddr, int isAlloc, int blockSize){ 
+void *fillFooter(void* headerAddr, int isAlloc, int blockSize){ 
 	sf_footer *footer = (sf_footer *)( (char*)headerAddr + ((blockSize << 4) - SF_FOOTER_SIZE) );
 	footer->alloc = isAlloc;
 	footer->block_size = blockSize;
+	return footer;
 }
 
 // check if the ptr is actual pointer that has been assigned
@@ -272,9 +255,9 @@ Main Functions
 // 2-3. If free block exists and size is enough, continue
 
 // 3. Allocate to free block
-// 3-1. Setup the current free block and remove from the doubly linked list
-// 3-2. If allocation divides the block into two, add the second block to freelist
-// 3-3. If allocation does not divide the existing block
+//    : Setup the current free block and remove from the doubly linked list
+// 3-1. If allocation divides the block into two, add the second block to freelist
+// 3-2. If allocation does not divide the existing block
 
 // 4. Return the correct address
 
@@ -285,7 +268,6 @@ void *sf_malloc(size_t size){
 	size_t paddingSize;
 	bool noFit = 0;
 
-	// 1. Parameter check
 	debug("=================================================================================\n");
 	debug("1. Parameter check (size = %lu, size in hex: %x)\n", size, (unsigned int)size);
 	if(size <= 0){ // if the parameter is 0, return NULL pointer //TODO whether it is <= or ==
@@ -295,13 +277,11 @@ void *sf_malloc(size_t size){
 	paddingSize = calculatePaddingSize(size);
 	numOfRequiredBytes = size + SF_HEADER_SIZE + SF_FOOTER_SIZE + paddingSize;
 
-	// 2. Check free block
 	debug("2. Check free block numOfRequiredBytes=%d\n", numOfRequiredBytes);
 	if(freelist_head == NULL){ 	// if free_header is null, ask for more space
-		// new block
-		allocAddr = (void *)((char *)sf_sbrk(0)); // location to save the data
+
+		allocAddr = (void *)((char *)sf_sbrk(0)); // start of new page
 		
-		// 2-1. If free block does not exists, get free block
 		debug("2-1. If free block does not exists, get new page(allocAddr=%p)\n", allocAddr);
 		numOfNewBytes = 0;
 		while(numOfNewBytes < numOfRequiredBytes){
@@ -312,27 +292,14 @@ void *sf_malloc(size_t size){
 				return NULL;
 			}
 			else{
-				debug("Current(sf_sbrk_call=%d)=%p, numOfNewBytes=%d, numOfRequiredBytes=%d\n", sf_sbrk_call, sbrk_ret, numOfNewBytes, numOfRequiredBytes);
 				sf_sbrk_call++;
 				numOfNewBytes += 4096; // added 4096 more bytes
 			}
 		}
-		debug("Outside While Loop: Current(sf_sbrk_call=%d)=%p, numOfNewBytes=%d, numOfRequiredBytes=%d\n", sf_sbrk_call, sbrk_ret, numOfNewBytes, numOfRequiredBytes);
-		// ((sf_free_header*) allocAddr)->header.alloc = 0;
-		// ((sf_free_header*) allocAddr)->header.block_size = numOfNewBytes >> 4;
-		// ((sf_free_header*) allocAddr)->header.padding_size = 0;
-		// ((sf_free_header*) allocAddr)->next = NULL;
-		// ((sf_free_header*) allocAddr)->prev = NULL;
+		
 		fillHeader(allocAddr, 0, numOfNewBytes >> 4, 0, 0);
-
-		// sf_footer* footer = (sf_footer*)( ((char*)allocAddr) + ( (((sf_free_header *)allocAddr)->header.block_size << 4) - SF_FOOTER_SIZE ) );
-
 		fillFooter(allocAddr, 0, numOfNewBytes >> 4);
-		// footer->alloc = 0;
-		// footer->block_size = numOfNewBytes >> 4;
-
 		addToHead((sf_free_header*) allocAddr);
-		// freelist_head = ((sf_free_header*) allocAddr);
 
 		now = freelist_head;
 	}
@@ -359,7 +326,6 @@ void *sf_malloc(size_t size){
 				numOfNewBytes = 0;
 			}
 
-			debug("Before while loop\n");
 			while(numOfNewBytes < numOfRequiredBytes){
 			// if numOfNewBytes is >=, then we can create a whole new block
 				sbrk_ret = sf_sbrk(1); // non-zero value to ask for one page (4096 bytes)
@@ -374,25 +340,17 @@ void *sf_malloc(size_t size){
 			}
 
 			now->header.block_size = numOfNewBytes >> 4; // create one large chunk
-
-			sf_footer* footer = (sf_footer*)
-				( (char*)now + ( (((sf_free_header*)now)->header.block_size << 4) - SF_HEADER_SIZE) );
-			footer->alloc = 0;
-			footer->block_size = numOfNewBytes;
-
+			fillFooter(now, 0, numOfNewBytes >> 4);
+			//Note. numOfNewBytes already calculated at this line
 		} else {
-			// 2-3. If free block exists and size is enough, continue
 			debug("2-3. If free block exists and size is enough, continue\n");
 			numOfNewBytes = now->header.block_size << 4;
 		}
 	}
 
-	// 3. Allocate to free block
 	debug("3. Allocate to free block(now=%p, numOfNewBytes=0x%x, %d)\n", (void*) now, numOfNewBytes, numOfNewBytes);
 
-	// 3-1. Setup the current free block and remove from the doubly linked list
-	debug("3-1. Setup the current free block and remove from the doubly linked list\n");
-
+	debug("Setup the current free block and remove from the doubly linked list\n");
 	removeNodeFromDoublyLinkedList(now);
 
 	// decide whether to pad or split into two blocks
@@ -400,42 +358,23 @@ void *sf_malloc(size_t size){
 
 	// if splitting, add the free block to start of the list, then return the correct addr.
 	if(splitAddr != NULL){ // if split is needed
-		// 3-2. If allocation divides the block into two, add the second block to freelist
-		debug("3-2. If allocation divides the block into two, add the second block to freelist(splitAddr=%p)\n", splitAddr);
+		debug("3-1. If allocation divides the block into two, add the second block to freelist(splitAddr=%p)\n", splitAddr);
 
 		// set split block
-		// ((sf_free_header *) splitAddr)->header.alloc = 0;
-		// ((sf_free_header *) splitAddr)->header.block_size = (numOfNewBytes - numOfRequiredBytes) >> 4;
-		// ((sf_free_header *) splitAddr)->header.padding_size = 0;
-		// ((sf_free_header *) splitAddr)->prev = NULL;
 		fillHeader(splitAddr, 0, (numOfNewBytes - numOfRequiredBytes) >> 4, 0, 0);
-		// ((sf_free_header *) splitAddr)->next = freelist_head;
-
-		// sf_footer* footer = (sf_footer*)(((char*)splitAddr) + (((sf_free_header *) splitAddr)->header.block_size << 4)- SF_HEADER_SIZE);
-		// footer->alloc = 0;
-		// footer->block_size = (numOfNewBytes - numOfRequiredBytes) >> 4;
 		fillFooter(splitAddr, 0, (numOfNewBytes - numOfRequiredBytes) >> 4);
 
 		addToHead(splitAddr);
 
 		numOfBlockBytes = numOfRequiredBytes;
 	} else { // if no split is needed
-		// 3-3. If allocation does not divide the existing block
-		debug("3-3. If allocation does not divide the existing block\n");
+		debug("3-2. If allocation does not divide the existing block\n");
 		numOfBlockBytes = now->header.block_size << 4;
 	}
 	
 	fillHeader(now, 1, numOfBlockBytes >> 4, paddingSize, 0);
-	// now->header.alloc = 1;
-	// now->header.block_size = numOfBlockBytes >> 4;
-	// now->header.padding_size = paddingSize;
-
 	fillFooter(now, 1, numOfBlockBytes >> 4);
-	// sf_footer* footer = (sf_footer*)(((char*)now) + ( ((now)->header.block_size << 4) - SF_HEADER_SIZE ) );
-	// footer->alloc = 1;
-	// footer->block_size = numOfBlockBytes >> 4;
 
-	// 4. Return the correct address
 	debug("4. Return the correct address sf_sbrk_call=%d\n", sf_sbrk_call);
 	debug("=================================================================================\n");
 	return (void*)(((char*)now) + SF_HEADER_SIZE);
