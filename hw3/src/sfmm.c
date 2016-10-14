@@ -5,40 +5,40 @@
 
 // Colors
 #ifdef COLOR
-    #define KNRM  "\x1B[0m"
-    #define KRED  "\x1B[1;31m"
-    #define KGRN  "\x1B[1;32m"
-    #define KYEL  "\x1B[1;33m"
-    #define KBLU  "\x1B[1;34m"
-    #define KMAG  "\x1B[1;35m"
-    #define KCYN  "\x1B[1;36m"
-    #define KWHT  "\x1B[1;37m"
-    #define KBWN  "\x1B[0;33m"
+	#define KNRM  "\x1B[0m"
+	#define KRED  "\x1B[1;31m"
+	#define KGRN  "\x1B[1;32m"
+	#define KYEL  "\x1B[1;33m"
+	#define KBLU  "\x1B[1;34m"
+	#define KMAG  "\x1B[1;35m"
+	#define KCYN  "\x1B[1;36m"
+	#define KWHT  "\x1B[1;37m"
+	#define KBWN  "\x1B[0;33m"
 #else
-    /* Color was either not defined or Terminal did not support */
-    #define KNRM
-    #define KRED
-    #define KGRN
-    #define KYEL
-    #define KBLU
-    #define KMAG
-    #define KCYN
-    #define KWHT
-    #define KBWN
+	/* Color was either not defined or Terminal did not support */
+	#define KNRM
+	#define KRED
+	#define KGRN
+	#define KYEL
+	#define KBLU
+	#define KMAG
+	#define KCYN
+	#define KWHT
+	#define KBWN
 #endif
 
 #ifdef DEBUG
-    #define debug(S, ...)   fprintf(stdout, KMAG "DEBUG: %s:%s:%d " KNRM S, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-    #define error(S, ...)   fprintf(stderr, KRED "ERROR: %s:%s:%d " KNRM S, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-    #define warn(S, ...)    fprintf(stderr, KYEL "WARN: %s:%s:%d " KNRM S, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-    #define info(S, ...)    fprintf(stdout, KBLU "INFO: %s:%s:%d " KNRM S, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-    #define success(S, ...) fprintf(stdout, KGRN "SUCCESS: %s:%s:%d " KNRM S, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+	#define debug(S, ...)   fprintf(stdout, KMAG "DEBUG: %s:%s:%d " KNRM S, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+	#define error(S, ...)   fprintf(stderr, KRED "ERROR: %s:%s:%d " KNRM S, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+	#define warn(S, ...)    fprintf(stderr, KYEL "WARN: %s:%s:%d " KNRM S, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+	#define info(S, ...)    fprintf(stdout, KBLU "INFO: %s:%s:%d " KNRM S, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+	#define success(S, ...) fprintf(stdout, KGRN "SUCCESS: %s:%s:%d " KNRM S, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #else
-    #define debug(S, ...)
-    #define error(S, ...)   fprintf(stderr, KRED "ERROR: " KNRM S, ##__VA_ARGS__)
-    #define warn(S, ...)    fprintf(stderr, KYEL "WARN: " KNRM S, ##__VA_ARGS__)
-    #define info(S, ...)    fprintf(stdout, KBLU "INFO: " KNRM S, ##__VA_ARGS__)
-    #define success(S, ...) fprintf(stdout, KGRN "SUCCESS: " KNRM S, ##__VA_ARGS__)
+	#define debug(S, ...)
+	#define error(S, ...)   fprintf(stderr, KRED "ERROR: " KNRM S, ##__VA_ARGS__)
+	#define warn(S, ...)    fprintf(stderr, KYEL "WARN: " KNRM S, ##__VA_ARGS__)
+	#define info(S, ...)    fprintf(stdout, KBLU "INFO: " KNRM S, ##__VA_ARGS__)
+	#define success(S, ...) fprintf(stdout, KGRN "SUCCESS: " KNRM S, ##__VA_ARGS__)
 #endif
 
 /**
@@ -50,6 +50,9 @@
 sf_free_header* freelist_head = NULL;
 int sf_sbrk_call = 0;
 
+/*********************************************************************************
+Prototypes
+**********************************************************************************/
 size_t calculatePaddingSize(size_t size);
 void *getLastByteAddrOfBlock(sf_free_header* now);
 
@@ -57,7 +60,27 @@ void *getLastByteAddrOfBlock(sf_free_header* now);
 // if split is needed, start address of split block is returned
 void *needSplit(sf_free_header* now, int numOfNewBytes, int numOfRequiredBytes);
 
+bool validatePointer(void *ptr); // return 0 if invalid
 
+/* checkCoalese(..) it also sets before/after free block's header and footer, if applicable
+// return 0, if block before and after are alloced
+// return 1, if block before is alloced but block after is free
+// return 2, if block before is free but block after is alloced
+// return 3, if block before and after are free
+*/
+int checkCoalesce(void *ptr, sf_free_header **bHead, sf_free_header **aHead, sf_footer **bFoot, sf_footer **aFoot);
+
+
+// void fillHeaderAndFooter(void* ptr, int isAlloc, int blockSize, bool isPayloadAddr); // if is PayloadAddr == 1, then ptr is payload addr
+void fillHeader(void* ptr, int isAlloc, int blockSize, int paddingSize, bool isPayloadAddr);
+void fillFooter(void* headerAddr, int isAlloc, int blockSize);
+
+void addToHead(sf_free_header* newHead);
+void removeNodeFromDoublyLinkedList(sf_free_header* target);
+
+/*********************************************************************************
+Helper Functions
+**********************************************************************************/
 size_t calculatePaddingSize(size_t size){
 	if(size % 16 != 0){
 		return 16 - (size % 16);
@@ -71,8 +94,10 @@ void *getLastByteAddrOfBlock(sf_free_header* now){
 		( (char*)now + (now->header.block_size << 4) );
 }
 
-// if no split is needed, NULL returned
+/* needSplit(..) check if split is needed
 // if split is needed, start address of split block is returned
+// if no split is needed, NULL returned
+*/
 void *needSplit(sf_free_header* now, int numOfNewBytes, int numOfRequiredBytes){
 	if(numOfNewBytes < numOfRequiredBytes){
 		error("needSplit numOfNewBytes(%d) < numOfRequiredBytes(%d)\n", numOfNewBytes, numOfRequiredBytes);
@@ -86,8 +111,158 @@ void *needSplit(sf_free_header* now, int numOfNewBytes, int numOfRequiredBytes){
 	return (void*)(((char*)now) + numOfRequiredBytes);
 }
 
-void removeNodeFromDoublyLinkedList(sf_free_header* target);
+// void fillHeaderAndFooter(void* ptr, int isAlloc, int blockSize, bool isPayloadAddr){ // if is PayloadAddr == 1, then ptr is payload addr
+// 	sf_header *header;
 
+// 	if(isPayloadAddr != 1){ // it is header addr
+// 		header = (sf_header *)ptr;
+// 	}
+// 	else {
+// 		header = (sf_header *)ptr - SF_HEADER_SIZE;
+// 	}
+
+// 	header->alloc = isAlloc;
+// 	header->block_size = blockSize;
+
+// 	fillFooter(header, isAlloc, blockSize);
+// }
+
+void fillHeader(void* ptr, int isAlloc, int blockSize, int paddingSize, bool isPayloadAddr){
+	sf_header *header;
+
+	if(isPayloadAddr != 0){ // it is header addr
+		header = (sf_header *)ptr - SF_HEADER_SIZE;
+	}
+	else {
+		header = (sf_header *)ptr;
+	}
+
+	if(isAlloc == 1){
+		header->alloc = isAlloc;
+		header->block_size = blockSize;
+		header->padding_size = paddingSize;
+	}	
+	else { // (header->alloc == 0){
+		((sf_free_header*)header)->header.alloc = isAlloc;
+		((sf_free_header*)header)->header.block_size = blockSize;
+		((sf_free_header*)header)->header.padding_size = paddingSize;
+		((sf_free_header*)header)->next = NULL;
+		((sf_free_header*)header)->prev = NULL;
+	}
+}
+void fillFooter(void* headerAddr, int isAlloc, int blockSize){ 
+	sf_footer *footer = (sf_footer *)( (char*)headerAddr + ((blockSize << 4) - SF_FOOTER_SIZE) );
+	footer->alloc = isAlloc;
+	footer->block_size = blockSize;
+}
+
+// check if the ptr is actual pointer that has been assigned
+bool validatePointer(void *ptr){  // return 0 if invalid
+	sf_header* header = (sf_header*)((char*)ptr - SF_HEADER_SIZE);
+	sf_footer* footer = (sf_footer*)((char*)header + (header->block_size << 4)- SF_FOOTER_SIZE);
+	debug("validatePointer(%p) Result: header: %p, footer: %p\n", ptr, header, footer);
+	debug("block_size: %d vs %d, alloc: %d vs %d\n", header->block_size << 4, footer->block_size << 4, header->alloc, footer->alloc);
+	return header->block_size == footer->block_size && header->alloc==footer->alloc;
+}
+
+/* checkCoalese(..) it also sets before/after free block's header and footer, if applicable
+// return 0, if block before and after are alloced
+// return 1, if block before is alloced but block after is free
+// return 2, if block before is free but block after is alloced
+// return 3, if block before and after are free
+*/
+int checkCoalesce(void *ptr, sf_free_header **bHead, sf_free_header **aHead, sf_footer **bFoot, sf_footer **aFoot){
+	unsigned int beforeAlloc = 0, afterAlloc = 0;
+	sf_header * now = (sf_header*)((char*)ptr - SF_HEADER_SIZE);
+	*bFoot = (sf_footer*)     ((char*)now - SF_FOOTER_SIZE);
+	debug("*bFoot=%p\n", *bFoot);
+
+	*bHead = (sf_free_header*)((char*)(*bFoot) - ((((sf_free_header*)(*bFoot))->header.block_size << 4) - SF_HEADER_SIZE));
+	debug("*bHead=%p\n", *bHead);
+
+	*aHead = (sf_free_header*)( (char*)now + ( ((sf_free_header*)now) -> header.block_size << 4) );
+	debug("*aHead=%p, now=%p, %d\n", *aHead, now, (((sf_free_header*)now)->header.block_size << 4));
+
+	*aFoot = (sf_footer*)     ((char*)(*aHead) + ((((sf_free_header*)(*aHead))->header.block_size << 4) - SF_FOOTER_SIZE));
+	debug("*aFoot=%p\n", *aFoot);
+
+	if((unsigned long)(*bFoot) <= (unsigned long)(sf_sbrk(0) - 4096 * sf_sbrk_call)){
+		debug("Before mother god sf_sbrk %p vs %p\n", *bFoot, (char*)(sf_sbrk(0) - 4096 * sf_sbrk_call));
+		beforeAlloc = 1; // before mother god alloc, then mark as if previous is already allocated
+		bHead=NULL;
+		bFoot=NULL;
+	}
+	else{
+		debug("After mother god sf_sbrk %p vs %p\n", *bFoot, (char*)(sf_sbrk(0) - 4096 * sf_sbrk_call));
+		beforeAlloc = (*bHead)->header.alloc;
+	}
+
+	if((void*)*aHead > sf_sbrk(0)){
+		afterAlloc = 1; // treat as after the block is malloced
+		aHead=NULL;
+		aFoot=NULL;
+	} else{
+		afterAlloc = (*aHead)->header.alloc;
+	}
+
+	if(beforeAlloc == 1){
+		if(afterAlloc == 1){
+			return 0;
+		}
+		else{
+			return 1;
+		}
+	} else{
+		if(afterAlloc == 1){
+			return 2;
+		}
+		else{
+			return 3;
+		}
+	}
+}
+
+/*freelist_head related*/
+void addToHead(sf_free_header* newHead){
+	if(freelist_head == NULL){
+		freelist_head = newHead;
+		return;
+	}
+
+	newHead->next = freelist_head;
+	newHead->prev = NULL;
+
+	// connect between current head and new head
+	freelist_head->prev = newHead;
+	
+
+	// set the new head
+	freelist_head = newHead;
+}
+
+void removeNodeFromDoublyLinkedList(sf_free_header* now){
+	if(now->prev != NULL && now->next != NULL){
+		now->prev->next = now->next;
+		now->next->prev = now->prev;
+	}
+	else if(now->prev == NULL && now->next != NULL){ // head
+		freelist_head = now->next;
+		now->next->prev = NULL;
+	}
+	else if(now->prev != NULL && now->next == NULL){ // tail
+		now->prev->next = NULL;
+	}
+	else { // only now exists in the link
+		if(freelist_head == now)
+			freelist_head = NULL;
+	}
+}
+
+
+/*********************************************************************************
+Main Functions
+**********************************************************************************/
+/*sf_malloc*/
 // 1. Parameter check
 // 		if the parameter is 0, return NULL pointer
 
@@ -143,24 +318,23 @@ void *sf_malloc(size_t size){
 			}
 		}
 		debug("Outside While Loop: Current(sf_sbrk_call=%d)=%p, numOfNewBytes=%d, numOfRequiredBytes=%d\n", sf_sbrk_call, sbrk_ret, numOfNewBytes, numOfRequiredBytes);
-		((sf_free_header*) allocAddr)->header.alloc = 0;
-		((sf_free_header*) allocAddr)->header.block_size = numOfNewBytes >> 4;
-		((sf_free_header*) allocAddr)->header.padding_size = 0;
-		((sf_free_header*) allocAddr)->next = NULL;
-		((sf_free_header*) allocAddr)->prev = NULL;
+		// ((sf_free_header*) allocAddr)->header.alloc = 0;
+		// ((sf_free_header*) allocAddr)->header.block_size = numOfNewBytes >> 4;
+		// ((sf_free_header*) allocAddr)->header.padding_size = 0;
+		// ((sf_free_header*) allocAddr)->next = NULL;
+		// ((sf_free_header*) allocAddr)->prev = NULL;
+		fillHeader(allocAddr, 0, numOfNewBytes >> 4, 0, 0);
 
-		sf_footer* footer = (sf_footer*)( ((char*)allocAddr) + ( (((sf_free_header *)allocAddr)->header.block_size << 4) - SF_FOOTER_SIZE ) );
-		debug("Footer Addr:%p\n", footer);
-		footer->alloc = 0;
-		footer->block_size = numOfNewBytes >> 4;
+		// sf_footer* footer = (sf_footer*)( ((char*)allocAddr) + ( (((sf_free_header *)allocAddr)->header.block_size << 4) - SF_FOOTER_SIZE ) );
 
-		freelist_head = ((sf_free_header*) allocAddr);
+		fillFooter(allocAddr, 0, numOfNewBytes >> 4);
+		// footer->alloc = 0;
+		// footer->block_size = numOfNewBytes >> 4;
+
+		addToHead((sf_free_header*) allocAddr);
+		// freelist_head = ((sf_free_header*) allocAddr);
 
 		now = freelist_head;
-
-		// sf_varprint(allocAddr); // this returns strange value...
-		// sf_varprint((char*)allocAddr+ 8);
-		// sf_snapshot(true);
 	}
 	else { // check the freelist to see if there is a block to allocate size
 		now = freelist_head;
@@ -230,24 +404,19 @@ void *sf_malloc(size_t size){
 		debug("3-2. If allocation divides the block into two, add the second block to freelist(splitAddr=%p)\n", splitAddr);
 
 		// set split block
-		((sf_free_header *) splitAddr)->header.alloc = 0;
-		((sf_free_header *) splitAddr)->header.block_size = (numOfNewBytes - numOfRequiredBytes) >> 4;
-		((sf_free_header *) splitAddr)->header.padding_size = 0;
-		((sf_free_header *) splitAddr)->prev = NULL;
-		((sf_free_header *) splitAddr)->next = freelist_head;
+		// ((sf_free_header *) splitAddr)->header.alloc = 0;
+		// ((sf_free_header *) splitAddr)->header.block_size = (numOfNewBytes - numOfRequiredBytes) >> 4;
+		// ((sf_free_header *) splitAddr)->header.padding_size = 0;
+		// ((sf_free_header *) splitAddr)->prev = NULL;
+		fillHeader(splitAddr, 0, (numOfNewBytes - numOfRequiredBytes) >> 4, 0, 0);
+		// ((sf_free_header *) splitAddr)->next = freelist_head;
 
-		sf_footer* footer = (sf_footer*)(((char*)splitAddr) + (((sf_free_header *) splitAddr)->header.block_size << 4)- SF_HEADER_SIZE);
-		footer->alloc = 0;
-		footer->block_size = (numOfNewBytes - numOfRequiredBytes) >> 4;
+		// sf_footer* footer = (sf_footer*)(((char*)splitAddr) + (((sf_free_header *) splitAddr)->header.block_size << 4)- SF_HEADER_SIZE);
+		// footer->alloc = 0;
+		// footer->block_size = (numOfNewBytes - numOfRequiredBytes) >> 4;
+		fillFooter(splitAddr, 0, (numOfNewBytes - numOfRequiredBytes) >> 4);
 
-		// sf_varprint((char*)splitAddr + 8);
-
-		// link backwards
-		if(freelist_head != NULL)
-			freelist_head->prev = (sf_free_header *) splitAddr;
-
-		// set current free lock as the head
-		freelist_head = (sf_free_header *) splitAddr;
+		addToHead(splitAddr);
 
 		numOfBlockBytes = numOfRequiredBytes;
 	} else { // if no split is needed
@@ -255,17 +424,16 @@ void *sf_malloc(size_t size){
 		debug("3-3. If allocation does not divide the existing block\n");
 		numOfBlockBytes = now->header.block_size << 4;
 	}
+	
+	fillHeader(now, 1, numOfBlockBytes >> 4, paddingSize, 0);
+	// now->header.alloc = 1;
+	// now->header.block_size = numOfBlockBytes >> 4;
+	// now->header.padding_size = paddingSize;
 
-	// set header
-	now->header.alloc = 1;
-	now->header.block_size = numOfBlockBytes >> 4;
-	now->header.padding_size = paddingSize;
-
-	// set footer
-	sf_footer* footer = (sf_footer*)(((char*)now) + ( ((now)->header.block_size << 4) - SF_HEADER_SIZE ) );
-	debug("Address:%p, Moving:%x, Footer Addr:%p\n", now, ( ((now)->header.block_size << 4) - SF_HEADER_SIZE ), footer);
-	footer->alloc = 1;
-	footer->block_size = numOfBlockBytes >> 4;
+	fillFooter(now, 1, numOfBlockBytes >> 4);
+	// sf_footer* footer = (sf_footer*)(((char*)now) + ( ((now)->header.block_size << 4) - SF_HEADER_SIZE ) );
+	// footer->alloc = 1;
+	// footer->block_size = numOfBlockBytes >> 4;
 
 	// 4. Return the correct address
 	debug("4. Return the correct address sf_sbrk_call=%d\n", sf_sbrk_call);
@@ -273,94 +441,7 @@ void *sf_malloc(size_t size){
 	return (void*)(((char*)now) + SF_HEADER_SIZE);
 }
 
-bool validatePointer(void *ptr); // return 0 if invalid
-int checkCoalesce(void *ptr, sf_free_header **bHead, sf_free_header **aHead, sf_footer **bFoot, sf_footer **aFoot);
-
-// it also sets before/after free block's header and footer, if applicable
-// return 0, if block before and after are alloced
-// return 1, if block before is alloced but block after is free
-// return 2, if block before is free but block after is alloced
-// return 3, if block before and after are free
-
-// check if the ptr is actual pointer that has been assigned
-bool validatePointer(void *ptr){  // return 0 if invalid
-	sf_header* header = (sf_header*)((char*)ptr - SF_HEADER_SIZE);
-	sf_footer* footer = (sf_footer*)((char*)header + (header->block_size << 4)- SF_FOOTER_SIZE);
-	debug("validatePointer(%p) Result: header: %p, footer: %p\n", ptr, header, footer);
-	debug("block_size: %d vs %d, alloc: %d vs %d\n", header->block_size << 4, footer->block_size << 4, header->alloc, footer->alloc);
-	return header->block_size == footer->block_size && header->alloc==footer->alloc;
-}
-
-int checkCoalesce(void *ptr, sf_free_header **bHead, sf_free_header **aHead, sf_footer **bFoot, sf_footer **aFoot){
-	unsigned int beforeAlloc = 0, afterAlloc = 0;
-	sf_header * now = (sf_header*)((char*)ptr - SF_HEADER_SIZE);
-	*bFoot = (sf_footer*)     ((char*)now - SF_FOOTER_SIZE);
-	debug("*bFoot=%p\n", *bFoot);
-
-	*bHead = (sf_free_header*)((char*)(*bFoot) - ((((sf_free_header*)(*bFoot))->header.block_size << 4) - SF_HEADER_SIZE));
-	debug("*bHead=%p\n", *bHead);
-
-	*aHead = (sf_free_header*)( (char*)now + ( ((sf_free_header*)now) -> header.block_size << 4) );
-	debug("*aHead=%p, now=%p, %d\n", *aHead, now, (((sf_free_header*)now)->header.block_size << 4));
-
-	*aFoot = (sf_footer*)     ((char*)(*aHead) + ((((sf_free_header*)(*aHead))->header.block_size << 4) - SF_FOOTER_SIZE));
-	debug("*aFoot=%p\n", *aFoot);
-
-	if((unsigned long)(*bFoot) <= (unsigned long)(sf_sbrk(0) - 4096 * sf_sbrk_call)){
-		debug("Before mother god sf_sbrk %p vs %p\n", *bFoot, (char*)(sf_sbrk(0) - 4096 * sf_sbrk_call));
-		beforeAlloc = 1; // before mother god alloc, then mark as if previous is already allocated
-		bHead=NULL;
-		bFoot=NULL;
-	}
-	else{
-		debug("After mother god sf_sbrk %p vs %p\n", *bFoot, (char*)(sf_sbrk(0) - 4096 * sf_sbrk_call));
-		beforeAlloc = (*bHead)->header.alloc;
-	}
-
-	if((void*)*aHead > sf_sbrk(0)){
-		afterAlloc = 1; // treat as after the block is malloced
-		aHead=NULL;
-		aFoot=NULL;
-	} else{
-		afterAlloc = (*aHead)->header.alloc;
-	}
-
-	if(beforeAlloc == 1){
-		if(afterAlloc == 1){
-			return 0;
-		}
-		else{
-			return 1;
-		}
-	} else{
-		if(afterAlloc == 1){
-			return 2;
-		}
-		else{
-			return 3;
-		}
-	}
-
-}
-
-void removeNodeFromDoublyLinkedList(sf_free_header* now){
-	if(now->prev != NULL && now->next != NULL){
-		now->prev->next = now->next;
-		now->next->prev = now->prev;
-	}
-	else if(now->prev == NULL && now->next != NULL){ // head
-		freelist_head = now->next;
-		now->next->prev = NULL;
-	}
-	else if(now->prev != NULL && now->next == NULL){ // tail
-		now->prev->next = NULL;
-	}
-	else { // only now exists in the link
-		if(freelist_head == now)
-			freelist_head = NULL;
-	}
-}
-
+/*sf_free*/
 void sf_free(void *ptr){ // input is the address sf_malloc returned, not start address of header
 	bool validPointerToReturn;
 	int coalesceType;
@@ -372,41 +453,36 @@ void sf_free(void *ptr){ // input is the address sf_malloc returned, not start a
 	beforeBlockHeader = NULL;
 	afterBlockHeader = NULL;
 	footer = NULL;
-	// 1. Validate Argument, i.e., check if the ptr is actual pointer that has been assigned
 	debug("=================================================================================\n");
 	debug("1. Validate Argument, i.e., check if the ptr is actual pointer that has been assigned\n");
 
 	validPointerToReturn = validatePointer(ptr);
 
-	// 1-1. If it is invalid, return and do nothing
 	if(validPointerToReturn == 0){ // pointer is invalide
 		debug("1-1. If it is invalid, return and do nothing\n");
 		return;
 	}
-	// 1-2. If it is a valid ptr, free the block
 	else{
 		debug("1-2. If it is a valid, free the block\n");
 
 		// first find the address of header and footer
 		header = (sf_header *)((char*) ptr - SF_HEADER_SIZE);
 		footer = (sf_footer *)((char*) header + (header->block_size << 4) - SF_FOOTER_SIZE);
+		fillHeader(header, 0, header->block_size, 0, 0);// Note. block_size is not changed
+		// header->alloc = 0;
+		// header->padding_size = 0;
 
-		header->alloc = 0;
-		header->padding_size = 0;
-		// Note. block_size is not changed
-		footer->alloc = 0;
-		// Note. block_size is not changed
+		fillFooter(header, 0, header->block_size);// Note. block_size is not changed
+		// footer->alloc = 0;
 
 		free_header = (sf_free_header*)header;
-		free_header->next = NULL;
-		free_header->prev = NULL;
+		// free_header->next = NULL;
+		// free_header->prev = NULL;
 	}
 	
-	// 2. Check for possible coalescing
 	coalesceType = checkCoalesce(ptr, &beforeBlockHeader, &afterBlockHeader, &beforeBlockFooter, &afterBlockFooter);
 	debug("2. Check for possible coalescing (coalesceType=%d)\n", coalesceType);
 
-	// 2-1. If coalescing, coalesce
 	if(coalesceType == 0){
 		// do nothing
 	} else if(coalesceType == 1){
@@ -452,25 +528,139 @@ void sf_free(void *ptr){ // input is the address sf_malloc returned, not start a
 		return;
 	}
 
-	// 2-2. Add to the front of the freelist
 	debug("2-2. Add to the front of the freelist\n");
-	free_header->next = freelist_head;
-	free_header->prev = NULL;
-	if(freelist_head != NULL){
-		debug("freelist_head is not null\n");
-		freelist_head->prev = free_header;
-		freelist_head = free_header;
-		// Note. freelist_head->next is not modified
-	} else {
-		debug("freelist_head is null\n");
-		freelist_head = free_header;
-	}
+	addToHead(free_header);
 
 	debug("=================================================================================\n");
 }
 
+/*sf_realloc*/
+// The realloc() function changes the size of the memory block pointed to by ptr to size bytes.
+// The contents will be unchanged in the range from the start of the region up to the minimum of the old and new sizes.
+// If the new size is larger than the old size, the added memory will not be initialized.
+// If ptr is NULL, then the call is equivalent to malloc(size), for all values of size;
+// If size is equal to zero, and ptr is not NULL, then the call is equivalent to free(ptr).
+// Unless  ptr  is  NULL,  it  must  have  been returned by an earlier call to malloc(), calloc() or realloc().
+// If the area pointed to was moved, a free(ptr) is done.
+
+// 1. Validate Argument, i.e., check if the ptr is actual pointer that has been assigned, check if the size is valid
+// 1-1. Check if ptr is NULL
+// 		1-1-1. ptr is null -> return sf_malloc
+// 		1-1-2. ptr is not null
+// 1-2. Check if ptr is returned by an earlier call of malloc or realloc
+// 1-2-1. Invalid pointer return NULL
+// 1-2-2. Valid pointer continue realloc
+
+// 2. Validate size Argument, i.e., check if the size is valid
+// 2-1. Size == 0, go for sf_free() -> return NULL? //TODO
+// 2-2. New mem > old mem
+// 2-3. New mem < old mem
+// 2-4. New mem = old mem
+
+// 3. Return appropriate address
 void *sf_realloc(void *ptr, size_t size){
-	return NULL;
+	int isValidPtr;
+	// 1. Validate Argument, i.e., check if the ptr is actual pointer that has been assigned, check if the size is valid
+	debug("=================================================================================\n");
+	debug("1. Validate ptr(%p) Argument, i.e., check if the ptr is actual pointer that has been assigned\n", ptr);
+
+	debug("1-1. Check if ptr is NULL\n");
+	if(ptr == NULL){
+		debug("1-1-1. ptr is null -> return sf_malloc\n");
+		return sf_malloc(size);
+	}
+	else {
+		debug("1-1-2. ptr is not null\n");
+	}
+
+	debug("1-2. Check if ptr is returned by an earlier call of malloc or realloc\n");
+	isValidPtr = validatePointer(ptr); // return 0 if invalid
+	if(isValidPtr == 0){
+		debug("1-2-1. Invalid pointer return NULL\n");
+		return NULL;
+	} else{
+		debug("1-2-2. Valid pointer continue realloc\n");
+	}
+
+	debug("2. Validate size(%lu) Argument, i.e., check if the size is valid\n", size);
+	if(size == 0){
+		debug("2-1. Size == 0 & ptr != NULL, go for sf_free()\n");
+		return NULL;
+	}
+
+	sf_header *header = (sf_header*)( (char*)ptr - SF_HEADER_SIZE );
+	int oldMemSize = header->block_size << 4;
+	
+	if(size > oldMemSize){
+		debug("2-2. New mem size > old mem size(=%d)\n", oldMemSize);
+		
+		sf_header *aHead = (sf_header*)( (char*)header + (header->block_size << 4) );
+
+		// check if the next block is freed and together will be enough for realloc
+		if(aHead->alloc == 0 && (aHead->block_size << 4) + (header->block_size << 4) >= (size + SF_HEADER_SIZE +SF_FOOTER_SIZE) ){
+			debug("2-2-1. Coalescing with adjacent free block would be enough\n");
+			// coalesce with the next block
+			// First remove the adjacent free block from the doubly linked list
+			removeNodeFromDoublyLinkedList((sf_free_header*)aHead);
+
+			// Second, set the header and setter
+			// fillHeaderAndFooter(header, 1, header->block_size + aHead->block_size, 0); // 1 = isAlloc, 0 = isPayloadAddr
+			fillHeader(header, 1, header->block_size + aHead->block_size, 0, 0);
+			fillFooter(header, 1, header->block_size + aHead->block_size);
+
+			return ptr;
+		}
+		// either the next block is not yet freed or not enough for the size
+		else {
+			debug("2-2-2. Coalescing is not enough, calling sf_malloc internally...\n");
+
+			void *mallocRet = sf_malloc(size);
+			if(mallocRet == NULL){
+				debug("sf_malloc(size=%lu) failed\n", size);
+			}
+			else {
+				debug("sf_malloc(size=%lu) success\n", size);
+
+				debug("sf_free(%p)\n", ptr);
+				sf_free(ptr); // free the returned
+			}
+
+			return mallocRet;
+		}
+	}
+	else if (size < oldMemSize){
+		debug("2-3. New mem < old mem size(=%d)\n", oldMemSize);
+		void *splitAddr = needSplit((sf_free_header*)header, (header->block_size << 4), size); // sf_free_header, numOfNewBytes, numOfRequiredBytes
+
+		// if(oldMemSize - size < 32) { // if shrinking causes a splinter
+		if(splitAddr == NULL){ // Same meaning as above line
+			debug("2-3-1. oldMemSize(%d) - size(%lu) < 32", oldMemSize, size);
+			// do nothing and return
+			return ptr;
+		} else{
+			debug("2-3-2. oldMemSize(%d) - size(%lu) >= 32", oldMemSize, size);
+			// split the block 
+			// fillHeaderAndFooter(ptr, 1, size, 1);
+			fillHeader(ptr, 1, size, 0, 1); // 1 = isAlloc, 0 = paddingSize, 1 = isPayloadAddr
+			fillFooter(ptr, 1, size);
+
+			// fillHeaderAndFooter(splitAddr, 0, header->block_size << 4, 0);
+			fillHeader(splitAddr, 0, header->block_size << 4, 0, 0);
+			fillFooter(splitAddr, 0, header->block_size << 4);
+
+			// now add splitAddr to the front of the doubly linked list
+			addToHead((sf_free_header*)splitAddr);
+
+			// return the address
+			return ptr;
+		}
+	}
+	else {
+		debug("2-4. New mem = old mem size(=%d)\n", oldMemSize);
+
+		// do nothing and return
+		return ptr;
+	}
 }
 
 int sf_info(info* meminfo){
