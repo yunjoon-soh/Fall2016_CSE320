@@ -318,6 +318,7 @@ void *sf_malloc_internal(size_t size){
 	debug("=================================================================================\n");
 	debug("1. Parameter check (size = %lu, size in hex: %x)\n", size, (unsigned int)size);
 	if(size <= 0){ // if the parameter is 0, return NULL pointer //TODO whether it is <= or ==
+		errno = EINVAL;
 		return NULL;
 	}
 
@@ -335,7 +336,8 @@ void *sf_malloc_internal(size_t size){
 		// if numOfNewBytes is >=, then we can create a whole new block
 			sbrk_ret = sf_sbrk(1); // non-zero value to ask for one page (4096 bytes)
 			if(sbrk_ret == (void*)-1){
-				error("sf_sbrk return -1\n");
+				// error("sf_sbrk return -1\n");
+				// errno expected to be set by sf_sbrk correctly
 				return NULL;
 			}
 			else{
@@ -377,7 +379,8 @@ void *sf_malloc_internal(size_t size){
 			// if numOfNewBytes is >=, then we can create a whole new block
 				sbrk_ret = sf_sbrk(1); // non-zero value to ask for one page (4096 bytes)
 				if(sbrk_ret == (void*)-1){
-					error("sf_sbrk return -1\n");
+					// error("sf_sbrk return -1\n");
+					// errno expected to be set by sf_sbrk correctly
 					return NULL;
 				}
 				else{
@@ -457,6 +460,7 @@ void sf_free_internal(void *ptr){ // input is the address sf_malloc returned, no
 
 	if(validPointerToReturn == 0){ // pointer is invalide
 		debug("1-1. If it is invalid, return and do nothing\n");
+		errno = EINVAL;
 		return;
 	}
 	else{
@@ -570,6 +574,7 @@ void *sf_realloc(void *ptr, size_t size){
 		debug("1-1-2. ptr is not null\n");
 		if( ((sf_header*)( (char*)ptr - 8 ))->alloc == 0 ) {
 			error("Passed free block... returning NULL\n");
+			errno = EINVAL;
 			return NULL;
 		}
 	}
@@ -578,6 +583,7 @@ void *sf_realloc(void *ptr, size_t size){
 	isValidPtr = validatePointer(ptr); // return 0 if invalid
 	if(isValidPtr == 0){
 		debug("1-2-1. Invalid pointer return NULL\n");
+		errno = EINVAL;
 		return NULL;
 	} else{
 		debug("1-2-2. Valid pointer continue realloc\n");
@@ -586,6 +592,7 @@ void *sf_realloc(void *ptr, size_t size){
 	debug("2. Validate size(%lu) Argument, i.e., check if the size is valid\n", size);
 	if(size == 0){
 		debug("2-1. Size == 0 & ptr != NULL, go for sf_free()\n");
+		errno = EINVAL;
 		return NULL;
 	}
 
@@ -744,11 +751,10 @@ void *sf_realloc(void *ptr, size_t size){
 
 			} else{
 				error("coalesceType failed! coalesceType=%d\n", coalesceType);
-				// return NULL;
 			}
 
 			debug("2-3-4. Add to the front of the freelist\n");
-			// addToHead(&free_header);
+			// addToHead(free_header);
 
 			// return the address
 			return ptr;

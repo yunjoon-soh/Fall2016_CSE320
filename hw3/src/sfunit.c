@@ -7,53 +7,12 @@
 #include "sfmm.h"
 
 #include <time.h>
+#include <errno.h>
 
 /**
  *  HERE ARE OUR TEST CASES NOT ALL SHOULD BE GIVEN STUDENTS
  *  REMINDER MAX ALLOCATIONS MAY NOT EXCEED 4 * 4096 or 16384 or 128KB
  */
-
-void checkFreelist();
-void checkHeaderFooter(void *x, bool isAlloc, int expectedBlockSizeInBytes, int expectedPaddingSize);
-void checkInfo(info* i_f, size_t internal, size_t external, size_t allocations, size_t frees, size_t coalesce);
-
-void checkFreelist(){
-    sf_free_header *now = freelist_head;
-    cr_assert(now->prev == NULL);
-
-    while(now != NULL){
-        cr_assert(now->header.alloc == 0);
-        cr_assert(( (sf_footer *)( (char*)now + ( (now->header.block_size << 4) - 8) ) )->alloc == 0);
-        now = now->next;
-    }
-}
-
-void checkHeaderFooter(void *x, bool isAlloc, int expectedBlockSizeInBytes, int expectedPaddingSize){ // if allocated block set isAlloc to 1, else 0
-	cr_assert(x != NULL);
-    sf_header *headofx = (sf_header*) (x-8);
-	sf_footer *footofx = (sf_footer*) (x - 8 + (headofx->block_size << 4) - 8);
-
-	cr_assert((headofx->alloc) == isAlloc,
-        "Header alloc differs.. Read:%d vs Expected:%d (Note. expectedBlockSizeInBytes:%d)\n", (headofx->alloc), isAlloc, expectedBlockSizeInBytes);
-    cr_assert(headofx->padding_size == expectedPaddingSize,
-        "Header padd size differs.. Real: %d vs Expected: %d\n", headofx->padding_size, expectedPaddingSize);
-    cr_assert(headofx->block_size << 4 == expectedBlockSizeInBytes, 
-        "Header block size differs.. Real: %d vs Expected: %d\n", headofx->block_size << 4, expectedBlockSizeInBytes);
-
-	cr_assert((footofx->alloc) == isAlloc, 
-        "Footer alloc differs.. Read:%d vs Expected:%d (Note. expectedBlockSizeInBytes:%d)\n", (footofx->alloc), isAlloc, expectedBlockSizeInBytes);
-    cr_assert(footofx->block_size << 4 == expectedBlockSizeInBytes, 
-        "Footer block size differs.. Real: %d vs Expected: %d\n", footofx->block_size << 4, expectedBlockSizeInBytes);
-}
-
-void checkInfo(info* i_f, size_t internal, size_t external, size_t allocations, size_t frees, size_t coalesce){
-    cr_assert(i_f->internal == internal, "Internal: Real: %lu vs Expected: %lu\n", i_f->internal, internal);
-    cr_assert(i_f->external == external, "external: Real: %lu vs Expected: %lu\n", i_f->external, external);
-    cr_assert(i_f->allocations == allocations, "allocations: Real: %lu vs Expected: %lu\n", i_f->allocations, allocations);
-    cr_assert(i_f->frees == frees, "frees: Real: %lu vs Expected: %lu\n", i_f->frees, frees);
-    cr_assert(i_f->coalesce == coalesce, "coalesce: Real: %lu vs Expected: %lu\n", i_f->coalesce, coalesce);
-}
-
 Test(sf_memsuite, Malloc_an_Integer, .init = sf_mem_init, .fini = sf_mem_fini) {
     int *x = sf_malloc(sizeof(int));
     *x = 4;
@@ -108,6 +67,46 @@ Test(sf_memsuite, Coalesce_no_coalescing, .init = sf_mem_init, .fini = sf_mem_fi
 // DO NOT DELETE THESE COMMENTS
 //############################################
 */
+void checkFreelist();
+void checkHeaderFooter(void *x, bool isAlloc, int expectedBlockSizeInBytes, int expectedPaddingSize);
+void checkInfo(info* i_f, size_t internal, size_t external, size_t allocations, size_t frees, size_t coalesce);
+
+void checkFreelist(){
+    sf_free_header *now = freelist_head;
+    cr_assert(now->prev == NULL);
+
+    while(now != NULL){
+        cr_assert(now->header.alloc == 0);
+        cr_assert(( (sf_footer *)( (char*)now + ( (now->header.block_size << 4) - 8) ) )->alloc == 0);
+        now = now->next;
+    }
+}
+
+void checkHeaderFooter(void *x, bool isAlloc, int expectedBlockSizeInBytes, int expectedPaddingSize){ // if allocated block set isAlloc to 1, else 0
+    cr_assert(x != NULL);
+    sf_header *headofx = (sf_header*) (x-8);
+    sf_footer *footofx = (sf_footer*) (x - 8 + (headofx->block_size << 4) - 8);
+
+    cr_assert((headofx->alloc) == isAlloc,
+        "Header alloc differs.. Read:%d vs Expected:%d (Note. expectedBlockSizeInBytes:%d)\n", (headofx->alloc), isAlloc, expectedBlockSizeInBytes);
+    cr_assert(headofx->padding_size == expectedPaddingSize,
+        "Header padd size differs.. Real: %d vs Expected: %d\n", headofx->padding_size, expectedPaddingSize);
+    cr_assert(headofx->block_size << 4 == expectedBlockSizeInBytes, 
+        "Header block size differs.. Real: %d vs Expected: %d\n", headofx->block_size << 4, expectedBlockSizeInBytes);
+
+    cr_assert((footofx->alloc) == isAlloc, 
+        "Footer alloc differs.. Read:%d vs Expected:%d (Note. expectedBlockSizeInBytes:%d)\n", (footofx->alloc), isAlloc, expectedBlockSizeInBytes);
+    cr_assert(footofx->block_size << 4 == expectedBlockSizeInBytes, 
+        "Footer block size differs.. Real: %d vs Expected: %d\n", footofx->block_size << 4, expectedBlockSizeInBytes);
+}
+
+void checkInfo(info* i_f, size_t internal, size_t external, size_t allocations, size_t frees, size_t coalesce){
+    cr_assert(i_f->internal == internal, "Internal: Real: %lu vs Expected: %lu\n", i_f->internal, internal);
+    cr_assert(i_f->external == external, "external: Real: %lu vs Expected: %lu\n", i_f->external, external);
+    cr_assert(i_f->allocations == allocations, "allocations: Real: %lu vs Expected: %lu\n", i_f->allocations, allocations);
+    cr_assert(i_f->frees == frees, "frees: Real: %lu vs Expected: %lu\n", i_f->frees, frees);
+    cr_assert(i_f->coalesce == coalesce, "coalesce: Real: %lu vs Expected: %lu\n", i_f->coalesce, coalesce);
+}
 
 /* sf_malloc() every path
 ///////////////////////////////////////////////////////////////////////////////
@@ -116,6 +115,7 @@ Test(sf_memsuite, Invalid_Size, .init = sf_mem_init, .fini = sf_mem_fini) {
     int askedFor = 0; // Note. when negative value is passed, it is parsed as possible int because of the data type size_t
     void *x = sf_malloc(askedFor);
     cr_assert(x == NULL);
+    cr_assert(errno == EINVAL);
 }
 
 Test(sf_memsuite, Malloc_When_Empty_Freelist, .init = sf_mem_init, .fini = sf_mem_fini) {
@@ -352,6 +352,19 @@ Test(sf_memsuite, Ask_Over_Max_After_Mallocs, .init = sf_mem_init, .fini = sf_me
 /* sf_free() : invalid ptr
 ///////////////////////////////////////////////////////////////////////////////
 */
+
+Test(sf_memsuite, Check_Invalid_Ptr_SF_realloc_Already_Freed, .init = sf_mem_init, .fini = sf_mem_fini) {
+    cr_assert(freelist_head == NULL);
+    void *x = sf_malloc(1); checkHeaderFooter(x, 1, 1 + 16 + 15, 15); // 32: b_size
+
+    cr_assert(freelist_head != NULL);
+    checkHeaderFooter((char*)freelist_head + 8, 0, 4096 - 32, 0);
+
+    sf_free(x);
+    cr_assert(errno == 0);
+    sf_realloc(x, 10); // pass invalid pointer
+    cr_assert(errno == EINVAL);
+}
 
 Test(sf_memsuite, Check_Invalid_Ptr_SF_Free_Not_Mult_Of_16, .init = sf_mem_init, .fini = sf_mem_fini) {
     cr_assert(freelist_head == NULL);
