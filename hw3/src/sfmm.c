@@ -73,8 +73,8 @@ int checkCoalesce(void *ptr, sf_free_header **bHead, sf_free_header **aHead, sf_
 void fillHeader(void* ptr, int isAlloc, int blockSize, int paddingSize, bool isPayloadAddr);
 void *fillFooter(void* headerAddr, int isAlloc, int blockSize);
 
-void addToHead(sf_free_header* newHead);
-void removeNodeFromDoublyLinkedList(sf_free_header* target);
+void addToHead(sf_free_header** newHead);
+void removeNodeFromDoublyLinkedList(sf_free_header** target);
 
 /*********************************************************************************
 Helper Functions
@@ -113,7 +113,7 @@ void fillHeader(void* ptr, int isAlloc, int blockSize, int paddingSize, bool isP
 	sf_header *header;
 
 	if(isPayloadAddr != 0){ // it is header addr
-		header = (sf_header *)ptr - SF_HEADER_SIZE;
+		header = (sf_header *)( (char*)ptr - SF_HEADER_SIZE );
 	}
 	else {
 		header = (sf_header *)ptr;
@@ -226,41 +226,46 @@ int checkCoalesce(void *ptr, sf_free_header **bHead, sf_free_header **aHead, sf_
 }
 
 /*freelist_head related*/
-void addToHead(sf_free_header* newHead){
+void addToHead(sf_free_header** newHead){
+	// (*newHead)->next = NULL;
+	// (*newHead)->prev = NULL;
 	if(freelist_head == NULL){
-		freelist_head = newHead;
+		freelist_head = *newHead;
 		return;
 	}
 
-	newHead->next = freelist_head;
-	newHead->prev = NULL;
+	if(freelist_head == (*newHead)){
+		return;
+	}
 
 	// connect between current head and new head
-	freelist_head->prev = newHead;
-	
+	freelist_head->prev = (*newHead);
+	(*newHead)->next = freelist_head;	
 
 	// set the new head
-	freelist_head = newHead;
+	freelist_head = (*newHead);
 }
 
-void removeNodeFromDoublyLinkedList(sf_free_header* now){
-	if(now->prev != NULL && now->next != NULL){
-		now->prev->next = now->next;
-		now->next->prev = now->prev;
+void removeNodeFromDoublyLinkedList(sf_free_header** now){
+	if((*now)->prev != NULL && (*now)->next != NULL){
+		(*now)->prev->next = (*now)->next;
+		(*now)->next->prev = (*now)->prev;
 	}
-	else if(now->prev == NULL && now->next != NULL){ // head
-		freelist_head = now->next;
-		now->next->prev = NULL;
+	else if((*now)->prev == NULL && (*now)->next != NULL){ // head
+		freelist_head = (*now)->next;
+		(*now)->next->prev = NULL;
 	}
-	else if(now->prev != NULL && now->next == NULL){ // tail
-		now->prev->next = NULL;
+	else if((*now)->prev != NULL && (*now)->next == NULL){ // tail
+		(*now)->prev->next = NULL;
 	}
 	else { // only now exists in the link
-		if(freelist_head == now)
+		if(freelist_head == (*now))
 			freelist_head = NULL;
 	}
-}
 
+	(*now)->next = NULL;
+	(*now)->prev = NULL;
+}
 
 /*********************************************************************************
 Main Functions
@@ -319,7 +324,7 @@ void *sf_malloc(size_t size){
 		
 		fillHeader(allocAddr, 0, numOfNewBytes >> 4, 0, 0);
 		fillFooter(allocAddr, 0, numOfNewBytes >> 4);
-		addToHead((sf_free_header*) allocAddr);
+		addToHead((sf_free_header**) &allocAddr);
 
 		now = freelist_head;
 	}
@@ -371,7 +376,7 @@ void *sf_malloc(size_t size){
 	debug("3. Allocate to free block(now=%p, numOfNewBytes=0x%x, %d)\n", (void*) now, numOfNewBytes, numOfNewBytes);
 
 	debug("Setup the current free block and remove from the doubly linked list\n");
-	removeNodeFromDoublyLinkedList(now);
+	removeNodeFromDoublyLinkedList(&now);
 
 	// decide whether to pad or split into two blocks
 	splitAddr = needSplit(now, numOfNewBytes, numOfRequiredBytes);
@@ -384,7 +389,7 @@ void *sf_malloc(size_t size){
 		fillHeader(splitAddr, 0, (numOfNewBytes - numOfRequiredBytes) >> 4, 0, 0);
 		fillFooter(splitAddr, 0, (numOfNewBytes - numOfRequiredBytes) >> 4);
 
-		addToHead(splitAddr);
+		addToHead( (sf_free_header **) &splitAddr);
 
 		numOfBlockBytes = numOfRequiredBytes;
 	} else { // if no split is needed
@@ -429,6 +434,7 @@ void sf_free(void *ptr){ // input is the address sf_malloc returned, not start a
 		header = (sf_header *)((char*) ptr - SF_HEADER_SIZE);
 		footer = (sf_footer *)((char*) header + (header->block_size << 4) - SF_FOOTER_SIZE);
 
+		header->alloc = 0;
 		fillHeader(header, 0, header->block_size, 0, 0);// Note. block_size is not changed
 		fillFooter(header, 0, header->block_size);// Note. block_size is not changed
 
@@ -441,7 +447,7 @@ void sf_free(void *ptr){ // input is the address sf_malloc returned, not start a
 	if(coalesceType == 0){
 		// do nothing
 	} else if(coalesceType == 1){
-		debug("free_header=%p, afterBlockHeader=%p\n", free_header, afterBlockHeader);
+
 		// set the header block_size to proper value
 		free_header->header.block_size += afterBlockHeader->header.block_size;
 
@@ -449,7 +455,7 @@ void sf_free(void *ptr){ // input is the address sf_malloc returned, not start a
 		afterBlockFooter->block_size = free_header->header.block_size;
 
 		// remove the free block node from the list
-		removeNodeFromDoublyLinkedList(afterBlockHeader);
+		removeNodeFromDoublyLinkedList(&afterBlockHeader);
 
 		// set the new head as header
 		// header = header; // No need to do this
@@ -460,11 +466,13 @@ void sf_free(void *ptr){ // input is the address sf_malloc returned, not start a
 		// set the footer block_size the same
 		footer->block_size = beforeBlockHeader->header.block_size;
 
+		// sf_snapshot(true);
 		// remove the free block node from the list
-		// removeNodeFromDoublyLinkedList(header); // don't have to because it is not in the list anyways
+		removeNodeFromDoublyLinkedList(&beforeBlockHeader); // don't have to because it is not in the list anyways
 
 		// set the new head as header
 		free_header = beforeBlockHeader;
+
 	} else if(coalesceType == 3){
 		// set the header block_size to proper value
 		beforeBlockHeader->header.block_size += (free_header->header.block_size + afterBlockHeader->header.block_size);
@@ -473,18 +481,19 @@ void sf_free(void *ptr){ // input is the address sf_malloc returned, not start a
 		afterBlockFooter->block_size = beforeBlockHeader->header.block_size;
 
 		// remove the free block node from the list
-		removeNodeFromDoublyLinkedList(beforeBlockHeader);
-		removeNodeFromDoublyLinkedList(afterBlockHeader);
+		removeNodeFromDoublyLinkedList(&beforeBlockHeader); 
+		removeNodeFromDoublyLinkedList(&afterBlockHeader);
 
 		// set the new head as header
 		free_header = beforeBlockHeader;
+
 	} else{
 		error("coalesceType failed! coalesceType=%d\n", coalesceType);
 		return;
 	}
 
 	debug("2-2. Add to the front of the freelist\n");
-	addToHead(free_header);
+	addToHead(&free_header);
 
 	debug("=================================================================================\n");
 }
@@ -515,7 +524,7 @@ void sf_free(void *ptr){ // input is the address sf_malloc returned, not start a
 // 3. Return appropriate address
 void *sf_realloc(void *ptr, size_t size){
 	int isValidPtr;
-	// 1. Validate Argument, i.e., check if the ptr is actual pointer that has been assigned, check if the size is valid
+
 	debug("=================================================================================\n");
 	debug("1. Validate ptr(%p) Argument, i.e., check if the ptr is actual pointer that has been assigned\n", ptr);
 
@@ -544,10 +553,14 @@ void *sf_realloc(void *ptr, size_t size){
 	}
 
 	sf_header *header = (sf_header*)( (char*)ptr - SF_HEADER_SIZE );
-	int oldMemSize = header->block_size << 4;
+	size_t oldSize = (header->block_size << 4) - 16;
+	int paddingSize = calculatePaddingSize(size);
+	int numOfNewBytes = (header->block_size << 4);
+	int numOfRequiredBytes = size + paddingSize + SF_HEADER_SIZE + SF_FOOTER_SIZE;
 	
-	if(size > oldMemSize){
-		debug("2-2. New mem size > old mem size(=%d)\n", oldMemSize);
+	debug("Trying to allocate block_size(=%d)(pad=%d)\n", numOfRequiredBytes, paddingSize);
+	if(size > oldSize){
+		debug("2-2. New mem size > old mem size(=%lu)\n", oldSize);
 		
 		sf_header *aHead = (sf_header*)( (char*)header + (header->block_size << 4) );
 
@@ -556,7 +569,7 @@ void *sf_realloc(void *ptr, size_t size){
 			debug("2-2-1. Coalescing with adjacent free block would be enough\n");
 			// coalesce with the next block
 			// First remove the adjacent free block from the doubly linked list
-			removeNodeFromDoublyLinkedList((sf_free_header*)aHead);
+			removeNodeFromDoublyLinkedList( (sf_free_header**) &aHead);
 
 			// Second, set the header and setter
 			// fillHeaderAndFooter(header, 1, header->block_size + aHead->block_size, 0); // 1 = isAlloc, 0 = isPayloadAddr
@@ -583,35 +596,97 @@ void *sf_realloc(void *ptr, size_t size){
 			return mallocRet;
 		}
 	}
-	else if (size < oldMemSize){
-		debug("2-3. New mem < old mem size(=%d)\n", oldMemSize);
-		void *splitAddr = needSplit((sf_free_header*)header, (header->block_size << 4), size); // sf_free_header, numOfNewBytes, numOfRequiredBytes
+	else if (size < oldSize){
+		debug("2-3. New mem size (=%lu) < old mem size(=%lu)\n", size, oldSize);
+		void *splitAddr = needSplit((sf_free_header*)header, numOfNewBytes, numOfRequiredBytes); // sf_free_header, numOfNewBytes, numOfRequiredBytes
 
-		// if(oldMemSize - size < 32) { // if shrinking causes a splinter
+		// if(oldSize - size < 32) { // if shrinking causes a splinter
 		if(splitAddr == NULL){ // Same meaning as above line
-			debug("2-3-1. oldMemSize(%d) - size(%lu) < 32", oldMemSize, size);
+			debug("2-3-1. oldSize(%lu) - size(%lu) < 32\n", oldSize, size);
 			// do nothing and return
 			return ptr;
 		} else{
-			debug("2-3-2. oldMemSize(%d) - size(%lu) >= 32", oldMemSize, size);
-			// split the block 
-			// fillHeaderAndFooter(ptr, 1, size, 1);
-			fillHeader(ptr, 1, size, 0, 1); // 1 = isAlloc, 0 = paddingSize, 1 = isPayloadAddr
-			fillFooter(ptr, 1, size);
+			debug("2-3-2. oldSize(%lu) - size(%lu) >= 32\n", oldSize, size);
+			// split the block
+			fillHeader(ptr, 1, numOfRequiredBytes >> 4, paddingSize, 1); // 1 = isAlloc, 1 = isPayloadAddr
+			fillFooter( (sf_header*)((char*)ptr - 8), 1, numOfRequiredBytes >> 4);
+			// sf_varprint(ptr);
 
-			// fillHeaderAndFooter(splitAddr, 0, header->block_size << 4, 0);
-			fillHeader(splitAddr, 0, header->block_size << 4, 0, 0);
-			fillFooter(splitAddr, 0, header->block_size << 4);
+			fillHeader(splitAddr, 0, (numOfNewBytes - numOfRequiredBytes) >> 4, 0, 0);
+			fillFooter(splitAddr, 0, (numOfNewBytes - numOfRequiredBytes) >> 4);
 
 			// now add splitAddr to the front of the doubly linked list
-			addToHead((sf_free_header*)splitAddr);
+			addToHead( (sf_free_header**) &splitAddr);
+
+			sf_free_header *free_header, *beforeBlockHeader, *afterBlockHeader;
+			sf_footer *footer, *beforeBlockFooter, *afterBlockFooter;
+
+			header = (sf_header *)((char*)splitAddr);
+			beforeBlockHeader = NULL;
+			afterBlockHeader = NULL;
+			footer = (sf_footer *)((char*)header + (numOfNewBytes - numOfRequiredBytes - SF_FOOTER_SIZE));
+
+			free_header = (sf_free_header *)header;
+
+			int coalesceType = checkCoalesce( (char*)splitAddr + 8, &beforeBlockHeader, &afterBlockHeader, &beforeBlockFooter, &afterBlockFooter);
+			debug("2-3-3. Check for possible coalescing (coalesceType=%d)\n", coalesceType);
+
+			if(coalesceType == 0){
+				// do nothing
+			} else if(coalesceType == 1){
+				// set the header block_size to proper value
+				free_header->header.block_size += afterBlockHeader->header.block_size;
+
+				// set the footer block_size the same
+				afterBlockFooter->block_size = free_header->header.block_size;
+
+				// remove the free block node from the list
+				removeNodeFromDoublyLinkedList(&afterBlockHeader);
+
+				// set the new head as header
+				// header = header; // No need to do this
+			} else if(coalesceType == 2){ // return 2, if block before is free but not block after is alloced
+				// set the header block_size to proper value
+				beforeBlockHeader->header.block_size += free_header->header.block_size;
+
+				// set the footer block_size the same
+				footer->block_size = beforeBlockHeader->header.block_size;
+
+				// sf_snapshot(true);
+				// remove the free block node from the list
+				removeNodeFromDoublyLinkedList(&beforeBlockHeader); // don't have to because it is not in the list anyways
+
+				// set the new head as header
+				free_header = beforeBlockHeader;
+
+			} else if(coalesceType == 3){
+				// set the header block_size to proper value
+				beforeBlockHeader->header.block_size += (free_header->header.block_size + afterBlockHeader->header.block_size);
+
+				// set the footer block_size the same
+				afterBlockFooter->block_size = beforeBlockHeader->header.block_size;
+
+				// remove the free block node from the list
+				removeNodeFromDoublyLinkedList(&beforeBlockHeader); 
+				removeNodeFromDoublyLinkedList(&afterBlockHeader);
+
+				// set the new head as header
+				free_header = beforeBlockHeader;
+
+			} else{
+				error("coalesceType failed! coalesceType=%d\n", coalesceType);
+				// return NULL;
+			}
+
+			debug("2-3-3. Add to the front of the freelist\n");
+			// addToHead(&free_header);
 
 			// return the address
 			return ptr;
 		}
 	}
 	else {
-		debug("2-4. New mem = old mem size(=%d)\n", oldMemSize);
+		debug("2-4. New mem = old mem size(=%lu)\n", oldSize);
 
 		// do nothing and return
 		return ptr;
