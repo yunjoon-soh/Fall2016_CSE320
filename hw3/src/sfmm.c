@@ -50,6 +50,12 @@
 sf_free_header* freelist_head = NULL;
 int sf_sbrk_call = 0;
 
+static size_t internal = 0;
+static size_t external = 0;
+static size_t allocations = 0;
+static size_t frees = 0;
+static size_t coalesce = 0;
+
 /*********************************************************************************
 Prototypes
 **********************************************************************************/
@@ -75,6 +81,9 @@ void *fillFooter(void* headerAddr, int isAlloc, int blockSize);
 
 void addToHead(sf_free_header* newHead);
 void removeNodeFromDoublyLinkedList(sf_free_header* target);
+
+void *sf_malloc_internal(size_t size);
+void sf_free_internal(void* ptr);
 
 /*********************************************************************************
 Helper Functions
@@ -175,7 +184,7 @@ bool validatePointer(void *ptr){  // return 0 if invalid
 // return 3, if block before and after are free
 */
 int checkCoalesce(void *ptr, sf_free_header **bHead, sf_free_header **aHead, sf_footer **bFoot, sf_footer **aFoot){
-	unsigned int beforeAlloc = 0, afterAlloc = 0;
+	unsigned int beforeAlloc = 0, afterAlloc = 0, coalesceType;
 	sf_header * now = (sf_header*)((char*)ptr - SF_HEADER_SIZE);
 	*bFoot = (sf_footer*)     ((char*)now - SF_FOOTER_SIZE);
 	debug("*bFoot=%p\n", *bFoot);
@@ -210,19 +219,25 @@ int checkCoalesce(void *ptr, sf_free_header **bHead, sf_free_header **aHead, sf_
 
 	if(beforeAlloc == 1){
 		if(afterAlloc == 1){
-			return 0;
+			coalesceType = 0;
 		}
 		else{
-			return 1;
+			coalesceType = 1;
 		}
 	} else{
 		if(afterAlloc == 1){
-			return 2;
+			coalesceType = 2;
 		}
 		else{
-			return 3;
+			coalesceType = 3;
 		}
 	}
+
+	if(coalesceType != 0){
+		coalesce += 1;
+	}
+
+	return coalesceType;
 }
 
 /*freelist_head related*/
@@ -285,8 +300,15 @@ Main Functions
 // 3-2. If allocation does not divide the existing block
 
 // 4. Return the correct address
-
 void *sf_malloc(size_t size){
+	void *ret = sf_malloc_internal(size);
+	if(ret != NULL){
+		allocations += 1;
+	}
+	return ret;
+}
+
+void *sf_malloc_internal(size_t size){
 	int numOfNewBytes, numOfRequiredBytes, numOfBlockBytes;
 	void *allocAddr, *sbrk_ret, *splitAddr;
 	sf_free_header* now;
@@ -406,7 +428,18 @@ void *sf_malloc(size_t size){
 }
 
 /*sf_free*/
-void sf_free(void *ptr){ // input is the address sf_malloc returned, not start address of header
+void sf_free(void *ptr){
+	bool validPointerToReturn = validatePointer(ptr);
+	if(validPointerToReturn == 0){ // pointer is invalide
+
+	} else{
+		frees += 1;
+	}
+
+	sf_free_internal(ptr);
+}
+
+void sf_free_internal(void *ptr){ // input is the address sf_malloc returned, not start address of header
 	bool validPointerToReturn;
 	int coalesceType;
 	sf_header *header;
@@ -531,7 +564,7 @@ void *sf_realloc(void *ptr, size_t size){
 	debug("1-1. Check if ptr is NULL\n");
 	if(ptr == NULL){
 		debug("1-1-1. ptr is null -> return sf_malloc\n");
-		return sf_malloc(size);
+		return sf_malloc_internal(size);
 	}
 	else {
 		debug("1-1-2. ptr is not null\n");
@@ -611,13 +644,12 @@ void *sf_realloc(void *ptr, size_t size){
 
 			int alreadyFreed = 0;
 
-			// sf_free(ptr);
 			if(aHead->alloc == 0){
 				alreadyFreed = 1;
-				sf_free(ptr);
+				sf_free_internal(ptr);
 			}
 
-			void *mallocRet = sf_malloc(size);
+			void *mallocRet = sf_malloc_internal(size);
 			if(mallocRet == NULL){
 				debug("sf_malloc(size=%lu) failed\n", size);
 			}
@@ -626,7 +658,7 @@ void *sf_realloc(void *ptr, size_t size){
 
 				debug("sf_free(%p)\n", ptr);
 				if(alreadyFreed == 0){
-					sf_free(ptr); // free the returned
+					sf_free_internal(ptr); // free the returned
 				}
 			}
 
@@ -731,5 +763,38 @@ void *sf_realloc(void *ptr, size_t size){
 }
 
 int sf_info(info* meminfo){
-	return -1;
+	if(meminfo == NULL){
+		return -1;
+	}
+
+	internal = 0;
+	sf_header *alloc_now = (sf_header*)((char*)sf_sbrk(0) - 4096 * sf_sbrk_call);
+	while( (void*)alloc_now < sf_sbrk(0)){
+		if(alloc_now->alloc == 0){
+			alloc_now = (sf_header*)((char*)alloc_now + (alloc_now->block_size << 4));
+			continue;
+		}
+
+		internal += (16 + alloc_now->padding_size);
+		alloc_now = (sf_header*)((char*)alloc_now + (alloc_now->block_size << 4));
+	}
+
+	external = 0;
+	sf_free_header *free_now = freelist_head;
+	while( (void*)free_now < sf_sbrk(0)){
+		if(free_now == NULL){
+			break;
+		}
+
+		external += (free_now->header.block_size << 4);
+		free_now = free_now->next;
+	}
+
+	meminfo->internal = internal;
+	meminfo->external = external;
+	meminfo->allocations = allocations;
+	meminfo->frees = frees;
+	meminfo->coalesce = coalesce;
+
+	return 0;
 }
