@@ -48,3 +48,15 @@ stat:
 
 clean: reset
 	$(RM) -r $(BLDD) $(BIND)
+	$(RM) $(TESTD)/*.o
+
+# I added
+TESTD= test
+test: setup $(BIND)/sfunit
+
+bin/sfunit: $(TESTD)/sfunit.o $(BLDD)/sfbuiltin.o 
+	$(CC) $(CFLAGS) $^ $(INC) -lcriterion -lreadline -o $@
+
+$(TESTD)/%.o: $(TESTD)/%.c
+	$(CC) $(CFLAGS) $(DFLAGS) $(INC) -c -o $@ $<
+

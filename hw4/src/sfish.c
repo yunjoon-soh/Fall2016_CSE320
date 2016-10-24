@@ -6,6 +6,8 @@ int main(int argc, char** argv) {
     //This is disable readline's default signal handlers, since you are going
     //to install your own.
 
+    preprocess();
+
     char *cmd;
 
     while((cmd = readline("sfish> ")) != NULL) {
@@ -16,9 +18,7 @@ int main(int argc, char** argv) {
 
         //All your debug print statments should be surrounded by this #ifdef
         //block. Use the debug target in the makefile to run with these enabled.
-        #ifdef DEBUG
-        fprintf(stderr, "Length of command entered: %ld\n", strlen(cmd));
-        #endif
+        debug("Length of command entered: %ld\n", strlen(cmd));
         //You WILL lose points if your shell prints out garbage values.
 
     }
