@@ -20,12 +20,22 @@ const char* USAGE[USAGE_LENGTH] = {
 
 int preprocess(){
 	debug("Preprocess called\n");
-    // get current dir
-    getcwd(&cd_history[0], PATH_MAX);
+
+    // get current dir and set it as cd_history
+    getcwd(cd_history, PATH_MAX);
     if(cd_history == NULL){
         perror("Failed: getcwd...");
         return SF_FAIL;
     }
+
+    // initialize last_execution result
+    last_exe.val = 0;
+
+    HOME_DIR = getenv("HOME");
+
+    PROMPT_USER = PROMPT_ENABLED;
+    PROMPT_HOST = PROMPT_ENABLED;
+
     return SF_SUCCESS;
 }
 
@@ -47,11 +57,11 @@ int builtin_exit(){
 // if path == NULL, "cd" was typed
 // if path is not null, null terminated string
 int builtin_cd(char* path){
-	int ret, prev_dir;
+	int ret;
 	char *last_backslash;
 	char cdir[PATH_MAX];
 
-	prev_dir = SF_FALSE;
+	// prev_dir = SF_FALSE; // flag for "cd -"
 	debug("Path:%s, cd_history:%s\n", path, cd_history);
 
 	if(path == NULL){
@@ -62,12 +72,12 @@ int builtin_cd(char* path){
 	// get current dir
 	getcwd(cdir, PATH_MAX);
 	if(cdir == NULL){
-		perror("Failed: getcwd...");
+		fprintf(stderr, "Failed: getcwd...\n");
 		return SF_FAIL;
 	}
 
 	// set path for special cases
-	if( strncmp(path, "..", 2) == 0 ){
+	if( strcmp(path, "..") == 0 ){
 		debug("pdir\n");
 		path = &cdir[0];
 		last_backslash = strrchr(path, '/'); 
@@ -75,27 +85,44 @@ int builtin_cd(char* path){
 			*last_backslash = '\0';
 		}
 
-	} else if( strncmp(path, ".", 1) == 0 ){
+	} else if( strcmp(path, ".") == 0 ){
 		debug("cdir\n");
 		
 		return SF_SUCCESS;// path is current dir
 
-	} else if( strncmp(path, "-", 1) == 0 ){
+	} else if( strcmp(path, "-") == 0 ){
 		debug("prev_dir\n");
 		path = cd_history;
-		prev_dir = !SF_FALSE;
+		// prev_dir = !SF_FALSE;
+	}
+
+	debug("Check if target folder exists\n");
+	struct stat stat_res; // stat result
+	ret = stat(path, &stat_res);
+	if(ret == -1){
+		perror("stat");
+		fprintf(stderr, "%s\n", path);
+		return SF_FAIL;
+	} else if(ret == 0){
+		if(!S_ISDIR(stat_res.st_mode)){
+			fprintf(stderr, "%s: Not a directory", path);
+			return SF_FAIL;
+		}
 	}
 
 	debug("Try change directory to... %s\n", path);
 	ret = chdir(path);
 
 	if(ret == 0){
-		// save history
-		if(prev_dir == !SF_FALSE){
-			strncpy(cd_history, cdir, strlen(cdir) + 1);
-		} else{
-			strncpy(cd_history, path, strlen(path));
-		}
+		// // save history
+		// if( strcmp(path, "-") == 0 ){
+		// 	// if "-" save current dir as history
+		// 	strncpy(cd_history, cdir, strlen(cdir) + 1);
+		// } else{
+		// 	// if not "-", save the 
+		// 	strncpy(cd_history, , strlen(path) + 1);
+		// }
+		strncpy(cd_history, cdir, strlen(cdir) + 1);
 
 		debug("Changing dir successful(cd_history=%s)\n", cd_history);
 
@@ -108,4 +135,21 @@ int builtin_cd(char* path){
 		error("Return value of chdir(%s)=%d, not 0 nor -1...\n", path, ret);
 		return SF_FAIL;
 	}
+}
+
+int builtin_pwd(){
+	char cwd[PATH_MAX], * ret;
+	ret = getcwd(cwd, PATH_MAX);
+	if(ret == NULL){
+		error("pwd failed");
+		return SF_FAIL;
+	} else{
+		printf("%s\n", ret);
+		return SF_SUCCESS;
+	}
+}
+
+int builtin_prt(){
+	printf("Last executed result: %d\n", last_exe.val);
+	return SF_SUCCESS;
 }

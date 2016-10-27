@@ -1,10 +1,12 @@
-#ifndef __SFBUILTIN_H__
-#define __SFBUILTIN_H__
+#ifndef _SFBUILTIN_H_
+#define _SFBUILTIN_H_
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <limits.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #define COLOR
 #ifdef COLOR
@@ -45,12 +47,18 @@
 #endif
 
 char cd_history[PATH_MAX];
+struct INT_STR{
+	int val;
+} last_exe;
+char *HOME_DIR;
+int PROMPT_USER, PROMPT_HOST;
 
 int preprocess();
 int builtin_help();
 int builtin_exit();
-int builtin_cd(char* path);
-
+int builtin_cd(char* argv);
+int builtin_pwd();
+int builtin_prt();
 
 
 #endif

@@ -19,43 +19,27 @@ LIBS := readline
 debug: CFLAGS += -g -DDEBUG
 debug: all
 
-all: setup $(EXEC)
+all: folder $(EXEC)	
 
-setup:
+folder: 
 	mkdir -p bin build
-	stty intr undef
-	stty quit undef
-	stty kill undef
-	stty eof undef
-	stty susp undef
 
 $(EXEC): $(_OBJF)
 	$(CC) $^ -o $(BIND)/$@ -l $(LIBS)
 
 $(BLDD)/%.o: $(SRCD)/%.c
-	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
+	$(CC) $(CFLAGS) $(DFLAGS) $(INC) -c -o $@ $<
 
-
-reset:
-	stty intr ^c
-	stty quit ^\\
-	stty kill ^u
-	stty eof ^d
-	stty susp ^z
-
-stat:
-	stty -a
-
-clean: reset
+clean:
 	$(RM) -r $(BLDD) $(BIND)
-	$(RM) $(TESTD)/*.o
+	$(RM) $(TESTD)/*.o # I added
 
 # I added
 TESTD= test
-test: setup $(BIND)/sfunit
+test: folder $(BIND)/sfunit
 
-bin/sfunit: $(TESTD)/sfunit.o $(BLDD)/sfbuiltin.o 
-	$(CC) $(CFLAGS) $^ $(INC) -lcriterion -lreadline -o $@
+bin/sfunit: $(TESTD)/sfunit.o $(BLDD)/sfbuiltin.o $(BLDD)/sfish_helper.o
+	$(CC) $(CFLAGS) $(DFLAGS) $^ $(INC) -lcriterion -lreadline -o $@
 
 $(TESTD)/%.o: $(TESTD)/%.c
 	$(CC) $(CFLAGS) $(DFLAGS) $(INC) -c -o $@ $<
