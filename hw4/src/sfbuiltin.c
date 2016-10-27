@@ -141,7 +141,7 @@ int builtin_pwd(){
 	char cwd[PATH_MAX], * ret;
 	ret = getcwd(cwd, PATH_MAX);
 	if(ret == NULL){
-		error("pwd failed");
+		error("getcwd failed");
 		return SF_FAIL;
 	} else{
 		printf("%s\n", ret);
@@ -151,5 +151,32 @@ int builtin_pwd(){
 
 int builtin_prt(){
 	printf("Last executed result: %d\n", last_exe.val);
+	return SF_SUCCESS;
+}
+
+int builtin_chpmt(int argc, char** argv){
+	if(argc < 3){
+		//TODO
+		return SF_FAIL;
+	}
+
+	if(argc > 3){
+		//TODO
+	}
+
+	if( strcmp(argv[2], "0") != 0 && strcmp(argv[2], "1") != 0){
+		fprintf(stderr, "Error: second argument has to be 0 or 1\n");
+		return SF_FAIL;
+	}
+
+	if( strcmp(argv[1], "user") == 0){
+		PROMPT_USER = *argv[2] - '0';
+	} else if (strcmp(argv[1], "machine") == 0){
+		PROMPT_HOST = *argv[2] - '0';
+	} else {
+		fprintf(stderr, "Error: invalid first arugment\n");
+		return SF_FAIL;
+	}
+
 	return SF_SUCCESS;
 }

@@ -15,14 +15,13 @@ int main(int argc, char** argv) {
     char *promptBuf = (char*) malloc(len); 
 
     while((cmd = readline(getsnPrompt(promptBuf, len))) != NULL) {
-        if (strcmp(cmd,"quit")==0)
+        if (strcmp(cmd,"exit")==0)
             break;
 
-    //     //All your debug print statments should be surrounded by this #ifdef
-    //     //block. Use the debug target in the makefile to run with these enabled.
+        //All your debug print statments should be surrounded by this #ifdef
+        //block. Use the debug target in the makefile to run with these enabled.
         debug("Length of command entered: %s, len=%ld @ %p\n", cmd, strlen(cmd), cmd);
-
-    //     //You WILL lose points if your shell prints out garbage values.
+        //You WILL lose points if your shell prints out garbage values.
 
         int argc = countSpaces(cmd) + 1;
         char *buf[argc];

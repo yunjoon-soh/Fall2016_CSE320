@@ -59,6 +59,7 @@ int builtin_exit();
 int builtin_cd(char* argv);
 int builtin_pwd();
 int builtin_prt();
+int builtin_chpmt(int argc, char** argv);
 
 
 #endif

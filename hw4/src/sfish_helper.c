@@ -98,6 +98,9 @@ int exeBuiltIn(int argc, char** argv){
     } else if( strcmp(cmd, "prt") == 0){
         builtin_prt();
         return SF_SUCCESS;
+    } else if( strcmp(cmd, "chpmt") == 0){
+    	builtin_chpmt(argc, argv);
+    	return SF_SUCCESS;
     }
 
     return SF_FAIL;

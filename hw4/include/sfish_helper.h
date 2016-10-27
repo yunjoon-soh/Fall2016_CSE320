@@ -11,7 +11,7 @@
 
 char **parseNCmd(char* cmd, char* buf[], int len); // len is num of cmds
 int countSpaces(char* cmd);
-char *getsnPrompt();
+char *getsnPrompt(char* buf, int len);
 
 int exeBuiltIn(int argc, char** argv);
 int exeCmd(char** argv);
