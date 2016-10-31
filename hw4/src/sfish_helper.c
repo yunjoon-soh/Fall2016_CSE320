@@ -35,6 +35,8 @@ char **parseNCmd(char* cmd, char* buf[], int len){
 		}
 	}
 
+	buf[tokCnt] = 0;
+
 	return buf;
 }
 
@@ -136,7 +138,80 @@ int exeBuiltIn(int argc, char** argv){
     return SF_FAIL;
 }
 
-int exeCmd(char** cmds){
+int isPath(char* pwd){
+	while(*pwd != '\0'){
+		if(*pwd == '/'){
+			return !SF_FALSE;
+		}
+		pwd++;
+	}
+
+	return SF_FALSE;
+}
+
+int existsInPath(char* cmd){
+	int ret;
+	char *env = getenv("PATH");
+	char *start = env, *end;
+	char buf[PATH_MAX];
+	struct stat statBuf;
+
+	while( (end = strchr(start, ':')) != NULL){
+		*end = '\0';
+		strcpy(buf, start);
+		*end = ':';
+		strcat(buf, "/");
+		strcat(buf, cmd);
+		// printf("Looking for %s in %s\n", cmd, buf);
+		
+		ret = stat(buf, &statBuf);
+		if(ret == 0){
+			env = getenv("PATH");
+			// printf("Found!\n%s\n", env);
+			
+			return !SF_FALSE;
+		} else{
+			start = end + 1;
+		}
+	}
+
+	return SF_FALSE;
+}
+
+int exeCmd(int argc, char** argv, char* envp[]){
+	int ret;
+	char *env = getenv("PATH");
+	printf("%s\n", env);
+
+	
+	if(isPath(argv[0]) == SF_FALSE){
+		// not a path
+		if(existsInPath(argv[0]) != SF_FALSE){
+			ret = execvp(argv[0], argv);
+			if(ret == -1){
+				//TODO
+				fprintf(stderr, "Failed to execute %s\n", argv[0]);
+				for(int i = 0; i < 3; i++){
+					printf("argv[%d]=%s\n", i, argv[i]);
+				}
+			}
+			printf("*isPath:False, Ending\n");
+			exit(0);
+		} else {
+			fprintf(stderr, "No such command!\n");
+			exit(1);
+		}		
+	} else {
+		printf("*isPath:True\n");
+		// is path
+		ret = execv((const char*)argv[0], argv);
+		if(ret == -1){
+			//TODO
+		}
+		printf("*isPath:True, Ending\n");
+		exit(0);
+	}
+
     return 0;
 }
 

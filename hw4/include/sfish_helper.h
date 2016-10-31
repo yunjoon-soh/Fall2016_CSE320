@@ -14,7 +14,7 @@ int countElements(char* cmd);
 char *getsnPrompt(char* buf, int len);
 
 int exeBuiltIn(int argc, char** argv);
-int exeCmd(char** argv);
+int exeCmd(int argc, char** argv, char* envp[]);
 
 // bool isBuiltIn(char* cmd);
 // deprecated: instead used exeBuiltIn(char** cmds)

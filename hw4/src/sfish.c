@@ -1,7 +1,7 @@
 #include "sfish.h"
 
-int main(int argc, char** argv) {
-    // int childPid, childStatus;
+int main(int argc, char** argv, char *envp[]) {
+    int childPid, childStatus;
     //DO NOT MODIFY THIS. If you do you will get a ZERO.
     rl_catch_signals = 0;
     //This is disable readline's default signal handlers, since you are going
@@ -38,17 +38,25 @@ int main(int argc, char** argv) {
             continue;
         }
         debug("Parse result: argc=%d, argv=%s\n", argc, argv[0]);
-        for(int i = 0; i < argc; i++){
+        for(int i = 0; i <= argc; i++){
             debug("argv[%d]=%s\n", i, argv[i]);
         }
         
         if( (last_exe.val = exeBuiltIn(argc, argv)) == SF_SUCCESS ){ // if successful, then it is true
             debug("%s is built in\n", cmd);
         }
-        // else{
-        //  childPid = fork();
-        //  if (childPid == 0){
-        //      exeCmd(cmds);
+        else{
+            if ( (childPid = fork()) == 0 ){
+                exeCmd(argc, argv, envp);
+            }
+            else {
+                pid_t wpid = wait(&childStatus);
+                if(WIFEXITED(childStatus)){
+                    debug("Child %d terminated with exit code %d\n", wpid, WEXITSTATUS(childStatus));
+                } else{
+                    debug("Child %d terminated abnormally\n", wpid);
+                }
+            }
         //  } else {
         //      if (isBgProc(cmd)){
         //          //record in list of background jobs
@@ -56,7 +64,7 @@ int main(int argc, char** argv) {
         //          waitpid (childPid, &childStatus, WNOHANG);
         //      }
         //  }
-        // }
+        }
         free(cmd);
     }
 
