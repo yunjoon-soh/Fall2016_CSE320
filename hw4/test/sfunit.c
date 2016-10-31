@@ -36,153 +36,215 @@ void setup(){
 * TEST BEGINS HERE
 */
 
-// // sfish_helper
-// Test(sfish_helper_parseCmd, cmd_is_empty, .init=setup){
-// 	char cmd[] = "";
-// 	int count = countSpaces(cmd) + 1;
-// 	cr_assert(count == 1);
+Test(sfish_helper_countElements, counting_test){
+	int count;
 
-// 	char* buf[count];
-// 	parseNCmd(cmd, buf, count);
+	count = countElements("");
+	cr_assert(count == 0, "Empty space is not counted as 0, instead %d", count);
 
-// 	cr_assert( strcmp(buf[0], "") == 0, "expected buf[%i]=%s actual=%s", 0, "", buf[0]);
-// }
+	count = countElements(" ");
+	cr_assert(count == 0, "Empty space is not counted as 0");
 
-// Test(sfish_helper_parseCmd, cmd_has_one_param, .init=setup){
-// 	char cmd[] = "cd";
-// 	int count = countSpaces(cmd) + 1;
-// 	cr_assert(count == 1);
+	count = countElements("  ");
+	cr_assert(count == 0, "Empty space is not counted as 0");
 
-// 	char* buf[count];
-// 	parseNCmd(cmd, buf, count);
+	count = countElements("abc");
+	cr_assert(count == 1);
 
-// 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
-// }
+	count = countElements(" abc");
+	cr_assert(count == 1);
 
-// Test(sfish_helper_parseCmd, cmd_has_two_param, .init=setup){
-// 	char cmd[] = "cd ./bin/sfish";
-// 	int count = countSpaces(cmd) + 1;
-// 	cr_assert(count == 2);
+	count = countElements("abc ");
+	cr_assert(count == 1);
 
-// 	char* buf[count];
-// 	parseNCmd(cmd, buf, count);
+	count = countElements(" abc ");
+	cr_assert(count == 1);
 
-// 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
-// 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-// }
+	count = countElements("abc def");
+	cr_assert(count == 2);
+
+	count = countElements(" abc def");
+	cr_assert(count == 2);
+
+	count = countElements(" abc def ");
+	cr_assert(count == 2);
+
+	count = countElements(" abc      def ");
+	cr_assert(count == 2);
+
+	count = countElements(" abc  f    def ");
+	cr_assert(count == 3);
+}
+
+// sfish_helper
+Test(sfish_helper_parseCmd, cmd_is_empty, .init=setup){
+	char cmd[] = "";
+	int count = countElements(cmd);
+	cr_assert(count == 0);
+
+	char* buf[count];
+	parseNCmd(cmd, buf, count);
+
+	cr_assert( strcmp(buf[0], "") == 0, "expected buf[%i]=%s actual=%s", 0, "", buf[0]);
+}
+
+Test(sfish_helper_parseCmd, cmd_has_one_param, .init=setup){
+	char cmd[] = "cd";
+	int count = countElements(cmd);
+	cr_assert(count == 1);
+
+	char* buf[count];
+	parseNCmd(cmd, buf, count);
+
+	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
+}
+
+Test(sfish_helper_parseCmd, cmd_has_one_param2, .init=setup){
+	char cmd[] = "cd ";
+	int count = countElements(cmd);
+	cr_assert(count == 1);
+
+	char* buf[count];
+	parseNCmd(cmd, buf, count);
+
+	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
+}
+
+Test(sfish_helper_parseCmd, cmd_has_one_param3, .init=setup){
+	char cmd[] = "cd  ";
+	int count = countElements(cmd);
+	cr_assert(count == 1);
+
+	char* buf[count];
+	parseNCmd(cmd, buf, count);
+
+	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
+}
+
+Test(sfish_helper_parseCmd, cmd_has_two_param, .init=setup){
+	char cmd[] = "cd ./bin/sfish";
+	int count = countElements(cmd);
+	cr_assert(count == 2);
+
+	char* buf[count];
+	parseNCmd(cmd, buf, count);
+
+	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
+	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
+}
 
 
-// // builtin_cd
+// builtin_cd
 
-// Test(builtin_cd, cdDot, .init=setup) {
-// 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX];
-// 	getcwd(prev_cdir, PATH_MAX);
+Test(builtin_cd, cdDot, .init=setup) {
+	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX];
+	getcwd(prev_cdir, PATH_MAX);
 
-// 	builtin_cd(".");
+	builtin_cd(".");
 
-// 	getcwd(&next_cdir[0], PATH_MAX);
+	getcwd(&next_cdir[0], PATH_MAX);
 
-// 	cr_assert( strcmp(&prev_cdir[0], &next_cdir[0]) == 0 );
-// }
+	cr_assert( strcmp(&prev_cdir[0], &next_cdir[0]) == 0 );
+}
 
-// Test(builtin_cd, cdDotDot, .init=setup) {
-// 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], *last_backslash;
-// 	getcwd(prev_cdir, PATH_MAX);
+Test(builtin_cd, cdDotDot, .init=setup) {
+	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], *last_backslash;
+	getcwd(prev_cdir, PATH_MAX);
 
-// 	builtin_cd("..");
+	builtin_cd("..");
 
-// 	getcwd(&next_cdir[0], PATH_MAX);
+	getcwd(&next_cdir[0], PATH_MAX);
 
-// 	last_backslash = strrchr(&prev_cdir[0], '/'); 
-// 	if (last_backslash){
-// 		*last_backslash = '\0';
-// 	}
+	last_backslash = strrchr(&prev_cdir[0], '/'); 
+	if (last_backslash){
+		*last_backslash = '\0';
+	}
 
-// 	cr_assert( strcmp(&prev_cdir[0], &next_cdir[0]) == 0,
-// 		"Previous was %s, Now it is %s\n", prev_cdir, next_cdir);
-// }
+	cr_assert( strcmp(&prev_cdir[0], &next_cdir[0]) == 0,
+		"Previous was %s, Now it is %s\n", prev_cdir, next_cdir);
+}
 
-// Test(builtin_cd, cdDash, .init=setup) {
-// 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], prev_hist[PATH_MAX], next_hist[PATH_MAX];
+Test(builtin_cd, cdDash, .init=setup) {
+	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], prev_hist[PATH_MAX], next_hist[PATH_MAX];
 	
-// 	getcwd(prev_cdir, PATH_MAX);
-// 	strcpy(prev_hist, cd_history);
+	getcwd(prev_cdir, PATH_MAX);
+	strcpy(prev_hist, cd_history);
 
-// 	builtin_cd("-");
+	builtin_cd("-");
 
-// 	getcwd(next_cdir, PATH_MAX);
-// 	strcpy(next_hist, cd_history);
+	getcwd(next_cdir, PATH_MAX);
+	strcpy(next_hist, cd_history);
 
-// 	cr_assert( strcmp(prev_hist, next_cdir) == 0 );
-// 	cr_assert( strcmp(next_hist, prev_cdir) == 0 );
-// }
+	cr_assert( strcmp(prev_hist, next_cdir) == 0 );
+	cr_assert( strcmp(next_hist, prev_cdir) == 0 );
+}
 
-// Test(builtin_cd, cdFolder_Not_Exist, .init=setup) {
-// 	int ret;
-// 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], prev_hist[PATH_MAX], next_hist[PATH_MAX];
+Test(builtin_cd, cdFolder_Not_Exist, .init=setup) {
+	int ret;
+	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], prev_hist[PATH_MAX], next_hist[PATH_MAX];
 	
-// 	getcwd(prev_cdir, PATH_MAX);
-// 	strcpy(prev_hist, cd_history);
+	getcwd(prev_cdir, PATH_MAX);
+	strcpy(prev_hist, cd_history);
 
-// 	ret = builtin_cd("./asdklfjaklwejflkqwkelrjiosjvklds");
-// 	cr_assert(ret == SF_FAIL, "Expected to fail, but return was %d\n", ret);
+	ret = builtin_cd("./asdklfjaklwejflkqwkelrjiosjvklds");
+	cr_assert(ret == SF_FAIL, "Expected to fail, but return was %d\n", ret);
 
-// 	getcwd(next_cdir, PATH_MAX);
-// 	strcpy(next_hist, cd_history);
+	getcwd(next_cdir, PATH_MAX);
+	strcpy(next_hist, cd_history);
 
-// 	cr_assert( strcmp(prev_hist, next_hist) == 0 );
-// 	cr_assert( strcmp(prev_cdir, next_cdir) == 0 );
-// }
+	cr_assert( strcmp(prev_hist, next_hist) == 0 );
+	cr_assert( strcmp(prev_cdir, next_cdir) == 0 );
+}
 
-// Test(builtin_cd, cdFolder_Exist, .init=setup) {
-// 	int ret;
-// 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], prev_hist[PATH_MAX], next_hist[PATH_MAX];
+Test(builtin_cd, cdFolder_Exist, .init=setup) {
+	int ret;
+	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], prev_hist[PATH_MAX], next_hist[PATH_MAX];
 	
-// 	getcwd(prev_cdir, PATH_MAX);
-// 	strcpy(prev_hist, cd_history);
+	getcwd(prev_cdir, PATH_MAX);
+	strcpy(prev_hist, cd_history);
 
-// 	printf("%s\n", prev_cdir);
-// 	ret = builtin_cd("./ysoh/hw4/test");
-// 	cr_assert(ret == SF_SUCCESS, "Expected to sucess, but return was %d\n", ret);
+	printf("%s\n", prev_cdir);
+	ret = builtin_cd("./ysoh/hw4/test");
+	cr_assert(ret == SF_SUCCESS, "Expected to sucess, but return was %d\n", ret);
 
-// 	getcwd(next_cdir, PATH_MAX);
-// 	strcpy(next_hist, cd_history);
+	getcwd(next_cdir, PATH_MAX);
+	strcpy(next_hist, cd_history);
 
-// 	cr_assert( strcmp(next_hist, prev_cdir) == 0 );
-// 	cr_assert( strcmp(next_cdir, "/home/dan/ysoh/hw4/test") == 0);
-// }
+	cr_assert( strcmp(next_hist, prev_cdir) == 0 );
+	cr_assert( strcmp(next_cdir, "/home/dan/ysoh/hw4/test") == 0);
+}
 
-// Test(builtin_cd, cdNULL, .init=setup) {
-// 	int ret;
-// 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], prev_hist[PATH_MAX], next_hist[PATH_MAX];
-// 	char *existing_folder = "/home/dan/ysoh/hw4/test";
+Test(builtin_cd, cdNULL, .init=setup) {
+	int ret;
+	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], prev_hist[PATH_MAX], next_hist[PATH_MAX];
+	char *existing_folder = "/home/dan/ysoh/hw4/test";
 	
-// 	// change current dir to variable existing_folder
-// 	getcwd(prev_cdir, PATH_MAX);
-// 	strcpy(prev_hist, cd_history);
+	// change current dir to variable existing_folder
+	getcwd(prev_cdir, PATH_MAX);
+	strcpy(prev_hist, cd_history);
 
-// 	ret = builtin_cd(existing_folder);
-// 	cr_assert(ret == SF_SUCCESS, "Expected to sucess, but return was %d\n", ret);
+	ret = builtin_cd(existing_folder);
+	cr_assert(ret == SF_SUCCESS, "Expected to sucess, but return was %d\n", ret);
 
-// 	getcwd(next_cdir, PATH_MAX);
-// 	strcpy(next_hist, cd_history);
+	getcwd(next_cdir, PATH_MAX);
+	strcpy(next_hist, cd_history);
 
-// 	cr_assert( strcmp(next_hist, prev_cdir) == 0 );
-// 	cr_assert( strcmp(next_cdir, "/home/dan/ysoh/hw4/test") == 0);
+	cr_assert( strcmp(next_hist, prev_cdir) == 0 );
+	cr_assert( strcmp(next_cdir, "/home/dan/ysoh/hw4/test") == 0);
 
-// 	// "cd", i.e., change to HOME dir
-// 	getcwd(prev_cdir, PATH_MAX);
-// 	strcpy(prev_hist, cd_history);
+	// "cd", i.e., change to HOME dir
+	getcwd(prev_cdir, PATH_MAX);
+	strcpy(prev_hist, cd_history);
 
-// 	ret = builtin_cd(NULL);
-// 	cr_assert(ret == SF_SUCCESS, "Expected to sucess, but return was %d\n", ret);
+	ret = builtin_cd(NULL);
+	cr_assert(ret == SF_SUCCESS, "Expected to sucess, but return was %d\n", ret);
 
-// 	getcwd(next_cdir, PATH_MAX);
-// 	strcpy(next_hist, cd_history);
+	getcwd(next_cdir, PATH_MAX);
+	strcpy(next_hist, cd_history);
 
-// 	checkCurDir(HOME);
-// 	checkCurHist(existing_folder);
-// }
+	checkCurDir(HOME);
+	checkCurHist(existing_folder);
+}
 
 // builtin_chpmt
 Test(builtin_chpmt, chpmt_valid, .init=setup) {
@@ -198,7 +260,9 @@ Test(builtin_chpmt, chpmt_valid, .init=setup) {
 
     // assert default
 	pmt = getsnPrompt(promptBuf, len);
-	cr_assert( strcmp(pmt, "sfish-dan@dan-ubuntu:[~]> ") == 0);
+	cr_assert( strcmp(pmt, "sfish-\x1B[0mdan\x1B[0m@\x1B[0mdan-ubuntu\x1B[0m:[~]> ") == 0, 
+		"Expected:\"%s\" vs Real:\"%s\"", 
+		"sfish-\x1B[0mdan\x1B[0m@\x1B[0mdan-ubuntu\x1B[0m:[~]> ", pmt);
 
 	// turn off user
 	argc = 3;
@@ -207,7 +271,7 @@ Test(builtin_chpmt, chpmt_valid, .init=setup) {
 	builtin_chpmt(argc, argv);
 
 	pmt = getsnPrompt(promptBuf, len);
-	cr_assert( strcmp(pmt, "sfish-dan-ubuntu:[~]> ") == 0);
+	cr_assert( strcmp(pmt, "sfish-\x1B[0mdan-ubuntu\x1B[0m:[~]> ") == 0);
 
 	// turn off machine
 	argc = 3;
@@ -225,7 +289,7 @@ Test(builtin_chpmt, chpmt_valid, .init=setup) {
 	builtin_chpmt(argc, argv);
 
 	pmt = getsnPrompt(promptBuf, len);
-	cr_assert( strcmp(pmt, "sfish-dan:[~]> ") == 0);
+	cr_assert( strcmp(pmt, "sfish-\x1B[0mdan\x1B[0m:[~]> ") == 0);
 
 	// turn on machine
 	argc = 3;
@@ -234,7 +298,7 @@ Test(builtin_chpmt, chpmt_valid, .init=setup) {
 	builtin_chpmt(argc, argv);
 
 	pmt = getsnPrompt(promptBuf, len);
-	cr_assert( strcmp(pmt, "sfish-dan@dan-ubuntu:[~]> ") == 0);
+	cr_assert( strcmp(pmt, "sfish-\x1B[0mdan\x1B[0m@\x1B[0mdan-ubuntu\x1B[0m:[~]> ") == 0);
 
 	free(promptBuf);
 }

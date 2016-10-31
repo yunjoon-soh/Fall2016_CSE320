@@ -41,17 +41,28 @@ char **parseNCmd(char* cmd, char* buf[], int len){
 	return buf;
 }
 
-int countSpaces(char* cmd){
+int countElements(char* cmd){
 	int count = 0;
+	int flag = 1; // initially, assume that it has space before the whole cmd
+
 	char *c = cmd;
-	while( *(c = (c+1)) != '\0'){
-		if( *c == ' ' )
-			count++;
+	while( *c != '\0'){ // while cmd has not reached the end
+		if( *c == ' ' ){ // if it is space flag that it has encountered a space
+			flag = 1;
+		} else{
+			if(flag == 1){
+				count++; // increament only when reaching a character right after white space
+				flag = 0;
+			}
+		}
+
+		c = (c+1);
 	}
 	return count;
 }
 
 char *getsnPrompt(char* buf, int len){
+	int i;
     char *prompt = "sfish";
     char *user = getenv("USER");
     char cdir[PATH_MAX];
@@ -61,15 +72,35 @@ char *getsnPrompt(char* buf, int len){
 
     char *pwd = getcwd(cdir, PATH_MAX);
 
-    if( strcmp(pwd, HOME_DIR) == 0)
-    	strcpy(cdir, "~");
+    char flag = 0;
+    char *ptr_pwd = pwd, *ptr_home = HOME_DIR;
+    for(i = 0; i < strlen(HOME_DIR); i++){
+    	if(*ptr_pwd++ != *ptr_home++) {
+    		flag = 1;
+    		break;
+    	}
+    }
+    if(flag == 0){
+    	strncpy(cdir, "~", 1);
+    	strncpy(cdir+1, ptr_pwd, strlen(ptr_pwd) + 1);
+    }
+
+    // if( strncmp(pwd, HOME_DIR, strlen(HOME_DIR)) == 0)
+    	// strcpy(cdir, "~");
 
     if(PROMPT_USER == PROMPT_ENABLED && PROMPT_HOST == PROMPT_ENABLED){
-    	snprintf(buf, len, "%s-%s@%s:[%s]> ", prompt, user, host, pwd);
+    	snprintf(buf, len, "%s-%s%s%s%s%s@%s%s%s%s%s:[%s]> ", prompt, 
+    		PROMPT_BOLD_USER, PROMPT_COLOR_USER, user, NOML, KNRM,
+    		PROMPT_BOLD_HOST, PROMPT_COLOR_HOST, host, NOML, KNRM,
+    		pwd);
     } else if(PROMPT_USER == PROMPT_ENABLED && PROMPT_HOST != PROMPT_ENABLED){
-    	snprintf(buf, len, "%s-%s:[%s]> ", prompt, user, pwd);
+    	snprintf(buf, len, "%s-%s%s%s%s%s:[%s]> ", prompt,
+    		PROMPT_BOLD_USER, PROMPT_COLOR_USER, user, NOML, KNRM,
+    		pwd);
     } else if(PROMPT_USER != PROMPT_ENABLED && PROMPT_HOST == PROMPT_ENABLED){
-    	snprintf(buf, len, "%s-%s:[%s]> ", prompt, host, pwd);
+    	snprintf(buf, len, "%s-%s%s%s%s%s:[%s]> ", prompt, 
+    		PROMPT_BOLD_HOST, PROMPT_COLOR_HOST, host, NOML, KNRM,
+    		pwd);
     } else { // neither is enabled
     	snprintf(buf, len, "%s:[%s]> ", prompt, pwd);
     }
@@ -100,6 +131,9 @@ int exeBuiltIn(int argc, char** argv){
         return SF_SUCCESS;
     } else if( strcmp(cmd, "chpmt") == 0){
     	builtin_chpmt(argc, argv);
+    	return SF_SUCCESS;
+    } else if( strcmp(cmd, "chclr") == 0){
+    	builtin_chclr(argc, argv);
     	return SF_SUCCESS;
     }
 

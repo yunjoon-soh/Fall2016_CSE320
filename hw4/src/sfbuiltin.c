@@ -36,6 +36,11 @@ int preprocess(){
     PROMPT_USER = PROMPT_ENABLED;
     PROMPT_HOST = PROMPT_ENABLED;
 
+    PROMPT_BOLD_USER = NOML;
+    PROMPT_BOLD_HOST = NOML;
+    PROMPT_COLOR_USER = KNRM;
+    PROMPT_COLOR_HOST = KNRM;
+
     return SF_SUCCESS;
 }
 
@@ -173,6 +178,61 @@ int builtin_chpmt(int argc, char** argv){
 		PROMPT_USER = *argv[2] - '0';
 	} else if (strcmp(argv[1], "machine") == 0){
 		PROMPT_HOST = *argv[2] - '0';
+	} else {
+		fprintf(stderr, "Error: invalid first arugment\n");
+		return SF_FAIL;
+	}
+
+	return SF_SUCCESS;
+}
+
+int builtin_chclr(int argc, char** argv){
+	if(argc < 4){
+		//TODO
+	}
+
+	if(argc > 4){
+		//TODO
+	}
+
+	char *bold;	
+	if( strcmp(argv[2], "0") == 0 ){
+		bold = NOML;
+	} else if( strcmp(argv[2], "1") == 0 ){
+		bold = BOLD;
+	} else {
+		fprintf(stderr, "Error: third argument has to be 0 or 1\n");
+		return SF_FAIL;
+	}
+
+	char *color;
+	if( strcmp(argv[3], "red") == 0){
+		color = KRED;
+	} else if( strcmp(argv[3], "blue") == 0){
+		color = KBLU;
+	} else if( strcmp(argv[3], "green") == 0){
+		color = KGRN;
+	} else if( strcmp(argv[3], "yellow") == 0){
+		color = KYEL;
+	} else if( strcmp(argv[3], "cyan") == 0){
+		color = KCYN;
+	} else if( strcmp(argv[3], "magenta") == 0){
+		color = KMAG;
+	} else if( strcmp(argv[3], "black") == 0){
+		color = KBLK;
+	} else if( strcmp(argv[3], "white") == 0){
+		color = KWHT;
+	} else {
+		fprintf(stderr, "%s\n", "Error: second argument is invalid");
+		return SF_FAIL;
+	}
+
+	if( strcmp(argv[1], "user") == 0){
+		PROMPT_COLOR_USER = color;
+		PROMPT_BOLD_USER = bold;
+	} else if (strcmp(argv[1], "machine") == 0){
+		PROMPT_COLOR_HOST = color;
+		PROMPT_BOLD_HOST = bold;
 	} else {
 		fprintf(stderr, "Error: invalid first arugment\n");
 		return SF_FAIL;

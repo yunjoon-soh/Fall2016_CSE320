@@ -10,7 +10,7 @@
 #include "sfbuiltin.h"
 
 char **parseNCmd(char* cmd, char* buf[], int len); // len is num of cmds
-int countSpaces(char* cmd);
+int countElements(char* cmd);
 char *getsnPrompt(char* buf, int len);
 
 int exeBuiltIn(int argc, char** argv);
