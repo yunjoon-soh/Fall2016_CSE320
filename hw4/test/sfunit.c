@@ -83,9 +83,9 @@ Test(sfish_helper_parseCmd, cmd_is_empty, .init=setup){
 	cr_assert(count == 0);
 
 	char* buf[count];
-	parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(cmd, buf, count);
 
-	cr_assert( strcmp(buf[0], "") == 0, "expected buf[%i]=%s actual=%s", 0, "", buf[0]);
+	cr_assert(ret == NULL);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_one_param, .init=setup){
@@ -94,19 +94,19 @@ Test(sfish_helper_parseCmd, cmd_has_one_param, .init=setup){
 	cr_assert(count == 1);
 
 	char* buf[count];
-	parseNCmd(cmd, buf, count);
-
+	char** ret = parseNCmd(cmd, buf, count);
+	cr_assert(ret != NULL);
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_one_param2, .init=setup){
-	char cmd[] = "cd ";
+	char cmd[] = "  cd";
 	int count = countElements(cmd);
 	cr_assert(count == 1);
 
 	char* buf[count];
-	parseNCmd(cmd, buf, count);
-
+	char** ret = parseNCmd(cmd, buf, count);
+	cr_assert(ret != NULL);
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 }
 
@@ -116,8 +116,19 @@ Test(sfish_helper_parseCmd, cmd_has_one_param3, .init=setup){
 	cr_assert(count == 1);
 
 	char* buf[count];
-	parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(cmd, buf, count);
+	cr_assert(ret != NULL);
+	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
+}
 
+Test(sfish_helper_parseCmd, cmd_has_one_param4, .init=setup){
+	char cmd[] = "  cd  ";
+	int count = countElements(cmd);
+	cr_assert(count == 1);
+
+	char* buf[count];
+	char** ret = parseNCmd(cmd, buf, count);
+	cr_assert(ret != NULL);
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 }
 
@@ -127,12 +138,51 @@ Test(sfish_helper_parseCmd, cmd_has_two_param, .init=setup){
 	cr_assert(count == 2);
 
 	char* buf[count];
-	parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(cmd, buf, count);
+	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
 }
 
+Test(sfish_helper_parseCmd, cmd_has_two_param2, .init=setup){
+	char cmd[] = "  cd ./bin/sfish";
+	int count = countElements(cmd);
+	cr_assert(count == 2);
+
+	char* buf[count];
+	char** ret = parseNCmd(cmd, buf, count);
+	cr_assert(ret != NULL);
+
+	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
+	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
+}
+
+Test(sfish_helper_parseCmd, cmd_has_two_param3, .init=setup){
+	char cmd[] = "cd ./bin/sfish  ";
+	int count = countElements(cmd);
+	cr_assert(count == 2);
+
+	char* buf[count];
+	char** ret = parseNCmd(cmd, buf, count);
+	cr_assert(ret != NULL);
+
+	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
+	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
+}
+
+Test(sfish_helper_parseCmd, cmd_has_two_param4, .init=setup){
+	char cmd[] = "   cd     ./bin/sfish     ";
+	int count = countElements(cmd);
+	cr_assert(count == 2);
+
+	char* buf[count];
+	char** ret = parseNCmd(cmd, buf, count);
+	cr_assert(ret != NULL);
+
+	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
+	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
+}
 
 // builtin_cd
 
@@ -271,7 +321,8 @@ Test(builtin_chpmt, chpmt_valid, .init=setup) {
 	builtin_chpmt(argc, argv);
 
 	pmt = getsnPrompt(promptBuf, len);
-	cr_assert( strcmp(pmt, "sfish-\x1B[0mdan-ubuntu\x1B[0m:[~]> ") == 0);
+	cr_assert( strcmp(pmt, "sfish-\x1B[0mdan-ubuntu\x1B[0m:[~]> ") == 0, 
+		"Actual: %s\n", pmt);
 
 	// turn off machine
 	argc = 3;

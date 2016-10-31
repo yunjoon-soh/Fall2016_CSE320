@@ -2,37 +2,34 @@
 */
 #include "sfish_helper.h"
 
-// return NULL on failure
 char **parseNCmd(char* cmd, char* buf[], int len){
 	int tokCnt = 0; // number of tokens found so far
 	char *c = cmd;
 
-	if(strlen(cmd) <= 0){
-		buf[0] = c;
-		return buf;
-	}
-
-	// first token
-	buf[tokCnt++] = c;
-	while(*c != ' ' && *c != '\0'){
-		if(*c == '\0'){ break; }
+	while(*c == ' ' && *c != '\0'){// ignore all the whitespaces before
 		c++;
 	}
-	if(*c == '\0'){ return buf; }
-	*c = '\0'; // ' ' -> '\0', i.e., split the token just found
+
+	if(strlen(c) <= 0 || len <= 0){
+		return NULL;
+	}
 
 	while(1){
-		buf[tokCnt++] = (++c); // next token is found
-
-		while(*c != ' ' && *c != '\0'){
-			if(*c == '\0'){ break; }
+		while(*c == ' ' && *c != '\0'){// ignore all the whitespaces before
 			c++;
 		}
-		if(*c == '\0') { break; }
+		if(*c == '\0') { break; } // last element found
 
-		*c = '\0'; // ' ' -> '\0'
+		buf[tokCnt++] = c; // next token is found
 
-		if(tokCnt >= len){ // if last intended token was found, quit
+		while(*c != ' ' && *c != '\0'){
+			c++;
+		}
+		if(*c == '\0') { break; } // last element found
+
+		*c++ = '\0'; // ' ' -> '\0'
+
+		if(tokCnt > len){ // if last intended token was found, quit
 			fprintf(stderr, "Length of commands maxed out\n");
 			break;
 		}
@@ -107,7 +104,6 @@ char *getsnPrompt(char* buf, int len){
 
     return buf;
 }
-
 
 int exeBuiltIn(int argc, char** argv){
     char* cmd = argv[0];

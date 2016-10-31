@@ -18,7 +18,11 @@ int main(int argc, char** argv) {
         if (strcmp(cmd,"exit")==0)
             break;
 
-        debug("Trim leading and ending white spaces\n");
+        if(*cmd == '\0'){
+            debug("cmd is empty.. continue\n");
+            continue;
+        }
+        add_history(cmd);
 
 
         //All your debug print statments should be surrounded by this #ifdef
@@ -29,6 +33,10 @@ int main(int argc, char** argv) {
         int argc = countElements(cmd);
         char *buf[argc];
         char **argv = parseNCmd(cmd, buf, argc);
+        if(argv == NULL){
+            debug("Nothing to parse, continue\n");
+            continue;
+        }
         debug("Parse result: argc=%d, argv=%s\n", argc, argv[0]);
         for(int i = 0; i < argc; i++){
             debug("argv[%d]=%s\n", i, argv[i]);
