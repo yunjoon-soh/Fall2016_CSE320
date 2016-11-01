@@ -26,7 +26,8 @@ void setup(){
 	char cdir[PATH_MAX];
 	getcwd(cdir, PATH_MAX);
 
-	builtin_cd(NULL); // same as typing "cd", i.e., home dir
+	char *argv[2] = {"cd", 0};
+	builtin_cd(argv); // same as typing "cd", i.e., home dir
 
 	checkCurDir(HOME);
 	checkCurHist(cdir);
@@ -1040,10 +1041,11 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring4_lt, .init=setup){
 }
 // builtin_cd
 Test(builtin_cd, cdDot, .init=setup) {
+	char *argv[3] = {"cd", ".", 0};
 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX];
 	getcwd(prev_cdir, PATH_MAX);
 
-	builtin_cd(".");
+	builtin_cd(argv);
 
 	getcwd(&next_cdir[0], PATH_MAX);
 
@@ -1051,10 +1053,11 @@ Test(builtin_cd, cdDot, .init=setup) {
 }
 
 Test(builtin_cd, cdDotDot, .init=setup) {
+	char *argv[3] = {"cd", "..", 0};
 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], *last_backslash;
 	getcwd(prev_cdir, PATH_MAX);
 
-	builtin_cd("..");
+	builtin_cd(argv);
 
 	getcwd(&next_cdir[0], PATH_MAX);
 
@@ -1068,12 +1071,13 @@ Test(builtin_cd, cdDotDot, .init=setup) {
 }
 
 Test(builtin_cd, cdDash, .init=setup) {
+	char *argv[3] = {"cd", "-", 0};
 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], prev_hist[PATH_MAX], next_hist[PATH_MAX];
 	
 	getcwd(prev_cdir, PATH_MAX);
 	strcpy(prev_hist, cd_history);
 
-	builtin_cd("-");
+	builtin_cd(argv);
 
 	getcwd(next_cdir, PATH_MAX);
 	strcpy(next_hist, cd_history);
@@ -1083,13 +1087,14 @@ Test(builtin_cd, cdDash, .init=setup) {
 }
 
 Test(builtin_cd, cdFolder_Not_Exist, .init=setup) {
+	char *argv[3] = {"cd", "./asdklfjaklwejflkqwkelrjiosjvklds", 0};
 	int ret;
 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], prev_hist[PATH_MAX], next_hist[PATH_MAX];
 	
 	getcwd(prev_cdir, PATH_MAX);
 	strcpy(prev_hist, cd_history);
 
-	ret = builtin_cd("./asdklfjaklwejflkqwkelrjiosjvklds");
+	ret = builtin_cd(argv);
 	cr_assert(ret == SF_FAIL, "Expected to fail, but return was %d\n", ret);
 
 	getcwd(next_cdir, PATH_MAX);
@@ -1100,6 +1105,7 @@ Test(builtin_cd, cdFolder_Not_Exist, .init=setup) {
 }
 
 Test(builtin_cd, cdFolder_Exist, .init=setup) {
+	char *argv[3] = {"cd", "./ysoh/hw4/test", 0};
 	int ret;
 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], prev_hist[PATH_MAX], next_hist[PATH_MAX];
 	
@@ -1107,7 +1113,7 @@ Test(builtin_cd, cdFolder_Exist, .init=setup) {
 	strcpy(prev_hist, cd_history);
 
 	printf("%s\n", prev_cdir);
-	ret = builtin_cd("./ysoh/hw4/test");
+	ret = builtin_cd(argv);
 	cr_assert(ret == SF_SUCCESS, "Expected to sucess, but return was %d\n", ret);
 
 	getcwd(next_cdir, PATH_MAX);
@@ -1121,12 +1127,14 @@ Test(builtin_cd, cdNULL, .init=setup) {
 	int ret;
 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX], prev_hist[PATH_MAX], next_hist[PATH_MAX];
 	char *existing_folder = "/home/dan/ysoh/hw4/test";
+	char *argv[3] = {"cd", existing_folder, 0};
+	char *argv2[2] = {"cd", 0};
 	
 	// change current dir to variable existing_folder
 	getcwd(prev_cdir, PATH_MAX);
 	strcpy(prev_hist, cd_history);
 
-	ret = builtin_cd(existing_folder);
+	ret = builtin_cd(argv);
 	cr_assert(ret == SF_SUCCESS, "Expected to sucess, but return was %d\n", ret);
 
 	getcwd(next_cdir, PATH_MAX);
@@ -1139,7 +1147,7 @@ Test(builtin_cd, cdNULL, .init=setup) {
 	getcwd(prev_cdir, PATH_MAX);
 	strcpy(prev_hist, cd_history);
 
-	ret = builtin_cd(NULL);
+	ret = builtin_cd(argv2);
 	cr_assert(ret == SF_SUCCESS, "Expected to sucess, but return was %d\n", ret);
 
 	getcwd(next_cdir, PATH_MAX);
@@ -1151,12 +1159,11 @@ Test(builtin_cd, cdNULL, .init=setup) {
 
 // builtin_chpmt
 Test(builtin_chpmt, chpmt_valid, .init=setup) {
-	int argc;
-	char *buf[3], *pmt, **argv;
-	char cmd0[] = "chpmt user 0";
-	char cmd1[] = "chpmt user 1";
-	char cmd2[] = "chpmt machine 0";
-	char cmd3[] = "chpmt machine 1";
+	char *pmt;
+	char *cmd0[4] = {"chpmt", "user", "0", NULL};
+	char *cmd1[4] = {"chpmt", "machine", "0", NULL};
+	char *cmd2[4] = {"chpmt", "user", "1", NULL};
+	char *cmd3[4] = {"chpmt", "machine", "1", NULL};
 
 	int len = 5 + LOGIN_NAME_MAX + HOST_NAME_MAX + PATH_MAX + 20; // 20 for extra, 5 for "sfish"
     char *promptBuf = (char*) malloc(len); 
@@ -1168,38 +1175,26 @@ Test(builtin_chpmt, chpmt_valid, .init=setup) {
 		"sfish-\x1B[0mdan\x1B[0m@\x1B[0mdan-ubuntu\x1B[0m:[~]> ", pmt);
 
 	// turn off user
-	argc = 3;
-	argv = parseNCmd(cmd0, buf, argc);
-
-	builtin_chpmt(argc, argv);
+	builtin_chpmt(cmd0);
 
 	pmt = getsnPrompt(promptBuf, len);
 	cr_assert( strcmp(pmt, "sfish-\x1B[0mdan-ubuntu\x1B[0m:[~]> ") == 0, 
 		"Actual: %s\n", pmt);
 
 	// turn off machine
-	argc = 3;
-	argv = parseNCmd(cmd2, buf, argc);
-
-	builtin_chpmt(argc, argv);
+	builtin_chpmt(cmd1);
 
 	pmt = getsnPrompt(promptBuf, len);
-	cr_assert( strcmp(pmt, "sfish:[~]> ") == 0);
+	cr_assert( strcmp(pmt, "sfish:[~]> ") == 0, "Expected all off, but actual:\"%s\"\n", pmt);
 
 	// turn on user
-	argc = 3;
-	argv = parseNCmd(cmd1, buf, argc);
-
-	builtin_chpmt(argc, argv);
+	builtin_chpmt(cmd2);
 
 	pmt = getsnPrompt(promptBuf, len);
 	cr_assert( strcmp(pmt, "sfish-\x1B[0mdan\x1B[0m:[~]> ") == 0);
 
 	// turn on machine
-	argc = 3;
-	argv = parseNCmd(cmd3, buf, argc);
-
-	builtin_chpmt(argc, argv);
+	builtin_chpmt(cmd3);
 
 	pmt = getsnPrompt(promptBuf, len);
 	cr_assert( strcmp(pmt, "sfish-\x1B[0mdan\x1B[0m@\x1B[0mdan-ubuntu\x1B[0m:[~]> ") == 0);

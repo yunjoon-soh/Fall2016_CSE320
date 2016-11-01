@@ -75,11 +75,11 @@ char *PROMPT_COLOR_USER, *PROMPT_COLOR_HOST, *PROMPT_BOLD_USER, *PROMPT_BOLD_HOS
 int preprocess();
 int builtin_help();
 int builtin_exit();
-int builtin_cd(char* argv);
+int builtin_cd(char** argv);
 int builtin_pwd();
 int builtin_prt();
-int builtin_chpmt(int argc, char** argv);
-int builtin_chclr(int argc, char** argv);
+int builtin_chpmt(char** argv);
+int builtin_chclr(char** argv);
 
 
 #endif

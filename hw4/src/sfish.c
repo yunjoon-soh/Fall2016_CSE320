@@ -44,9 +44,12 @@ int main(int argc, char** argv, char *envp[]) {
         // }
 
         if( isBuiltin(argv[0]) != SF_FALSE ){ // if not SF_FALSE, then it is true
-            if ( (childPid = fork()) == 0){
+            if( strcmp(argv[0], "cd") == 0 ){ // if cd do not fork
+                last_exe.val = exeBuiltIn(argc, argv);
+            } else if ( (childPid = fork()) == 0){
                 debug("%s is built in\n", cmd);
                 last_exe.val = exeBuiltIn(argc, argv);
+                exit(last_exe.val);
             }
             else {
                 pid_t wpid = wait(&childStatus);

@@ -1,6 +1,10 @@
 #include "sfbuiltin.h"
 #include "sfconst.h"
 
+#ifndef DEBUG
+#define DEBUG
+#endif
+
 #define USAGE_LENGTH 12
 const char* USAGE[USAGE_LENGTH] = {
 	"Command line utility for converting files from UTF-16LE to UTF-16BE or vice versa.\n\n",
@@ -44,6 +48,14 @@ int preprocess(){
     return SF_SUCCESS;
 }
 
+int countArgs(char** argv, int index){
+	int cnt = 0;
+	while(argv[index] != 0){
+		index++; cnt++;
+	}
+	return cnt;
+}
+
 int builtin_help(){
 	debug("print help\n");
 	int i;
@@ -61,18 +73,21 @@ int builtin_exit(){
 
 // if path == NULL, "cd" was typed
 // if path is not null, null terminated string
-int builtin_cd(char* path){
+int builtin_cd(char** argv){
+	char *path;
 	int ret;
 	char *last_backslash;
 	char cdir[PATH_MAX];
 
-	// prev_dir = SF_FALSE; // flag for "cd -"
-	debug("Path:%s, cd_history:%s\n", path, cd_history);
-
-	if(path == NULL){
+	int argc = countArgs(argv, 0);
+	if(argc < 2){
 		debug("Path is given NULL... changing directory to home dir\n");
 		path = getenv("HOME");
+	} else {
+		path = argv[1];
 	}
+
+	debug("Path:%s, cd_history:%s\n", path, cd_history);
 
 	// get current dir
 	getcwd(cdir, PATH_MAX);
@@ -159,18 +174,16 @@ int builtin_prt(){
 	return SF_SUCCESS;
 }
 
-int builtin_chpmt(int argc, char** argv){
-	if(argc < 3){
-		//TODO
+int builtin_chpmt(char** argv){
+	debug("chpmt called\n");
+	int argc = countArgs(argv, 0);
+	if(argc != 3){
+		fprintf(stderr, "Error: chpmt: Not enough arguments\n");
 		return SF_FAIL;
 	}
 
-	if(argc > 3){
-		//TODO
-	}
-
 	if( strcmp(argv[2], "0") != 0 && strcmp(argv[2], "1") != 0){
-		fprintf(stderr, "Error: second argument has to be 0 or 1\n");
+		fprintf(stderr, "Error: chpmt: second argument has to be 0 or 1\n");
 		return SF_FAIL;
 	}
 
@@ -179,20 +192,18 @@ int builtin_chpmt(int argc, char** argv){
 	} else if (strcmp(argv[1], "machine") == 0){
 		PROMPT_HOST = *argv[2] - '0';
 	} else {
-		fprintf(stderr, "Error: invalid first arugment\n");
+		fprintf(stderr, "Error: chpmt: invalid first arugment\n");
 		return SF_FAIL;
 	}
 
 	return SF_SUCCESS;
 }
 
-int builtin_chclr(int argc, char** argv){
-	if(argc < 4){
-		//TODO
-	}
-
-	if(argc > 4){
-		//TODO
+int builtin_chclr(char** argv){
+	int argc = countArgs(argv, 0);
+	if(argc != 4){
+		fprintf(stderr, "Error: chclr: Not enough arguments\n");
+		return SF_FAIL;
 	}
 
 	char *bold;	
@@ -201,7 +212,7 @@ int builtin_chclr(int argc, char** argv){
 	} else if( strcmp(argv[2], "1") == 0 ){
 		bold = BOLD;
 	} else {
-		fprintf(stderr, "Error: third argument has to be 0 or 1\n");
+		fprintf(stderr, "Error: chclr: third argument has to be 0 or 1\n");
 		return SF_FAIL;
 	}
 
@@ -223,7 +234,7 @@ int builtin_chclr(int argc, char** argv){
 	} else if( strcmp(argv[3], "white") == 0){
 		color = KWHT;
 	} else {
-		fprintf(stderr, "%s\n", "Error: second argument is invalid");
+		fprintf(stderr, "%s\n", "Error: chclr: second argument is invalid");
 		return SF_FAIL;
 	}
 
@@ -234,7 +245,7 @@ int builtin_chclr(int argc, char** argv){
 		PROMPT_COLOR_HOST = color;
 		PROMPT_BOLD_HOST = bold;
 	} else {
-		fprintf(stderr, "Error: invalid first arugment\n");
+		fprintf(stderr, "Error: chclr: invalid first arugment\n");
 		return SF_FAIL;
 	}
 

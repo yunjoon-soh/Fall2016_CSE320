@@ -131,28 +131,75 @@ char *getsnPrompt(char* buf, int len){
 }
 
 int exeBuiltIn(int argc, char** argv){
-    char* cmd = argv[0];
-    if( strcmp(cmd, "help") == 0){
-        return builtin_help();
-    } else if( strcmp(cmd, "exit") == 0){
-        return builtin_exit();
-    } else if( strcmp(cmd, "cd") == 0){
-    	if(argc >= 2)
-        	return builtin_cd(argv[1]); // ignore the rest
-    	else
-    		return builtin_cd(NULL);
-    } else if( strcmp(cmd, "pwd") == 0){
-        return builtin_pwd();
-    } else if( strcmp(cmd, "prt") == 0){
-        return builtin_prt();
-    } else if( strcmp(cmd, "chpmt") == 0){
-    	return builtin_chpmt(argc, argv);
-    } else if( strcmp(cmd, "chclr") == 0){
-    	return builtin_chclr(argc, argv);
-    } else {
-    	error("Not a bulitin cmd:%s\n", cmd);
-    	return SF_FAIL;	
-    }
+	debug("exeBuiltIn\n");
+	int next_pipe = 0, strstr_ret;
+	char *filename, *cmd, **internal_argv;
+	do {
+	 	// argv[next_pipe] is either ' ', '<', '|', '>', '&'
+    	debug("next_pipe=%d\n", next_pipe);
+    	int i = next_pipe;
+    	while(i < argc){
+    		debug("argv[%d]=%s\n", i, argv[i]);
+    		i++;
+    	}
+
+    	if(next_pipe != 0){
+	        filename = argv[next_pipe + 1];
+	        cmd = argv[next_pipe + 1];
+	        internal_argv = argv + (next_pipe + 1);
+
+	        if(filename == NULL){ // no more argument after last pipe
+	        	debug("No more commands!\n");
+	        	return -1;
+	        }
+	        debug("filename=%s\n", filename);
+	    } else {
+	    	cmd = argv[next_pipe];
+	    	internal_argv = argv + (next_pipe);
+	    }
+        
+        // next_pipe is -1 when there is no more pipe exists
+        if( (strstr_ret = strcmp(argv[next_pipe], "|")) == 0 ){
+            
+        } else if( (strstr_ret = strcmp(argv[next_pipe], ">")) == 0 ){
+        	// open write only, create if not exists, trucate if eixsts
+        	int open_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        	if(open_fd == -1){
+        		perror("open(filename, O_WRONLY | O_CREAT | O_TRUNC, 644) failed");
+        		return -1;
+        	}
+        	dup2(open_fd, 1);
+        	argv[next_pipe] = 0;
+        } else if( (strstr_ret = strcmp(argv[next_pipe], "<")) == 0 ){
+            
+        }
+
+        // 2. exectue the builtin
+        debug("exe builtin\n");
+	    if( strcmp(cmd, "help") == 0){
+	        return builtin_help();
+	    } else if( strcmp(cmd, "exit") == 0){
+	        return builtin_exit();
+	    } else if( strcmp(cmd, "cd") == 0){
+        	return builtin_cd(internal_argv);
+	    } else if( strcmp(cmd, "pwd") == 0){
+	        return builtin_pwd();
+	    } else if( strcmp(cmd, "prt") == 0){
+	        return builtin_prt();
+	    } else if( strcmp(cmd, "chpmt") == 0){
+	    	return builtin_chpmt(internal_argv);
+	    } else if( strcmp(cmd, "chclr") == 0){
+	    	return builtin_chclr(internal_argv);
+	    } else {
+	    	error("Not a bulitin cmd:%s\n", cmd);
+	    	return SF_FAIL;	
+	    }
+
+	    // 3. move on to the next
+        next_pipe++;
+    } while( (next_pipe = getNextPipe(argc, argv, next_pipe)) != -1 && next_pipe < argc);
+
+    return SF_SUCCESS;    
 }
 
 int isPath(char* pwd){
@@ -258,49 +305,50 @@ int isBgProc(char* cmd){
 /* Pipeline */
 
 // return 0 if success, return -1 if failed
-int pipelineCheck(int argc, char** argv){
-	debug("pipelineCheck(..)\n");
-    int next_pipe = 0, strstr_ret;
+// int pipelineCheck(int argc, char** argv){
+// 	debug("pipelineCheck(..)\n");
+//     int next_pipe = 0, strstr_ret;
 
-    while( (next_pipe = getNextPipe(argc, argv, next_pipe)) != -1 && next_pipe < argc){
-    	debug("next_pipe=%d\n", next_pipe);
-        char *filename = argv[next_pipe + 1];
-        if(filename == NULL){ // no more argument after last pipe
-        	return -1;
-        }
-        debug("filename=%s\n", filename);
+//     while( (next_pipe = getNextPipe(argc, argv, next_pipe)) != -1 && next_pipe < argc){
+//     	debug("next_pipe=%d\n", next_pipe);
+//         char *filename = argv[next_pipe + 1];
+//         if(filename == NULL){ // no more argument after last pipe
+//         	return -1;
+//         }
+//         debug("filename=%s\n", filename);
         
-        // next_pipe is -1 when there is no more pipe exists
-        if( (strstr_ret = strcmp(argv[next_pipe], "|")) == 0 ){
+//         // next_pipe is -1 when there is no more pipe exists
+//         if( (strstr_ret = strcmp(argv[next_pipe], "|")) == 0 ){
             
-        } else if( (strstr_ret = strcmp(argv[next_pipe], ">")) == 0 ){
-        	// open write only, create if not exists, trucate if eixsts
-        	int open_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        	if(open_fd == -1){
-        		perror("open(filename, O_WRONLY | O_CREAT | O_TRUNC, 644) failed");
-        		return -1;
-        	}
-        	dup2(open_fd, 1);
-        	argv[next_pipe] = 0;
-        } else if( (strstr_ret = strcmp(argv[next_pipe], "<")) == 0 ){
+//         } else if( (strstr_ret = strcmp(argv[next_pipe], ">")) == 0 ){
+//         	// open write only, create if not exists, trucate if eixsts
+//         	int open_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+//         	if(open_fd == -1){
+//         		perror("open(filename, O_WRONLY | O_CREAT | O_TRUNC, 644) failed");
+//         		return -1;
+//         	}
+//         	dup2(open_fd, 1);
+//         	argv[next_pipe] = 0;
+//         } else if( (strstr_ret = strcmp(argv[next_pipe], "<")) == 0 ){
             
-        } else {
-            error("This code reached because I implemented getNextPipe(..) incorrectly\n");
-            break;
-        }
+//         } else {
+//             error("This code reached because I implemented getNextPipe(..) incorrectly\n");
+//             break;
+//         }
 
-        next_pipe++;
-    }
+//         next_pipe++;
+//     }
 
-    return 0;
-}
+//     return 0;
+// }
 
 int getNextPipe(int argc, char** argv, int from){
-	int i;
-	for(i = from; i < argc - 1; i++){ // -1 because don't want to check the last null argv
+	int i = from;
+	for( ; i < argc - 1; i++){ // -1 because don't want to check the last null argv
 		if( strcmp(argv[i], LT_PIPE) == 0 ||
 			strcmp(argv[i], JS_PIPE) == 0 ||
-			strcmp(argv[i], GT_PIPE) == 0 ){
+			strcmp(argv[i], GT_PIPE) == 0 ||
+			strcmp(argv[i], BG_RUN) == 0){
 			return i;
 		}
 	}
