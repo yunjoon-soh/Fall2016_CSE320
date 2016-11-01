@@ -46,9 +46,12 @@ int countElements(char* cmd){
 
 	char *c = cmd;
 	while( *c != '\0'){ // while cmd has not reached the end
-		if( *c == ' ' ){ // if it is space flag that it has encountered a space
+		if( *c == ' ' ){ // if it is space, flag that it has encountered a space
 			flag = 1;
-		} else{
+		} else if( *c == '|' || *c == '<' || *c == '>'){
+			count++;
+			flag = 1; // what comes after has to be counted separatedly from this
+		} else{ // just normal chars
 			if(flag == 1){
 				count++; // increament only when reaching a character right after white space
 				flag = 0;
@@ -106,6 +109,9 @@ char *getsnPrompt(char* buf, int len){
 
     return buf;
 }
+
+// int getNextPipe(char** argv, int from){
+// }
 
 int exeBuiltIn(int argc, char** argv){
     char* cmd = argv[0];
@@ -218,3 +224,23 @@ int exeCmd(int argc, char** argv, char* envp[]){
 int isBgProc(char* cmd){
     return SF_FALSE;
 }
+
+// int pipelineCheck(int argc, char** argv){
+//     next_pipe = 0;
+//     while( (next_pipe = getNextPipe(argv, next_pipe)) != -1 ){ 
+//         char *filename = getFileNameFromPipeArg(argv, next_pipe);
+        
+//         // next_pipe is -1 when there is no more pipe exists
+//         if( (strstr_ret = strstr(argv[next_pipe], "|")) == 0 ){
+//             int open_fd = Open(filename, flags);
+            
+//         } else if( (strstr_ret = strstr(argv[next_pipe], ">")) == 0 ){
+            
+//         } else if( (strstr_ret = strstr(argv[next_pipe], "<")) == 0 ){
+            
+//         } else {
+//             error("This code reached because I implemented getNextPipe(..) incorrectly\n");
+//             break;
+//         }
+//     }
+// }

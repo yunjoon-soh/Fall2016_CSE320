@@ -9,16 +9,25 @@
 #include "sfconst.h"
 #include "sfbuiltin.h"
 
-char **parseNCmd(char* cmd, char* buf[], int len); // len is num of cmds
+// deliminate by ' ', '|', '<', '>'
+// len is num of cmds, returned by countElements
+char **parseNCmd(char* cmd, char* buf[], int len); 
 int countElements(char* cmd);
+
+
 char *getsnPrompt(char* buf, int len);
 
 int exeBuiltIn(int argc, char** argv);
 int exeCmd(int argc, char** argv, char* envp[]);
 
-// bool isBuiltIn(char* cmd);
-// deprecated: instead used exeBuiltIn(char** cmds)
-
 int isBgProc(char* cmd);
 
-#endif
+int Open(char* filename, int flags);
+
+/* Pipeline*/
+// returns character to the starting position of pipeline name
+int pipelineCheck(int argc, char** argv);
+char *getFileNameFromPipeArg(char** argv, int next_pipe);
+int getNextPipe(char** argv, int from);
+
+#endif 

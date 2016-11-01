@@ -35,7 +35,6 @@ void setup(){
 /**
 * TEST BEGINS HERE
 */
-
 Test(sfish_helper_countElements, counting_test){
 	int count;
 
@@ -74,6 +73,153 @@ Test(sfish_helper_countElements, counting_test){
 
 	count = countElements(" abc  f    def ");
 	cr_assert(count == 3);
+}
+
+Test(sfish_helper_countElements, counting_with_pipeline_test_gt){
+	int count;
+
+	count = countElements(">");
+	cr_assert(count == 1);
+
+	count = countElements("abc >");
+	cr_assert(count == 2);
+
+	count = countElements("abc > ");
+	cr_assert(count == 2);
+
+	count = countElements(" abc > ");
+	cr_assert(count == 2);
+
+	count = countElements("   abc   >   ");
+	cr_assert(count == 2);
+
+	count = countElements("   a   bc   >   ");
+	cr_assert(count == 3);
+
+	count = countElements("abc > def");
+	cr_assert(count == 3);
+
+	count = countElements("                 abc    >   def   ");
+	cr_assert(count == 3);
+
+	count = countElements(">abc ");
+	cr_assert(count == 2);
+
+	count = countElements(" a>bc ");
+	cr_assert(count == 3);
+
+	count = countElements("abc def>");
+	cr_assert(count == 3);
+
+	count = countElements(" abc d ef>");
+	cr_assert(count == 4);
+
+	count = countElements(" >a b> >c d> e>>f ");
+	cr_assert(count == 12);
+
+	count = countElements(" a>b>c      d>e>f ");
+	cr_assert(count == 10);
+
+	count = countElements(" a>bc>  f>    d>e>f ");
+	cr_assert(count == 11);
+}
+
+Test(sfish_helper_countElements, counting_with_pipeline_test_lt){
+	int count;
+
+	count = countElements("<");
+	cr_assert(count == 1);
+
+	count = countElements("abc <");
+	cr_assert(count == 2);
+
+	count = countElements("abc < ");
+	cr_assert(count == 2);
+
+	count = countElements(" abc < ");
+	cr_assert(count == 2);
+
+	count = countElements("   abc   <   ");
+	cr_assert(count == 2);
+
+	count = countElements("   a   bc   <   ");
+	cr_assert(count == 3);
+
+	count = countElements("abc < def");
+	cr_assert(count == 3);
+
+	count = countElements("                 abc    <   def   ");
+	cr_assert(count == 3);
+
+	count = countElements("<abc ");
+	cr_assert(count == 2);
+
+	count = countElements(" a<bc ");
+	cr_assert(count == 3);
+
+	count = countElements("abc def<");
+	cr_assert(count == 3);
+
+	count = countElements(" abc d ef<");
+	cr_assert(count == 4);
+
+	count = countElements(" <a b< <c d< e<<f ");
+	cr_assert(count == 12);
+
+	count = countElements(" a<b<c      d<e<f ");
+	cr_assert(count == 10);
+
+	count = countElements(" a<bc<  f<    d<e<f ");
+	cr_assert(count == 11);
+}
+
+Test(sfish_helper_countElements, counting_with_pipeline_test_pipe){
+	int count;
+
+	count = countElements("|");
+	cr_assert(count == 1);
+
+	count = countElements("abc |");
+	cr_assert(count == 2);
+
+	count = countElements("abc | ");
+	cr_assert(count == 2);
+
+	count = countElements(" abc | ");
+	cr_assert(count == 2);
+
+	count = countElements("   abc   |   ");
+	cr_assert(count == 2);
+
+	count = countElements("   a   bc   |   ");
+	cr_assert(count == 3);
+
+	count = countElements("abc | def");
+	cr_assert(count == 3);
+
+	count = countElements("                 abc    |   def   ");
+	cr_assert(count == 3);
+
+	count = countElements("|abc ");
+	cr_assert(count == 2);
+
+	count = countElements(" a|bc ");
+	cr_assert(count == 3);
+
+	count = countElements("abc def|");
+	cr_assert(count == 3);
+
+	count = countElements(" abc d ef|");
+	cr_assert(count == 4);
+
+	count = countElements(" |a b| |c d| e||f ");
+	cr_assert(count == 12);
+
+	count = countElements(" a|b|c      d|e|f ");
+	cr_assert(count == 10);
+
+	count = countElements(" a|bc|  f|    d|e|f ");
+	cr_assert(count == 11);
 }
 
 // sfish_helper
@@ -185,7 +331,6 @@ Test(sfish_helper_parseCmd, cmd_has_two_param4, .init=setup){
 }
 
 // builtin_cd
-
 Test(builtin_cd, cdDot, .init=setup) {
 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX];
 	getcwd(prev_cdir, PATH_MAX);
