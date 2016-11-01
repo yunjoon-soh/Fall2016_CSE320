@@ -2,7 +2,7 @@
 
 int main(int argc, char** argv, char *envp[]) {
     int childPid, childStatus;
-    char *strstr_ret;
+
     //DO NOT MODIFY THIS. If you do you will get a ZERO.
     rl_catch_signals = 0;
     //This is disable readline's default signal handlers, since you are going
@@ -38,19 +38,15 @@ int main(int argc, char** argv, char *envp[]) {
             debug("Nothing to parse, continue\n");
             continue;
         }
-        debug("Parse result: argc=%d, argv=%s\n", argc, argv[0]);
-        for(int i = 0; i <= argc; i++){
-            debug("argv[%d]=%s\n", i, argv[i]);
-        }
+        // debug("Parse result: argc=%d, argv=%s\n", argc, argv[0]);
+        // for(int i = 0; i < argc; i++){
+        //     debug("argv[%d]=%s\n", i, argv[i]);
+        // }
 
-        if( (last_exe.val = exeBuiltIn(argc, argv)) == SF_SUCCESS ){ 
-            // if successful, then it is true
-            debug("%s is built in\n", cmd);
-        }
-        else{
-            if ( (childPid = fork()) == 0 ){
-                pipelineCheck(argc, argv);
-                exeCmd(argc, argv, envp);
+        if( isBuiltin(argv[0]) != SF_FALSE ){ // if not SF_FALSE, then it is true
+            if ( (childPid = fork()) == 0){
+                debug("%s is built in\n", cmd);
+                last_exe.val = exeBuiltIn(argc, argv);
             }
             else {
                 pid_t wpid = wait(&childStatus);
@@ -59,7 +55,22 @@ int main(int argc, char** argv, char *envp[]) {
                     debug("Child %d terminated with exit code %d\n", wpid, last_exe.val);
                 } else{
                     last_exe.val = WEXITSTATUS(childStatus);
-                    debug("Child %d terminated abnormally: %d\n", wpid, lasst_exe.val);
+                    debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
+                }
+            }
+        }
+        else{
+            if ( (childPid = fork()) == 0 ){
+                last_exe.val = exeCmd(argc, argv, envp);
+            }
+            else {
+                pid_t wpid = wait(&childStatus);
+                if(WIFEXITED(childStatus)){
+                    last_exe.val = WEXITSTATUS(childStatus);
+                    debug("Child %d terminated with exit code %d\n", wpid, last_exe.val);
+                } else{
+                    last_exe.val = WEXITSTATUS(childStatus);
+                    debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
                 }
             }
         //  } else {

@@ -357,6 +357,20 @@ Test(sfish_helper_parseCmd, cmd_has_three_param, .init=setup){
 }
 
 // pipeline(gt)
+Test(sfish_helper_parseCmd, cmd_has_pipeline0_gt, .init=setup){
+	char cmd[] = "cd>";
+	int count = countElements(cmd) + 1;
+	cr_assert(count == 2 + 1);
+
+	char* buf[count];
+	char** ret = parseNCmd(cmd, buf, count);
+	cr_assert(ret != NULL);
+
+	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
+	cr_assert( strcmp(buf[1], ">") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 1, ">", buf[1]);
+	cr_assert( buf[2] == NULL );
+}
+
 Test(sfish_helper_parseCmd, cmd_has_pipeline_gt, .init=setup){
 	char cmd[] = "cd ./bin/sfish > outfile";
 	int count = countElements(cmd) + 1;
@@ -804,7 +818,7 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring4, .init=setup){
 
 // pipeline(lt)
 Test(sfish_helper_parseCmd, cmd_has_pipeline_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish | outfile";
+	char cmd[] = "cd ./bin/sfish < outfile";
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
@@ -814,13 +828,13 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline_lt, .init=setup){
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
+	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_pipeline2_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish| outfile";
+	char cmd[] = "cd ./bin/sfish< outfile";
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
@@ -830,13 +844,13 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline2_lt, .init=setup){
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
+	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_pipeline3_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish |outfile";
+	char cmd[] = "cd ./bin/sfish <outfile";
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
@@ -846,13 +860,13 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline3_lt, .init=setup){
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
+	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_pipeline4_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish|outfile";
+	char cmd[] = "cd ./bin/sfish<outfile";
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
@@ -862,13 +876,13 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline4_lt, .init=setup){
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
+	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish|outfile | asdf";
+	char cmd[] = "cd ./bin/sfish<outfile < asdf";
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
@@ -878,15 +892,15 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_lt, .init=setup){
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
+	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
-	cr_assert( strcmp(buf[4], "|") == 0, "expected buf[%i]=%s actual=%s", 4, "|", buf[4]);
+	cr_assert( strcmp(buf[4], "<") == 0, "expected buf[%i]=%s actual=%s", 4, "<", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline2_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish|outfile| asdf";
+	char cmd[] = "cd ./bin/sfish<outfile< asdf";
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
@@ -896,15 +910,15 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline2_lt, .init=setup){
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
+	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
-	cr_assert( strcmp(buf[4], "|") == 0, "expected buf[%i]=%s actual=%s", 4, "|", buf[4]);
+	cr_assert( strcmp(buf[4], "<") == 0, "expected buf[%i]=%s actual=%s", 4, "<", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline3_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish|outfile |asdf";
+	char cmd[] = "cd ./bin/sfish<outfile <asdf";
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
@@ -914,15 +928,15 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline3_lt, .init=setup){
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
+	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
-	cr_assert( strcmp(buf[4], "|") == 0, "expected buf[%i]=%s actual=%s", 4, "|", buf[4]);
+	cr_assert( strcmp(buf[4], "<") == 0, "expected buf[%i]=%s actual=%s", 4, "<", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline4_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish|outfile|asdf";
+	char cmd[] = "cd ./bin/sfish<outfile<asdf";
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
@@ -932,15 +946,15 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline4_lt, .init=setup){
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
+	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
-	cr_assert( strcmp(buf[4], "|") == 0, "expected buf[%i]=%s actual=%s", 4, "|", buf[4]);
+	cr_assert( strcmp(buf[4], "<") == 0, "expected buf[%i]=%s actual=%s", 4, "<", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline5_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish|outfile|asdf";
+	char cmd[] = "cd ./bin/sfish<outfile<asdf";
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
@@ -950,15 +964,15 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline5_lt, .init=setup){
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
+	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
-	cr_assert( strcmp(buf[4], "|") == 0, "expected buf[%i]=%s actual=%s", 4, "|", buf[4]);
+	cr_assert( strcmp(buf[4], "<") == 0, "expected buf[%i]=%s actual=%s", 4, "<", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish || asdf";
+	char cmd[] = "cd ./bin/sfish << asdf";
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
@@ -968,14 +982,14 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring_lt, .init=setup){
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
-	cr_assert( strcmp(buf[3], "|") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
+	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
+	cr_assert( strcmp(buf[3], "<") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring2_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish|| asdf";
+	char cmd[] = "cd ./bin/sfish<< asdf";
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
@@ -985,14 +999,14 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring2_lt, .init=setup){
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
-	cr_assert( strcmp(buf[3], "|") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
+	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
+	cr_assert( strcmp(buf[3], "<") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring3_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish ||asdf";
+	char cmd[] = "cd ./bin/sfish <<asdf";
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
@@ -1002,14 +1016,14 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring3_lt, .init=setup){
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
-	cr_assert( strcmp(buf[3], "|") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
+	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
+	cr_assert( strcmp(buf[3], "<") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring4_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish||asdf";
+	char cmd[] = "cd ./bin/sfish<<asdf";
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
@@ -1019,12 +1033,11 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring4_lt, .init=setup){
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
-	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
-	cr_assert( strcmp(buf[3], "|") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
+	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
+	cr_assert( strcmp(buf[3], "<") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
 }
-
 // builtin_cd
 Test(builtin_cd, cdDot, .init=setup) {
 	char prev_cdir[PATH_MAX], next_cdir[PATH_MAX];

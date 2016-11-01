@@ -5,6 +5,7 @@
 char* LT_PIPE = "<";
 char* GT_PIPE = ">";
 char* JS_PIPE = "|"; // JS = JuSt
+char* BG_RUN = "&";
 
 char **parseNCmd(char* cmd, char* buf[], int len){
 	int tokCnt = 0; // number of tokens found so far
@@ -39,6 +40,10 @@ char **parseNCmd(char* cmd, char* buf[], int len){
 				flag = 0;
 				*c = '\0';
 				buf[tokCnt++] = GT_PIPE;
+			} else if(*c == '&'){
+				flag = 0;
+				*c = '\0';
+				buf[tokCnt++] = BG_RUN;
 			} else if(flag == 0){ // have been white space so far
 				flag = 1;
 				buf[tokCnt++] = c;
@@ -63,7 +68,7 @@ int countElements(char* cmd){
 	while( *c != '\0'){ // while cmd has not reached the end
 		if( *c == ' ' ){ // if it is space, flag that it has encountered a space
 			flag = 1;
-		} else if( *c == '|' || *c == '<' || *c == '>'){
+		} else if( *c == '|' || *c == '<' || *c == '>' || *c == '&'){
 			count++;
 			flag = 1; // what comes after has to be counted separatedly from this
 		} else{ // just normal chars
@@ -125,38 +130,29 @@ char *getsnPrompt(char* buf, int len){
     return buf;
 }
 
-// int getNextPipe(char** argv, int from){
-// }
-
 int exeBuiltIn(int argc, char** argv){
     char* cmd = argv[0];
     if( strcmp(cmd, "help") == 0){
-        builtin_help();
-        return SF_SUCCESS;
+        return builtin_help();
     } else if( strcmp(cmd, "exit") == 0){
-        builtin_exit();
-        return SF_SUCCESS;
+        return builtin_exit();
     } else if( strcmp(cmd, "cd") == 0){
     	if(argc >= 2)
-        	builtin_cd(argv[1]); // ignore the rest
+        	return builtin_cd(argv[1]); // ignore the rest
     	else
-    		builtin_cd(NULL);
-        return SF_SUCCESS;
+    		return builtin_cd(NULL);
     } else if( strcmp(cmd, "pwd") == 0){
-        builtin_pwd();
-        return SF_SUCCESS;
+        return builtin_pwd();
     } else if( strcmp(cmd, "prt") == 0){
-        builtin_prt();
-        return SF_SUCCESS;
+        return builtin_prt();
     } else if( strcmp(cmd, "chpmt") == 0){
-    	builtin_chpmt(argc, argv);
-    	return SF_SUCCESS;
+    	return builtin_chpmt(argc, argv);
     } else if( strcmp(cmd, "chclr") == 0){
-    	builtin_chclr(argc, argv);
-    	return SF_SUCCESS;
+    	return builtin_chclr(argc, argv);
+    } else {
+    	error("Not a bulitin cmd:%s\n", cmd);
+    	return SF_FAIL;	
     }
-
-    return SF_FAIL;
 }
 
 int isPath(char* pwd){
@@ -201,13 +197,13 @@ int existsInPath(char* cmd){
 
 int exeCmd(int argc, char** argv, char* envp[]){
 	int ret;
-	char *env = getenv("PATH");
-	printf("%s\n", env);
+	debug("exeCmd(%d, %s, ..)\n", argc, argv[0]);
 
-	
 	if(isPath(argv[0]) == SF_FALSE){
 		// not a path
+		debug("*isPath:False\n");
 		if(existsInPath(argv[0]) != SF_FALSE){
+			debug("EXECUTE\n");
 			ret = execvp(argv[0], argv);
 			if(ret == -1){
 				//TODO
@@ -216,46 +212,107 @@ int exeCmd(int argc, char** argv, char* envp[]){
 					printf("argv[%d]=%s\n", i, argv[i]);
 				}
 			}
-			printf("*isPath:False, Ending\n");
+			debug("*isPath:False, Ending\n");
 			exit(0);
 		} else {
 			fprintf(stderr, "No such command!\n");
 			exit(1);
 		}		
 	} else {
-		printf("*isPath:True\n");
+		debug("*isPath:True\n");
 		// is path
 		ret = execv((const char*)argv[0], argv);
 		if(ret == -1){
 			//TODO
 		}
-		printf("*isPath:True, Ending\n");
+		debug("*isPath:True, Ending\n");
 		exit(0);
 	}
 
     return 0;
 }
 
+int isBuiltin(char* argv_0){
+	char* cmd = argv_0;
+	if(argv_0 == NULL){
+		return -1;
+	}
+
+	if( strcmp(cmd, "help") == 0 ||
+		strcmp(cmd, "exit") == 0 || 
+		strcmp(cmd, "cd") == 0 ||
+    	strcmp(cmd, "pwd") == 0 || 
+        strcmp(cmd, "prt") == 0 ||
+        strcmp(cmd, "chpmt") == 0 ||
+    	strcmp(cmd, "chclr") == 0 ){
+    	return !SF_FALSE;
+    }
+
+    return SF_FALSE;
+}
+
 int isBgProc(char* cmd){
     return SF_FALSE;
 }
 
-// int pipelineCheck(int argc, char** argv){
-//     next_pipe = 0;
-//     while( (next_pipe = getNextPipe(argv, next_pipe)) != -1 ){ 
-//         char *filename = getFileNameFromPipeArg(argv, next_pipe);
+/* Pipeline */
+
+// return 0 if success, return -1 if failed
+int pipelineCheck(int argc, char** argv){
+	debug("pipelineCheck(..)\n");
+    int next_pipe = 0, strstr_ret;
+
+    while( (next_pipe = getNextPipe(argc, argv, next_pipe)) != -1 && next_pipe < argc){
+    	debug("next_pipe=%d\n", next_pipe);
+        char *filename = argv[next_pipe + 1];
+        if(filename == NULL){ // no more argument after last pipe
+        	return -1;
+        }
+        debug("filename=%s\n", filename);
         
-//         // next_pipe is -1 when there is no more pipe exists
-//         if( (strstr_ret = strstr(argv[next_pipe], "|")) == 0 ){
-//             int open_fd = Open(filename, flags);
+        // next_pipe is -1 when there is no more pipe exists
+        if( (strstr_ret = strcmp(argv[next_pipe], "|")) == 0 ){
             
-//         } else if( (strstr_ret = strstr(argv[next_pipe], ">")) == 0 ){
+        } else if( (strstr_ret = strcmp(argv[next_pipe], ">")) == 0 ){
+        	// open write only, create if not exists, trucate if eixsts
+        	int open_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        	if(open_fd == -1){
+        		perror("open(filename, O_WRONLY | O_CREAT | O_TRUNC, 644) failed");
+        		return -1;
+        	}
+        	dup2(open_fd, 1);
+        	argv[next_pipe] = 0;
+        } else if( (strstr_ret = strcmp(argv[next_pipe], "<")) == 0 ){
             
-//         } else if( (strstr_ret = strstr(argv[next_pipe], "<")) == 0 ){
-            
-//         } else {
-//             error("This code reached because I implemented getNextPipe(..) incorrectly\n");
-//             break;
-//         }
-//     }
+        } else {
+            error("This code reached because I implemented getNextPipe(..) incorrectly\n");
+            break;
+        }
+
+        next_pipe++;
+    }
+
+    return 0;
+}
+
+int getNextPipe(int argc, char** argv, int from){
+	int i;
+	for(i = from; i < argc - 1; i++){ // -1 because don't want to check the last null argv
+		if( strcmp(argv[i], LT_PIPE) == 0 ||
+			strcmp(argv[i], JS_PIPE) == 0 ||
+			strcmp(argv[i], GT_PIPE) == 0 ){
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+// int Open(char* filename, int flags){
+// 	int ret = open(filename, flags);
+// 	if(ret == -1){
+// 		perror("Open failed");
+// 		return -1;	
+// 	}
+// 	return ret;
 // }
