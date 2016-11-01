@@ -2,6 +2,10 @@
 */
 #include "sfish_helper.h"
 
+char* LT_PIPE = "<";
+char* GT_PIPE = ">";
+char* JS_PIPE = "|"; // JS = JuSt
+
 char **parseNCmd(char* cmd, char* buf[], int len){
 	int tokCnt = 0; // number of tokens found so far
 	char *c = cmd;
@@ -14,25 +18,36 @@ char **parseNCmd(char* cmd, char* buf[], int len){
 		return NULL;
 	}
 
-	while(1){
-		while(*c == ' ' && *c != '\0'){// ignore all the whitespaces before
+	int flag = 0;
+	while(*c != '\0'){
+		if(*c == ' '){
+			flag = 0;
+			*c = '\0';
 			c++;
+			continue;
 		}
-		if(*c == '\0') { break; } // last element found
-
-		buf[tokCnt++] = c; // next token is found
-
-		while(*c != ' ' && *c != '\0'){
-			c++;
+		else { // c is not space
+			if(*c == '<'){
+				flag = 0;
+				*c = '\0';
+				buf[tokCnt++] = LT_PIPE;
+			} else if(*c == '|'){
+				flag = 0;
+				*c = '\0';
+				buf[tokCnt++] = JS_PIPE;
+			} else if(*c == '>'){
+				flag = 0;
+				*c = '\0';
+				buf[tokCnt++] = GT_PIPE;
+			} else if(flag == 0){ // have been white space so far
+				flag = 1;
+				buf[tokCnt++] = c;
+			} else if(flag == 1){
+				// do nothing
+			}
 		}
-		if(*c == '\0') { break; } // last element found
 
-		*c++ = '\0'; // ' ' -> '\0'
-
-		if(tokCnt > len){ // if last intended token was found, quit
-			fprintf(stderr, "Length of commands maxed out\n");
-			break;
-		}
+		c++;
 	}
 
 	buf[tokCnt] = 0;

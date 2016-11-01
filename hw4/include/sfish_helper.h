@@ -30,4 +30,5 @@ int pipelineCheck(int argc, char** argv);
 char *getFileNameFromPipeArg(char** argv, int next_pipe);
 int getNextPipe(char** argv, int from);
 
+
 #endif 

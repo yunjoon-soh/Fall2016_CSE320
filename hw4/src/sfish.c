@@ -31,7 +31,7 @@ int main(int argc, char** argv, char *envp[]) {
         debug("Length of command entered: %s, len=%ld @ %p\n", cmd, strlen(cmd), cmd);
         //You WILL lose points if your shell prints out garbage values.
 
-        int argc = countElements(cmd);
+        int argc = countElements(cmd) + 1; // + 1 for adding null argv
         char *buf[argc];
         char **argv = parseNCmd(cmd, buf, argc);
         if(argv == NULL){
