@@ -13,5 +13,10 @@
 #include "sfbuiltin.h"
 #include "sfconst.h"
 
+int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog);
+int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char *envp[], int prog);
+
+#define WRITE_END 1
+#define READ_END 0
 
 #endif // header guard

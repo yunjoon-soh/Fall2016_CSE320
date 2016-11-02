@@ -207,34 +207,37 @@ int exeCmd(int argc, char** argv, char* envp[]){
 	if(isPath(argv[0]) == SF_FALSE){
 		// not a path
 		debug("*isPath:False\n");
+
 		if(existsInPath(argv[0]) != SF_FALSE){
+
 			debug("EXECUTE\n");
-			ret = execvp(argv[0], argv);
-			if(ret == -1){
-				//TODO
-				fprintf(stderr, "Failed to execute %s\n", argv[0]);
-				for(int i = 0; i < 3; i++){
-					printf("argv[%d]=%s\n", i, argv[i]);
-				}
+			for(int i = 0; i < argc; i++){
+				debug("argc=%d, argv[%d]=%s\n", argc, i, argv[i]);
 			}
-			debug("*isPath:False, Ending\n");
-			exit(0);
+
+			ret = execvp(argv[0], argv);
+
+			if(ret == -1){
+				perror("exeCmd failed");
+			}
 		} else {
 			fprintf(stderr, "No such command!\n");
-			exit(1);
+			exit(1); //TODO
 		}		
 	} else {
-		debug("*isPath:True\n");
 		// is path
+		debug("*isPath:True\n");
+		
 		ret = execv((const char*)argv[0], argv);
+
 		if(ret == -1){
 			//TODO
 		}
-		debug("*isPath:True, Ending\n");
+
 		exit(0);
 	}
 
-    return 0;
+    return ret;
 }
 
 int isBuiltin(char* argv_0){
@@ -261,7 +264,6 @@ int isBgProc(char* cmd){
 }
 
 /* Pipeline */
-
 // return 0 if success, return -1 if failed
 // int pipelineCheck(int argc, char** argv){
 // 	debug("pipelineCheck(..)\n");
@@ -322,3 +324,4 @@ int getNextPipe(int argc, char** argv, int from){
 // 	}
 // 	return ret;
 // }
+
