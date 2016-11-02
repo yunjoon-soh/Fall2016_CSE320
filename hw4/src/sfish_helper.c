@@ -7,9 +7,9 @@ char* GT_PIPE = ">";
 char* JS_PIPE = "|"; // JS = JuSt
 char* BG_RUN = "&";
 
-char **parseNCmd(char* cmd, char* buf[], int len){
+char **parseNCmd(char** cmd, char* buf[], int len){
 	int tokCnt = 0; // number of tokens found so far
-	char *c = cmd;
+	char *c = (*cmd);
 
 	while(*c == ' ' && *c != '\0'){// ignore all the whitespaces before
 		c++;
@@ -131,73 +131,31 @@ char *getsnPrompt(char* buf, int len){
 }
 
 int exeBuiltIn(int argc, char** argv){
-	debug("exeBuiltIn\n");
-	int next_pipe = 0, strstr_ret;
-	char *filename, *cmd, **internal_argv;
-	do {
-	 	// argv[next_pipe] is either ' ', '<', '|', '>', '&'
-    	debug("next_pipe=%d\n", next_pipe);
-    	int i = next_pipe;
-    	while(i < argc){
-    		debug("argv[%d]=%s\n", i, argv[i]);
-    		i++;
-    	}
+	char* cmd = argv[0];
 
-    	if(next_pipe != 0){
-	        filename = argv[next_pipe + 1];
-	        cmd = argv[next_pipe + 1];
-	        internal_argv = argv + (next_pipe + 1);
-
-	        if(filename == NULL){ // no more argument after last pipe
-	        	debug("No more commands!\n");
-	        	return -1;
-	        }
-	        debug("filename=%s\n", filename);
-	    } else {
-	    	cmd = argv[next_pipe];
-	    	internal_argv = argv + (next_pipe);
-	    }
+	debug("exe builtin: cmd=%s\n", cmd);
+	for(int i = 0; i < argc; i++){
+        debug("argc=%d, argv[%d]=%s\n", argc, i, argv[i]);
+    }
         
-        // next_pipe is -1 when there is no more pipe exists
-        if( (strstr_ret = strcmp(argv[next_pipe], "|")) == 0 ){
-            
-        } else if( (strstr_ret = strcmp(argv[next_pipe], ">")) == 0 ){
-        	// open write only, create if not exists, trucate if eixsts
-        	int open_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        	if(open_fd == -1){
-        		perror("open(filename, O_WRONLY | O_CREAT | O_TRUNC, 644) failed");
-        		return -1;
-        	}
-        	dup2(open_fd, 1);
-        	argv[next_pipe] = 0;
-        } else if( (strstr_ret = strcmp(argv[next_pipe], "<")) == 0 ){
-            
-        }
-
-        // 2. exectue the builtin
-        debug("exe builtin\n");
-	    if( strcmp(cmd, "help") == 0){
-	        return builtin_help();
-	    } else if( strcmp(cmd, "exit") == 0){
-	        return builtin_exit();
-	    } else if( strcmp(cmd, "cd") == 0){
-        	return builtin_cd(internal_argv);
-	    } else if( strcmp(cmd, "pwd") == 0){
-	        return builtin_pwd();
-	    } else if( strcmp(cmd, "prt") == 0){
-	        return builtin_prt();
-	    } else if( strcmp(cmd, "chpmt") == 0){
-	    	return builtin_chpmt(internal_argv);
-	    } else if( strcmp(cmd, "chclr") == 0){
-	    	return builtin_chclr(internal_argv);
-	    } else {
-	    	error("Not a bulitin cmd:%s\n", cmd);
-	    	return SF_FAIL;	
-	    }
-
-	    // 3. move on to the next
-        next_pipe++;
-    } while( (next_pipe = getNextPipe(argc, argv, next_pipe)) != -1 && next_pipe < argc);
+    if( strcmp(cmd, "help") == 0){
+        return builtin_help();
+    } else if( strcmp(cmd, "exit") == 0){
+        return builtin_exit();
+    } else if( strcmp(cmd, "cd") == 0){
+    	return builtin_cd(argv);
+    } else if( strcmp(cmd, "pwd") == 0){
+        return builtin_pwd();
+    } else if( strcmp(cmd, "prt") == 0){
+        return builtin_prt();
+    } else if( strcmp(cmd, "chpmt") == 0){
+    	return builtin_chpmt(argv);
+    } else if( strcmp(cmd, "chclr") == 0){
+    	return builtin_chclr(argv);
+    } else {
+    	error("Not a bulitin cmd:%s\n", cmd);
+    	return SF_FAIL;	
+    }
 
     return SF_SUCCESS;    
 }

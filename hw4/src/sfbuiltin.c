@@ -5,21 +5,15 @@
 #define DEBUG
 #endif
 
-#define USAGE_LENGTH 12
+#define USAGE_LENGTH 7
 const char* USAGE[USAGE_LENGTH] = {
-	"Command line utility for converting files from UTF-16LE to UTF-16BE or vice versa.\n\n",
-	"Usage:\n",
-	"\t./utf [-h|--help] -u OUT_ENC | --UTF=OUT_ENC IN_FILE [OUT_FILE]\n",
-	"\t\t-h, --help\tDisplays this usage.\n",
-	"\t\t-v, -vv   \tToggles the verbosity of the program to level 1 or 2.\n\n",
-	"\tMandatory argument:\n",
-	"\t\t-u OUT_ENC, --UTF=OUT_ENC\t Sets the output encoding.\n",
-	"\t\t\t 8\tUTF-8\n",
-	"\t\t\t 16LE\tUTF-16 Little Endian\n",
-	"\t\t\t 16BE\tUTF-16 Big Endian\n\n"
-	"\tPositional Arguments:\n",
-	"\t\tIN_FILE   \tThe file to convert.\n",
-	"\t\t[OUT_FILE]\tOutput file name. If not present, defaults to stdout.\n"
+	"help\n",
+	"exit\n",
+	"cd\n",
+	"pwd\n",
+	"prt\n",
+	"chpmt\n",
+	"chclr\n"
 };
 
 int preprocess(){
@@ -87,7 +81,7 @@ int builtin_cd(char** argv){
 		path = argv[1];
 	}
 
-	debug("Path:%s, cd_history:%s\n", path, cd_history);
+	debug("argc=%d, Path:%s, cd_history:%s\n", argc, path, cd_history);
 
 	// get current dir
 	getcwd(cdir, PATH_MAX);

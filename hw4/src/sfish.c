@@ -16,6 +16,7 @@ int main(int argc, char** argv, char *envp[]) {
     char *promptBuf = (char*) malloc(len); 
 
     while((cmd = readline(getsnPrompt(promptBuf, len))) != NULL) {
+        int next_pipe = 0;
         if (strcmp(cmd,"exit")==0)
             break;
 
@@ -33,57 +34,133 @@ int main(int argc, char** argv, char *envp[]) {
 
         int argc = countElements(cmd) + 1; // + 1 for adding null argv
         char *buf[argc];
-        char **argv = parseNCmd(cmd, buf, argc);
+        char **argv = parseNCmd(&cmd, buf, argc);
         if(argv == NULL){
             debug("Nothing to parse, continue\n");
             continue;
         }
-        // debug("Parse result: argc=%d, argv=%s\n", argc, argv[0]);
-        // for(int i = 0; i < argc; i++){
-        //     debug("argv[%d]=%s\n", i, argv[i]);
-        // }
 
-        if( isBuiltin(argv[0]) != SF_FALSE ){ // if not SF_FALSE, then it is true
-            if( strcmp(argv[0], "cd") == 0 ){ // if cd do not fork
-                last_exe.val = exeBuiltIn(argc, argv);
-            } else if ( (childPid = fork()) == 0){
-                debug("%s is built in\n", cmd);
-                last_exe.val = exeBuiltIn(argc, argv);
-                exit(last_exe.val);
-            }
-            else {
-                pid_t wpid = wait(&childStatus);
-                if(WIFEXITED(childStatus)){
-                    last_exe.val = WEXITSTATUS(childStatus);
-                    debug("Child %d terminated with exit code %d\n", wpid, last_exe.val);
-                } else{
-                    last_exe.val = WEXITSTATUS(childStatus);
-                    debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
+        for(int i = 0; i < argc; i++){
+            debug("argc=%d, argv[%d]=%s\n", argc, i, argv[i]);
+        }
+        
+        do {
+            debug("do-while loop next_pipe=%d\n", next_pipe);
+            char* prog;
+            int open_fd = -1;
+
+            if(next_pipe == 0)
+                prog = argv[next_pipe];
+            else
+                prog = argv[next_pipe + 1];
+
+            if( isBuiltin(prog) != SF_FALSE ){ // if not SF_FALSE, then it is true
+
+                if( strcmp(prog, "cd") == 0 ||
+                    strcmp(prog, "chpmt") == 0 || 
+                    strcmp(prog, "chclr") == 0 ){ // if cd do not fork
+
+                    // execute the built in program
+                    debug("No fork next_pipe=%d\n", next_pipe);
+                    last_exe.val = exeBuiltIn(argc, (argv + next_pipe));
+
+                } else{ // fork is necessary
+                    
+                    // 
+                    if (next_pipe == 0){
+                        // find the next pipe character's location
+                        next_pipe = getNextPipe(argc, argv, next_pipe);
+
+                    } else if( strcmp(argv[next_pipe], "|") == 0 ){
+                        
+                    } else if( strcmp(argv[next_pipe], ">") == 0 ){
+                        char* filename = argv[next_pipe + 1];
+                        // open write only, create if not exists, trucate if eixsts
+                        open_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                        if(open_fd == -1){
+                            perror("open(filename, O_WRONLY | O_CREAT | O_TRUNC, 644) failed");
+                            return -1;
+                        }
+
+                        dup2(open_fd, 1);
+
+                        argv[next_pipe] = 0;
+
+                    } else if( strcmp(argv[next_pipe], "<") == 0 ){
+                        char* filename = argv[next_pipe + 1];
+
+                        // open read only
+                        open_fd = open(filename, O_RDONLY);
+                        if(open_fd == -1){
+                            perror("open(filename, O_RDONLY) failed");
+                            return -1;
+                        }
+
+                        dup2(0, open_fd);
+
+                        argv[next_pipe] = 0;
+                    }
+
+                    // execution
+                    if ( (childPid = fork()) == 0){ // if child process
+                        debug("Child process: %s is built in\n", prog);
+
+                        // execute the built in program
+                        last_exe.val = exeBuiltIn(argc, (argv + next_pipe + 1)); // TOOD
+
+                        // exit the child process
+                        exit(last_exe.val);
+                    }
+                    else {
+                        // wait for child to finish
+                        pid_t wpid = wait(&childStatus);
+
+                        // print out the status code
+                        if(WIFEXITED(childStatus)){
+                            last_exe.val = WEXITSTATUS(childStatus);
+                            debug("Child %d terminated with exit code %d\n", wpid, last_exe.val);
+                        } else{
+                            last_exe.val = WEXITSTATUS(childStatus);
+                            debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
+                        }
+
+                        if(open_fd != -1){
+                            close(open_fd);
+                        }
+                    }
                 }
             }
-        }
-        else{
-            if ( (childPid = fork()) == 0 ){
-                last_exe.val = exeCmd(argc, argv, envp);
-            }
-            else {
-                pid_t wpid = wait(&childStatus);
-                if(WIFEXITED(childStatus)){
-                    last_exe.val = WEXITSTATUS(childStatus);
-                    debug("Child %d terminated with exit code %d\n", wpid, last_exe.val);
-                } else{
-                    last_exe.val = WEXITSTATUS(childStatus);
-                    debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
+            else{ // not builtin program
+
+                // check if it is a background program
+                if(isBgProc(prog)){
+                    //record in list of background jobs
+
+                } else if ( (childPid = fork()) == 0 ){
+
+                    // 
+                    last_exe.val = exeCmd(argc, &prog, envp);
+
+                } else {
+                    // wait for child to finish
+                    pid_t wpid = wait(&childStatus);
+
+                    // print out the status code
+                    if(WIFEXITED(childStatus)){
+                        last_exe.val = WEXITSTATUS(childStatus);
+                        debug("Child %d terminated with exit code %d\n", wpid, last_exe.val);
+                    } else{
+                        last_exe.val = WEXITSTATUS(childStatus);
+                        debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
+                    }
                 }
             }
-        //  } else {
-        //      if (isBgProc(cmd)){
-        //          //record in list of background jobs
-        //      } else {
-        //          waitpid (childPid, &childStatus, WNOHANG);
-        //      }
-        //  }
-        }
+
+            // inspect the arguments starting from the next command
+            next_pipe++;
+
+        } while( (next_pipe = getNextPipe(argc, argv, next_pipe)) != -1 && next_pipe < argc);
+
         free(cmd);
     }
 

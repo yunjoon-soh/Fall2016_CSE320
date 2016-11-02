@@ -225,160 +225,206 @@ Test(sfish_helper_countElements, counting_with_pipeline_test_pipe){
 
 // sfish_helper
 Test(sfish_helper_parseCmd, cmd_is_empty, .init=setup){
-	char cmd[] = "";
+	char *cmd = (char*) malloc(2);
+	*cmd = 0;
+	*(cmd+1)=0;
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 0 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 
 	cr_assert(ret == NULL);
+
+	free(cmd);
 }
 
 // one_param
 Test(sfish_helper_parseCmd, cmd_has_one_param, .init=setup){
-	char cmd[] = "cd";
+	char *cmd = (char*) malloc(3);
+	strcpy(cmd, "cd");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 1 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert(buf[1] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_one_param2, .init=setup){
-	char cmd[] = "  cd";
+	char *cmd = (char*) malloc(5);
+	strcpy(cmd, "  cd");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 1 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert(buf[1] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_one_param3, .init=setup){
-	char cmd[] = "cd  ";
+	char *cmd = (char*) malloc(5);
+	strcpy(cmd, "cd  ");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 1 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 0, "cd", buf[0]);
 	cr_assert(buf[1] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_one_param4, .init=setup){
-	char cmd[] = "  cd  ";
+	char *cmd = (char*) malloc(6);
+	strcpy(cmd, "  cd  ");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 1 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert(buf[1] == NULL);
+
+	free(cmd);
 }
 
 // two_param
 Test(sfish_helper_parseCmd, cmd_has_two_param, .init=setup){
-	char cmd[] = "cd ./bin/sfish";
+	char *cmd = (char*) malloc(15);
+	strcpy(cmd, "cd ./bin/sfish");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 2 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
 	cr_assert(buf[2] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_param2, .init=setup){
-	char cmd[] = "  cd ./bin/sfish";
+	char *cmd = (char*) malloc(17);
+	strcpy(cmd, "  cd ./bin/sfish");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 2 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
 	cr_assert(buf[2] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_param3, .init=setup){
-	char cmd[] = "cd ./bin/sfish  ";
+	char *cmd = (char*) malloc(17);
+	strcpy(cmd, "cd ./bin/sfish  ");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 2 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
 	cr_assert(buf[2] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_param4, .init=setup){
-	char cmd[] = "   cd     ./bin/sfish     ";
+	char *cmd = (char*) malloc(27);
+	strcpy(cmd, "   cd     ./bin/sfish     ");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 2 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
 	cr_assert(buf[2] == NULL);
+
+	free(cmd);
 }
 
 // three_param
 Test(sfish_helper_parseCmd, cmd_has_three_param, .init=setup){
-	char cmd[] = "cd ./bin/sfish outfile";
+	char *cmd = (char*) malloc(23);
+	strcpy(cmd, "cd ./bin/sfish outfile");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 3 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], "./bin/sfish") == 0, "expected buf[%i]=%s actual=%s", 1, "./bin/sfish", buf[1]);
 	cr_assert( strcmp(buf[2], "outfile") == 0, "expected buf[%i]=%s actual=%s", 2, "outfile", buf[2]);
 	cr_assert(buf[3] == NULL);
+
+	free(cmd);
 }
 
 // pipeline(gt)
 Test(sfish_helper_parseCmd, cmd_has_pipeline0_gt, .init=setup){
-	char cmd[] = "cd>";
+	char *cmd = (char*) malloc(4);
+	strcpy(cmd, "cd>");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 2 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
 	cr_assert( strcmp(buf[1], ">") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 1, ">", buf[1]);
 	cr_assert( buf[2] == NULL );
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_pipeline_gt, .init=setup){
-	char cmd[] = "cd ./bin/sfish > outfile";
+	char *cmd = (char*) malloc(25);
+	strcpy(cmd, "cd ./bin/sfish > outfile");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -386,15 +432,19 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline_gt, .init=setup){
 	cr_assert( strcmp(buf[2], ">") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, ">", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_pipeline2_gt, .init=setup){
-	char cmd[] = "cd ./bin/sfish> outfile";
+	char *cmd = (char*) malloc(24);
+	strcpy(cmd, "cd ./bin/sfish> outfile");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -402,15 +452,19 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline2_gt, .init=setup){
 	cr_assert( strcmp(buf[2], ">") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, ">", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_pipeline3_gt, .init=setup){
-	char cmd[] = "cd ./bin/sfish >outfile";
+	char *cmd = (char*) malloc(24);
+	strcpy(cmd, "cd ./bin/sfish >outfile");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -418,15 +472,19 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline3_gt, .init=setup){
 	cr_assert( strcmp(buf[2], ">") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, ">", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_pipeline4_gt, .init=setup){
-	char cmd[] = "cd ./bin/sfish>outfile";
+	char *cmd = (char*) malloc(23);
+	strcpy(cmd, "cd ./bin/sfish>outfile");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -434,15 +492,19 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline4_gt, .init=setup){
 	cr_assert( strcmp(buf[2], ">") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, ">", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_gt, .init=setup){
-	char cmd[] = "cd ./bin/sfish>outfile > asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish>outfile > asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -452,15 +514,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_gt, .init=setup){
 	cr_assert( strcmp(buf[4], ">") == 0, "expected buf[%i]=%s actual=%s", 4, ">", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline2_gt, .init=setup){
-	char cmd[] = "cd ./bin/sfish>outfile> asdf";
+	char *cmd = (char*) malloc(29);
+	strcpy(cmd, "cd ./bin/sfish>outfile> asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -470,15 +536,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline2_gt, .init=setup){
 	cr_assert( strcmp(buf[4], ">") == 0, "expected buf[%i]=%s actual=%s", 4, ">", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline3_gt, .init=setup){
-	char cmd[] = "cd ./bin/sfish>outfile >asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish>outfile >asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -488,15 +558,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline3_gt, .init=setup){
 	cr_assert( strcmp(buf[4], ">") == 0, "expected buf[%i]=%s actual=%s", 4, ">", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline4_gt, .init=setup){
-	char cmd[] = "cd ./bin/sfish>outfile>asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish>outfile>asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -506,15 +580,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline4_gt, .init=setup){
 	cr_assert( strcmp(buf[4], ">") == 0, "expected buf[%i]=%s actual=%s", 4, ">", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline5_gt, .init=setup){
-	char cmd[] = "cd ./bin/sfish>outfile>asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish>outfile>asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -524,15 +602,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline5_gt, .init=setup){
 	cr_assert( strcmp(buf[4], ">") == 0, "expected buf[%i]=%s actual=%s", 4, ">", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring_gt, .init=setup){
-	char cmd[] = "cd ./bin/sfish >> asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish >> asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -541,15 +623,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring_gt, .init=setup){
 	cr_assert( strcmp(buf[3], ">") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
+
+	free(cmd); 
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring2_gt, .init=setup){
-	char cmd[] = "cd ./bin/sfish>> asdf";
+	char *cmd = (char*) malloc(22);
+	strcpy(cmd, "cd ./bin/sfish>> asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -558,15 +644,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring2_gt, .init=setup){
 	cr_assert( strcmp(buf[3], ">") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring3_gt, .init=setup){
-	char cmd[] = "cd ./bin/sfish >>asdf";
+	char *cmd = (char*) malloc(22);
+	strcpy(cmd, "cd ./bin/sfish >>asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -575,15 +665,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring3_gt, .init=setup){
 	cr_assert( strcmp(buf[3], ">") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring4_gt, .init=setup){
-	char cmd[] = "cd ./bin/sfish>>asdf";
+	char *cmd = (char*) malloc(21);
+	strcpy(cmd, "cd ./bin/sfish>>asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -592,16 +686,20 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring4_gt, .init=setup){
 	cr_assert( strcmp(buf[3], ">") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
+
+	free(cmd);
 }
 
 // pipeline(JS_PIPE)
 Test(sfish_helper_parseCmd, cmd_has_pipeline, .init=setup){
-	char cmd[] = "cd ./bin/sfish | outfile";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish | outfile");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -609,15 +707,19 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline, .init=setup){
 	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_pipeline2, .init=setup){
-	char cmd[] = "cd ./bin/sfish| outfile";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish| outfile");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -625,15 +727,19 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline2, .init=setup){
 	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_pipeline3, .init=setup){
-	char cmd[] = "cd ./bin/sfish |outfile";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish |outfile");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -641,15 +747,19 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline3, .init=setup){
 	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_pipeline4, .init=setup){
-	char cmd[] = "cd ./bin/sfish|outfile";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish|outfile");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -657,15 +767,18 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline4, .init=setup){
 	cr_assert( strcmp(buf[2], "|") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "|", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline, .init=setup){
-	char cmd[] = "cd ./bin/sfish|outfile | asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish|outfile | asdf");
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -675,15 +788,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline, .init=setup){
 	cr_assert( strcmp(buf[4], "|") == 0, "expected buf[%i]=%s actual=%s", 4, "|", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline2, .init=setup){
-	char cmd[] = "cd ./bin/sfish|outfile| asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish|outfile| asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -693,15 +810,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline2, .init=setup){
 	cr_assert( strcmp(buf[4], "|") == 0, "expected buf[%i]=%s actual=%s", 4, "|", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline3, .init=setup){
-	char cmd[] = "cd ./bin/sfish|outfile |asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish|outfile |asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -711,15 +832,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline3, .init=setup){
 	cr_assert( strcmp(buf[4], "|") == 0, "expected buf[%i]=%s actual=%s", 4, "|", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline4, .init=setup){
-	char cmd[] = "cd ./bin/sfish|outfile|asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish|outfile|asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -729,15 +854,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline4, .init=setup){
 	cr_assert( strcmp(buf[4], "|") == 0, "expected buf[%i]=%s actual=%s", 4, "|", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline5, .init=setup){
-	char cmd[] = "cd ./bin/sfish|outfile|asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish|outfile|asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -747,15 +876,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline5, .init=setup){
 	cr_assert( strcmp(buf[4], "|") == 0, "expected buf[%i]=%s actual=%s", 4, "|", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring, .init=setup){
-	char cmd[] = "cd ./bin/sfish || asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish || asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -764,15 +897,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring, .init=setup){
 	cr_assert( strcmp(buf[3], "|") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring2, .init=setup){
-	char cmd[] = "cd ./bin/sfish|| asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish|| asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -781,15 +918,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring2, .init=setup){
 	cr_assert( strcmp(buf[3], "|") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring3, .init=setup){
-	char cmd[] = "cd ./bin/sfish ||asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish ||asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -798,15 +939,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring3, .init=setup){
 	cr_assert( strcmp(buf[3], "|") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring4, .init=setup){
-	char cmd[] = "cd ./bin/sfish||asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish||asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -815,16 +960,20 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring4, .init=setup){
 	cr_assert( strcmp(buf[3], "|") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
+
+	free(cmd);
 }
 
 // pipeline(lt)
 Test(sfish_helper_parseCmd, cmd_has_pipeline_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish < outfile";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish < outfile");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -832,15 +981,18 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline_lt, .init=setup){
 	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_pipeline2_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish< outfile";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish< outfile");
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -848,15 +1000,19 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline2_lt, .init=setup){
 	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_pipeline3_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish <outfile";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish <outfile");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -864,15 +1020,19 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline3_lt, .init=setup){
 	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_pipeline4_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish<outfile";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish<outfile");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 4 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -880,15 +1040,19 @@ Test(sfish_helper_parseCmd, cmd_has_pipeline4_lt, .init=setup){
 	cr_assert( strcmp(buf[2], "<") == 0, "expected buf[%i]=\"%s\" actual=\"%s\"", 2, "<", buf[2]);
 	cr_assert( strcmp(buf[3], "outfile") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert(buf[4] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish<outfile < asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish<outfile < asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -898,15 +1062,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_lt, .init=setup){
 	cr_assert( strcmp(buf[4], "<") == 0, "expected buf[%i]=%s actual=%s", 4, "<", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline2_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish<outfile< asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish<outfile< asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -916,15 +1084,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline2_lt, .init=setup){
 	cr_assert( strcmp(buf[4], "<") == 0, "expected buf[%i]=%s actual=%s", 4, "<", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline3_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish<outfile <asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish<outfile <asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -934,15 +1106,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline3_lt, .init=setup){
 	cr_assert( strcmp(buf[4], "<") == 0, "expected buf[%i]=%s actual=%s", 4, "<", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline4_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish<outfile<asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish<outfile<asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -952,15 +1128,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline4_lt, .init=setup){
 	cr_assert( strcmp(buf[4], "<") == 0, "expected buf[%i]=%s actual=%s", 4, "<", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline5_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish<outfile<asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish<outfile<asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 6 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -970,15 +1150,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline5_lt, .init=setup){
 	cr_assert( strcmp(buf[4], "<") == 0, "expected buf[%i]=%s actual=%s", 4, "<", buf[4]);
 	cr_assert( strcmp(buf[5], "asdf") == 0, "expected buf[%i]=%s actual=%s", 5, "asdf", buf[5]);
 	cr_assert(buf[6] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish << asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish << asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -987,15 +1171,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring_lt, .init=setup){
 	cr_assert( strcmp(buf[3], "<") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring2_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish<< asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish<< asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -1004,15 +1192,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring2_lt, .init=setup){
 	cr_assert( strcmp(buf[3], "<") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring3_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish <<asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish <<asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -1021,15 +1213,19 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring3_lt, .init=setup){
 	cr_assert( strcmp(buf[3], "<") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
+
+	free(cmd);
 }
 
 Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring4_lt, .init=setup){
-	char cmd[] = "cd ./bin/sfish<<asdf";
+	char *cmd = (char*) malloc(30);
+	strcpy(cmd, "cd ./bin/sfish<<asdf");
+
 	int count = countElements(cmd) + 1;
 	cr_assert(count == 5 + 1);
 
 	char* buf[count];
-	char** ret = parseNCmd(cmd, buf, count);
+	char** ret = parseNCmd(&cmd, buf, count);
 	cr_assert(ret != NULL);
 
 	cr_assert( strcmp(buf[0], "cd") == 0, "expected buf[%i]=%s actual=%s", 0, "cd", buf[0]);
@@ -1038,7 +1234,10 @@ Test(sfish_helper_parseCmd, cmd_has_two_pipeline_neighboring4_lt, .init=setup){
 	cr_assert( strcmp(buf[3], "<") == 0, "expected buf[%i]=%s actual=%s", 3, "outfile", buf[3]);
 	cr_assert( strcmp(buf[4], "asdf") == 0, "expected buf[%i]=%s actual=%s", 4, "asdf", buf[4]);
 	cr_assert(buf[5] == NULL);
+
+	free(cmd);
 }
+
 // builtin_cd
 Test(builtin_cd, cdDot, .init=setup) {
 	char *argv[3] = {"cd", ".", 0};

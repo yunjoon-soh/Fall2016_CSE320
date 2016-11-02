@@ -17,7 +17,7 @@
 
 // deliminate by ' ', '|', '<', '>'
 // len is num of cmds, returned by countElements
-char **parseNCmd(char* cmd, char* buf[], int len); 
+char **parseNCmd(char** cmd, char* buf[], int len); 
 int countElements(char* cmd);
 
 char *getsnPrompt(char* buf, int len);
