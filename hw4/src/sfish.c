@@ -46,19 +46,19 @@ int main(int argc, char** argv, char *envp[]) {
         
         do {
             debug("do-while loop next_pipe=%d\n", next_pipe);
-            char* prog;
-            int open_fd = -1;
+            int open_fd = -1, prog, saved_fd0 = -1, saved_fd1 = -1;
 
-            if(next_pipe == 0)
-                prog = argv[next_pipe];
-            else
-                prog = argv[next_pipe + 1];
+            if(next_pipe == 0){
+                prog = next_pipe;
+            } else{
+                prog = next_pipe + 1;
+            }
 
-            if( isBuiltin(prog) != SF_FALSE ){ // if not SF_FALSE, then it is true
+            if( isBuiltin(argv[prog]) != SF_FALSE ){ // if not SF_FALSE, then it is true
 
-                if( strcmp(prog, "cd") == 0 ||
-                    strcmp(prog, "chpmt") == 0 || 
-                    strcmp(prog, "chclr") == 0 ){ // if cd do not fork
+                if( strcmp(argv[prog], "cd") == 0 ||
+                    strcmp(argv[prog], "chpmt") == 0 || 
+                    strcmp(argv[prog], "chclr") == 0 ){ // if cd do not fork
 
                     // execute the built in program
                     debug("No fork next_pipe=%d\n", next_pipe);
@@ -66,15 +66,18 @@ int main(int argc, char** argv, char *envp[]) {
 
                 } else{ // fork is necessary
                     
-                    // 
+                    // if first time parsing this cmd line, check for pipeline
                     if (next_pipe == 0){
                         // find the next pipe character's location
                         next_pipe = getNextPipe(argc, argv, next_pipe);
+                    }
 
-                    } else if( strcmp(argv[next_pipe], "|") == 0 ){
+                    // check the pipe
+                    if( strcmp(argv[next_pipe], "|") == 0 ){
                         
                     } else if( strcmp(argv[next_pipe], ">") == 0 ){
                         char* filename = argv[next_pipe + 1];
+                        debug("filename=%s\n", filename);
                         // open write only, create if not exists, trucate if eixsts
                         open_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
                         if(open_fd == -1){
@@ -82,6 +85,7 @@ int main(int argc, char** argv, char *envp[]) {
                             return -1;
                         }
 
+                        saved_fd1 = dup(1);
                         dup2(open_fd, 1);
 
                         argv[next_pipe] = 0;
@@ -96,17 +100,18 @@ int main(int argc, char** argv, char *envp[]) {
                             return -1;
                         }
 
-                        dup2(0, open_fd);
+                        saved_fd0 = dup(0);
+                        dup2(open_fd, 0);
 
                         argv[next_pipe] = 0;
                     }
 
                     // execution
                     if ( (childPid = fork()) == 0){ // if child process
-                        debug("Child process: %s is built in\n", prog);
+                        debug("Child process: %s is built in\n", argv[prog]);
 
                         // execute the built in program
-                        last_exe.val = exeBuiltIn(argc, (argv + next_pipe + 1)); // TOOD
+                        last_exe.val = exeBuiltIn(argc, (argv + prog)); // TOOD
 
                         // exit the child process
                         exit(last_exe.val);
@@ -124,8 +129,19 @@ int main(int argc, char** argv, char *envp[]) {
                             debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
                         }
 
+                        // deal with file descriptors
                         if(open_fd != -1){
-                            close(open_fd);
+                            debug("open_fd=%d is not -1\n", open_fd);
+
+                            if(saved_fd1 != -1){
+                                dup2(saved_fd1, 1);    
+                            }
+
+                            if(saved_fd0 != -1){
+                                dup2(saved_fd0, 0);
+                            }
+                            
+                            close(open_fd);                     
                         }
                     }
                 }
@@ -133,14 +149,16 @@ int main(int argc, char** argv, char *envp[]) {
             else{ // not builtin program
 
                 // check if it is a background program
-                if(isBgProc(prog)){
+                if(isBgProc(argv[prog])){
                     //record in list of background jobs
 
                 } else if ( (childPid = fork()) == 0 ){
 
-                    // 
-                    last_exe.val = exeCmd(argc, &prog, envp);
+                    last_exe.val = exeCmd(argc, (argv + prog), envp);
 
+                    // exit the child process
+                    exit(last_exe.val);
+                    
                 } else {
                     // wait for child to finish
                     pid_t wpid = wait(&childStatus);
@@ -155,11 +173,7 @@ int main(int argc, char** argv, char *envp[]) {
                     }
                 }
             }
-
-            // inspect the arguments starting from the next command
-            next_pipe++;
-
-        } while( (next_pipe = getNextPipe(argc, argv, next_pipe)) != -1 && next_pipe < argc);
+        } while( (next_pipe = getNextPipe(argc, argv, next_pipe + 1)) != -1 && next_pipe < argc);
 
         free(cmd);
     }

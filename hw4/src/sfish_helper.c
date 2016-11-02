@@ -137,7 +137,7 @@ int exeBuiltIn(int argc, char** argv){
 	for(int i = 0; i < argc; i++){
         debug("argc=%d, argv[%d]=%s\n", argc, i, argv[i]);
     }
-        
+
     if( strcmp(cmd, "help") == 0){
         return builtin_help();
     } else if( strcmp(cmd, "exit") == 0){
