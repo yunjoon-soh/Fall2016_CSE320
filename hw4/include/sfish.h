@@ -13,8 +13,15 @@
 #include "sfbuiltin.h"
 #include "sfconst.h"
 
-int Fork(int pipe_fd[2], int argc, char** argv, char* envp[], int prog);
+struct exe_info{
+	int prog_index;
+	int pipe_fd[2];
+};
+
+int Fork(int argc, char** argv, char *envp[], struct exe_info* ei);
 int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog);
 int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char *envp[], int prog);
+
+
 
 #endif // header guard

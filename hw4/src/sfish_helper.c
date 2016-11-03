@@ -268,10 +268,9 @@ int isBgProc(char* cmd){
 }
 
 /* Pipeline */
-
 int getNextPipe(int argc, char** argv, int from){
-	int i = from;
-	for( ; i < argc - 1; i++){ // -1 because don't want to check the last null argv
+	int i;
+	for(i = from; i < argc - 1; i++){ // -1 because don't want to check the last null argv
 		if( strcmp(argv[i], LT_PIPE) == 0 ||
 			strcmp(argv[i], JS_PIPE) == 0 ||
 			strcmp(argv[i], GT_PIPE) == 0 ||
