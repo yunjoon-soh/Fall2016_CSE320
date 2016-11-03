@@ -210,9 +210,12 @@ int exeCmd(int argc, char** argv, char* envp[]){
 
 		if(existsInPath(argv[0]) != SF_FALSE){
 
-			debug("EXECUTE\n");
-			for(int i = 0; i < argc; i++){
+			debug("EXECUTE pid=%d\n", getpid());
+
+			int i = 0;
+			while(argv[i] != 0){
 				debug("argc=%d, argv[%d]=%s\n", argc, i, argv[i]);
+				i++;
 			}
 
 			ret = execvp(argv[0], argv);
@@ -220,9 +223,10 @@ int exeCmd(int argc, char** argv, char* envp[]){
 			if(ret == -1){
 				perror("exeCmd failed");
 			}
+
 		} else {
 			fprintf(stderr, "No such command!\n");
-			exit(1); //TODO
+			return 1; //TODO
 		}		
 	} else {
 		// is path
@@ -234,7 +238,7 @@ int exeCmd(int argc, char** argv, char* envp[]){
 			//TODO
 		}
 
-		exit(0);
+		return 0; //TODO
 	}
 
     return ret;
@@ -264,43 +268,6 @@ int isBgProc(char* cmd){
 }
 
 /* Pipeline */
-// return 0 if success, return -1 if failed
-// int pipelineCheck(int argc, char** argv){
-// 	debug("pipelineCheck(..)\n");
-//     int next_pipe = 0, strstr_ret;
-
-//     while( (next_pipe = getNextPipe(argc, argv, next_pipe)) != -1 && next_pipe < argc){
-//     	debug("next_pipe=%d\n", next_pipe);
-//         char *filename = argv[next_pipe + 1];
-//         if(filename == NULL){ // no more argument after last pipe
-//         	return -1;
-//         }
-//         debug("filename=%s\n", filename);
-        
-//         // next_pipe is -1 when there is no more pipe exists
-//         if( (strstr_ret = strcmp(argv[next_pipe], "|")) == 0 ){
-            
-//         } else if( (strstr_ret = strcmp(argv[next_pipe], ">")) == 0 ){
-//         	// open write only, create if not exists, trucate if eixsts
-//         	int open_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-//         	if(open_fd == -1){
-//         		perror("open(filename, O_WRONLY | O_CREAT | O_TRUNC, 644) failed");
-//         		return -1;
-//         	}
-//         	dup2(open_fd, 1);
-//         	argv[next_pipe] = 0;
-//         } else if( (strstr_ret = strcmp(argv[next_pipe], "<")) == 0 ){
-            
-//         } else {
-//             error("This code reached because I implemented getNextPipe(..) incorrectly\n");
-//             break;
-//         }
-
-//         next_pipe++;
-//     }
-
-//     return 0;
-// }
 
 int getNextPipe(int argc, char** argv, int from){
 	int i = from;
@@ -316,12 +283,44 @@ int getNextPipe(int argc, char** argv, int from){
 	return -1;
 }
 
-// int Open(char* filename, int flags){
-// 	int ret = open(filename, flags);
-// 	if(ret == -1){
-// 		perror("Open failed");
-// 		return -1;	
-// 	}
-// 	return ret;
-// }
+void SetFd(int pipe_fd[2]){
+    if(pipe_fd[READ_END] != STDIN_FILENO){
+        int ret = dup2(pipe_fd[READ_END], STDIN_FILENO);
+        if(ret == -1){
+            fprintf(stderr, "dup2(pipe_fd[READ_END]=%d, STDIN_FILENO=%d) failed\n",pipe_fd[READ_END], STDIN_FILENO);
+            perror("dup2 for read_end");
+            last_exe.val = ret;
+            exit(last_exe.val); //TODO
+        }
+    }
 
+    if(pipe_fd[WRITE_END] != STDOUT_FILENO){
+        int ret = dup2(pipe_fd[WRITE_END], STDOUT_FILENO);
+        if(ret == -1){
+            fprintf(stderr, "dup2(pipe_fd[READ_END]=%d, STDIN_FILENO=%d) failed\n",pipe_fd[READ_END], STDIN_FILENO);
+            perror("dup2 for write_end");
+            last_exe.val = ret;
+            exit(last_exe.val);
+        }
+    }
+}
+
+void CloseFd(int pipe_fd[2]){
+	if(pipe_fd[READ_END] != STDIN_FILENO){
+	    close(pipe_fd[READ_END]);
+	}
+
+	if(pipe_fd[WRITE_END] != STDOUT_FILENO){
+	    close(pipe_fd[WRITE_END]);
+	}
+}
+
+void HandleExit(pid_t wpid, int childStatus){
+	if(WIFEXITED(childStatus)){
+        last_exe.val = WEXITSTATUS(childStatus);
+        debug("Child %d terminated with exit code %d\n", wpid, last_exe.val);
+    } else{
+        last_exe.val = WEXITSTATUS(childStatus);
+        debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
+    }
+}

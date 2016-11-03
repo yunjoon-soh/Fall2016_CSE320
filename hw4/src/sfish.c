@@ -1,8 +1,6 @@
 #include "sfish.h"
 
 int main(int argc, char** argv, char *envp[]) {
-    
-
     //DO NOT MODIFY THIS. If you do you will get a ZERO.
     rl_catch_signals = 0;
     //This is disable readline's default signal handlers, since you are going
@@ -76,10 +74,30 @@ int main(int argc, char** argv, char *envp[]) {
 
                     // check the pipe
                     if( strcmp(argv[next_pipe], "|") == 0 ){
+
+                        // create pipe_fd
+                        pipe(pipe_fd);
+
+                        int pipe_fd_left[2] = {STDIN_FILENO, pipe_fd[WRITE_END]};
+                        int pipe_fd_right[2] = {pipe_fd[READ_END], STDOUT_FILENO};
+
+                        int prog_left = prog;
+                        int prog_right = next_pipe + 1;
+
+                        argv[next_pipe] = 0;
+
+                        debug("Parent: running left command: \"%s\"\n", argv[prog_left]);
+                        Fork(pipe_fd_left, argc, argv, envp, prog_left);
+
+                        debug("Parent: running right command: \"%s\"\n", argv[prog_right]);
+                        Fork(pipe_fd_right, argc, argv, envp, prog_right);
+
+                        close(pipe_fd[READ_END]);
+                        close(pipe_fd[WRITE_END]);
                         
                     } else if( strcmp(argv[next_pipe], ">") == 0 ){
                         char* filename = argv[next_pipe + 1];
-                        debug("filename=%s\n", filename);
+
                         // open write only, create if not exists, trucate if eixsts
                         open_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
                         if(open_fd == -1){
@@ -90,6 +108,8 @@ int main(int argc, char** argv, char *envp[]) {
                         pipe_fd[WRITE_END] = open_fd;
 
                         argv[next_pipe] = 0;
+
+                        Fork(pipe_fd, argc, argv, envp, prog);
 
                     } else if( strcmp(argv[next_pipe], "<") == 0 ){
                         char* filename = argv[next_pipe + 1];
@@ -104,9 +124,11 @@ int main(int argc, char** argv, char *envp[]) {
                         pipe_fd[READ_END] = open_fd;                        
 
                         argv[next_pipe] = 0;
-                    }
 
-                    Fork_Builtin(pipe_fd, argc, argv, prog);
+                        Fork(pipe_fd, argc, argv, envp, prog);
+                    } else {
+                        Fork(pipe_fd, argc, argv, envp, prog);
+                    }
                 }
             }
             else{ // not builtin program
@@ -120,7 +142,29 @@ int main(int argc, char** argv, char *envp[]) {
 
                 // check the pipe
                 if( strcmp(argv[next_pipe], "|") == 0 ){
-                    
+
+                    // create pipe_fd
+                    pipe(pipe_fd);
+
+                    int pipe_fd_left[2]; 
+                    pipe_fd_left[READ_END] = STDIN_FILENO;
+                    pipe_fd_left[WRITE_END] = pipe_fd[WRITE_END];
+
+                    int pipe_fd_right[2];
+                    pipe_fd_right[READ_END] = pipe_fd[READ_END];
+                    pipe_fd_right[WRITE_END] = STDOUT_FILENO;
+
+                    int prog_left = prog;
+                    int prog_right = next_pipe + 1;
+
+                    argv[next_pipe] = 0;
+
+                    debug("Parent: running left command: \"%s\"\n", argv[prog_left]);
+                    Fork(pipe_fd_left, argc, argv, envp, prog_left);
+
+                    debug("Parent: running right command: \"%s\"\n", argv[prog_right]);
+                    Fork(pipe_fd_right, argc, argv, envp, prog_right);
+
                 } else if( strcmp(argv[next_pipe], ">") == 0 ){
                     char* filename = argv[next_pipe + 1];
                     debug("filename=%s\n", filename);
@@ -135,6 +179,8 @@ int main(int argc, char** argv, char *envp[]) {
 
                     argv[next_pipe] = 0;
 
+                    Fork(pipe_fd, argc, argv, envp, prog);
+
                 } else if( strcmp(argv[next_pipe], "<") == 0 ){
                     char* filename = argv[next_pipe + 1];
                     debug("filename=%s\n", filename);
@@ -148,10 +194,11 @@ int main(int argc, char** argv, char *envp[]) {
                     pipe_fd[READ_END] = open_fd;
 
                     argv[next_pipe] = 0;
-                }
 
-                Fork_Cmd(pipe_fd, argc, argv, envp, prog);
-                
+                    Fork(pipe_fd, argc, argv, envp, prog);
+                } else {
+                    Fork(pipe_fd, argc, argv, envp, prog);
+                }
             }
         } while( (next_pipe = getNextPipe(argc, argv, next_pipe + 1)) != -1 && next_pipe < argc);
 
@@ -166,46 +213,41 @@ int main(int argc, char** argv, char *envp[]) {
     return EXIT_SUCCESS;
 }
 
+int Fork(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
+    if( isBuiltin(argv[prog]) ){
+        return Fork_Builtin(pipe_fd, argc, argv, prog);
+    } else {
+        return Fork_Cmd(pipe_fd, argc, argv, envp, prog);
+    }
+}
+
 int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog){
     int childPid, childStatus;
 
     // execution
     if ( (childPid = fork()) == 0){ // if child process
-        debug("Child process: %s is built in\n", argv[prog]);
+        debug("Child process: %s(pid=%d) is built in\n", argv[prog], getpid());
 
-        dup2(pipe_fd[READ_END], STDIN_FILENO);
-        dup2(pipe_fd[WRITE_END], STDOUT_FILENO);
+        debug("pipe_fd[READ_END]=%d, pipe_fd[WRITE_END]=%d\n", pipe_fd[READ_END], pipe_fd[WRITE_END]);
+
+        // set fds
+        SetFd(pipe_fd);         
 
         // execute the built in program
         last_exe.val = exeBuiltIn(argc, (argv + prog));
 
-        // deal with file descriptors
-        if(pipe_fd[READ_END] != -1){
-            dup2(pipe_fd[READ_END], STDIN_FILENO);
-        }
-
-        if(pipe_fd[WRITE_END] != -1){
-            dup2(pipe_fd[WRITE_END], STDOUT_FILENO);    
-        }
-
-        close(pipe_fd[READ_END]);
-        close(pipe_fd[WRITE_END]);
-
         // exit the child process
         exit(last_exe.val);
-    }
-    else {
+
+    } else {
         // wait for child to finish
         pid_t wpid = wait(&childStatus);
 
+        // close fds
+        CloseFd(pipe_fd);
+
         // print out the status code
-        if(WIFEXITED(childStatus)){
-            last_exe.val = WEXITSTATUS(childStatus);
-            debug("Child %d terminated with exit code %d\n", wpid, last_exe.val);
-        } else{
-            last_exe.val = WEXITSTATUS(childStatus);
-            debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
-        }        
+        HandleExit(wpid, childStatus);
 
         return last_exe.val;
     }
@@ -217,29 +259,21 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
     // check if it is a background program
     if(isBgProc(argv[prog])){
         //record in list of background jobs
+        debug("bg process\n");
         return last_exe.val;
 
     } else if ( (childPid = fork()) == 0 ){
-        debug("Child process: %s is program\n", argv[prog]);
+        debug("Child process: %s(pid=%d) is program\n", argv[prog], getpid());
+
+        debug("pipe_fd[READ_END]=%d, pipe_fd[WRITE_END]=%d\n", pipe_fd[READ_END], pipe_fd[WRITE_END]);
 
         // set fds
-        dup2(pipe_fd[READ_END], STDIN_FILENO);
-        dup2(pipe_fd[WRITE_END], STDOUT_FILENO);
+        SetFd(pipe_fd);
 
         // execute passed in program
         last_exe.val = exeCmd(argc, (argv + prog), envp);
 
-        // revoke fds
-        if(pipe_fd[READ_END] != -1){
-            dup2(pipe_fd[READ_END], STDIN_FILENO);
-        }
-
-        if(pipe_fd[WRITE_END] != -1){
-            dup2(pipe_fd[WRITE_END], STDOUT_FILENO);    
-        }
-
-        close(pipe_fd[READ_END]);
-        close(pipe_fd[WRITE_END]);
+        fprintf(stderr, "Returned from exeCmd\n");
 
         // exit the child process
         exit(last_exe.val);
@@ -248,109 +282,11 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
         // wait for child to finish
         pid_t wpid = wait(&childStatus);
 
-        // print out the status code
-        if(WIFEXITED(childStatus)){
-            last_exe.val = WEXITSTATUS(childStatus);
-
-int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog){
-    int childPid, childStatus;
-
-    // execution
-    if ( (childPid = fork()) == 0){ // if child process
-        debug("Child process: %s is built in\n", argv[prog]);
-
-        dup2(pipe_fd[READ_END], STDIN_FILENO);
-        dup2(pipe_fd[WRITE_END], STDOUT_FILENO);
-
-        // execute the built in program
-        last_exe.val = exeBuiltIn(argc, (argv + prog));
-
-        // deal with file descriptors
-        if(pipe_fd[READ_END] != -1){
-            dup2(pipe_fd[READ_END], STDIN_FILENO);
-        }
-
-        if(pipe_fd[WRITE_END] != -1){
-            dup2(pipe_fd[WRITE_END], STDOUT_FILENO);    
-        }
-
-        close(pipe_fd[READ_END]);
-        close(pipe_fd[WRITE_END]);
-
-        // exit the child process
-        exit(last_exe.val);
-    }
-    else {
-        // wait for child to finish
-        pid_t wpid = wait(&childStatus);
+        // close fds
+        CloseFd(pipe_fd);        
 
         // print out the status code
-        if(WIFEXITED(childStatus)){
-            last_exe.val = WEXITSTATUS(childStatus);
-            debug("Child %d terminated with exit code %d\n", wpid, last_exe.val);
-        } else{
-            last_exe.val = WEXITSTATUS(childStatus);
-            debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
-        }        
-
-        return last_exe.val;
-    }
-}
-
-int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
-    int childPid, childStatus;
-
-    // check if it is a background program
-    if(isBgProc(argv[prog])){
-        //record in list of background jobs
-        return last_exe.val;
-
-    } else if ( (childPid = fork()) == 0 ){
-        debug("Child process: %s is program\n", argv[prog]);
-
-        // set fds
-        dup2(pipe_fd[READ_END], STDIN_FILENO);
-        dup2(pipe_fd[WRITE_END], STDOUT_FILENO);
-
-        // execute passed in program
-        last_exe.val = exeCmd(argc, (argv + prog), envp);
-
-        // revoke fds
-        if(pipe_fd[READ_END] != -1){
-            dup2(pipe_fd[READ_END], STDIN_FILENO);
-        }
-
-        if(pipe_fd[WRITE_END] != -1){
-            dup2(pipe_fd[WRITE_END], STDOUT_FILENO);    
-        }
-
-        close(pipe_fd[READ_END]);
-        close(pipe_fd[WRITE_END]);
-
-        // exit the child process
-        exit(last_exe.val);
-
-    } else {
-        // wait for child to finish
-        pid_t wpid = wait(&childStatus);
-
-        // print out the status code
-        if(WIFEXITED(childStatus)){
-            last_exe.val = WEXITSTATUS(childStatus);
-            debug("Child %d terminated with exit code %d\n", wpid, last_exe.val);
-        } else{
-            last_exe.val = WEXITSTATUS(childStatus);
-            debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
-        }
-
-        return last_exe.val;
-    }
-}
-            debug("Child %d terminated with exit code %d\n", wpid, last_exe.val);
-        } else{
-            last_exe.val = WEXITSTATUS(childStatus);
-            debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
-        }
+        HandleExit(wpid, childStatus);
 
         return last_exe.val;
     }

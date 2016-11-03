@@ -10,4 +10,7 @@
 #define PROMPT_ENABLED 1
 #define PROMPT_DISABLED 0
 
+#define READ_END 0
+#define WRITE_END 1
+
 #endif

@@ -24,18 +24,14 @@ char *getsnPrompt(char* buf, int len);
 
 int exeBuiltIn(int argc, char** argv);
 int exeCmd(int argc, char** argv, char* envp[]);
+
 int isBuiltin(char* argv_0);
-
-int isBgProc(char* cmd);// int Open(char* filename, int flags);
-
-// int Open(char* filename, int flags);
+int isBgProc(char* cmd);
 
 /* Pipeline*/
-// returns character to the starting position of pipeline name
-int pipelineCheck(int argc, char** argv);
 int getNextPipe(int argc, char** argv, int from);
-// char *getFileNameFromPipeArg(char** argv, int next_pipe);
+void SetFd(int pipe_fd[2]);
+void CloseFd(int pipe_fd[2]);
+void HandleExit(pid_t wpid, int childStatus);
 
-
-
-#endif 
+#endif
