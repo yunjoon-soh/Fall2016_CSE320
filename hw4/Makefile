@@ -38,7 +38,7 @@ clean:
 TESTD= test
 test: folder $(BIND)/sfunit
 
-bin/sfunit: $(TESTD)/sfunit.o $(BLDD)/sfbuiltin.o $(BLDD)/sfish_helper.o
+bin/sfunit: $(TESTD)/sfunit.o $(BLDD)/job_arraylist.o $(BLDD)/sfbuiltin.o $(BLDD)/sfish_helper.o 
 	$(CC) $(CFLAGS) $(DFLAGS) $^ $(INC) -lcriterion -lreadline -o $@
 
 $(TESTD)/%.o: $(TESTD)/%.c

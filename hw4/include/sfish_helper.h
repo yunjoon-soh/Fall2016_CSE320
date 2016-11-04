@@ -11,10 +11,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-
-#include "sfconst.h"
-#include "sfbuiltin.h"
-
 // deliminate by ' ', '|', '<', '>'
 // len is num of cmds, returned by countElements
 char **parseNCmd(char** cmd, char* buf[], int len); 
@@ -26,13 +22,11 @@ int exeBuiltIn(int argc, char** argv);
 int exeCmd(int argc, char** argv, char* envp[]);
 
 int isBuiltin(char* argv_0);
-int isBgProc(char* cmd);
+int isBgProc(char** argv);
 
 /* Pipeline*/
 int getNextPipe(int argc, char** argv, int from);
 void SetFd(int pipe_fd[2]);
 void CloseFd(int pipe_fd[2]);
 void HandleExit(pid_t wpid, int childStatus);
-
-
 #endif

@@ -80,6 +80,10 @@ int builtin_pwd();
 int builtin_prt();
 int builtin_chpmt(char** argv);
 int builtin_chclr(char** argv);
-
+int builtin_jobs();
+int builtin_fg(char** argv);
+int builtin_bg(char** argv);
+int builtin_kill(char** argv);
+int builtin_disown(char** argv);
 
 #endif

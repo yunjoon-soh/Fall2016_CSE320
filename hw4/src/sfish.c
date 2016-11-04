@@ -70,12 +70,10 @@ int main(int argc, char** argv, char *envp[]) {
 				// create pipe_fd
 				pipe(pipe_fd);
 
-				// ei_array[ei_cnt].pipe_fd[READ_END] = STDIN_FILENO;
 				ei_array[ei_cnt].pipe_fd[WRITE_END] = pipe_fd[WRITE_END];
 				ei_array[ei_cnt].prog_index = prog;
 
 				ei_array[ei_cnt + 1].pipe_fd[READ_END] = pipe_fd[READ_END];
-				// ei_array[ei_cnt + 1].pipe_fd[WRITE_END] = STDOUT_FILENO;
 				ei_array[ei_cnt + 1].prog_index = next_pipe + 1;
 
 				argv[next_pipe] = 0;
@@ -203,12 +201,37 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 	int childPid, childStatus;
 
 	// check if it is a background program
-	if(isBgProc(argv[prog])){
+	if(isBgProc(argv + prog)){
 		//record in list of background jobs
-		debug("bg process\n");
-		return last_exe.val;
+		debug("background process\n");
+		
+		if( (childPid = fork()) == 0){ // child code
+			debug("Child process: %s(pid=%d) is program\n", argv[prog], getpid());
 
-	} else if ( (childPid = fork()) == 0 ){
+			// set fds
+			debug("pipe_fd[READ_END]=%d, pipe_fd[WRITE_END]=%d\n", pipe_fd[READ_END], pipe_fd[WRITE_END]);
+			SetFd(pipe_fd);
+
+			// execute passed in program
+			last_exe.val = exeCmd(argc, (argv + prog), envp);
+
+			fprintf(stderr, "Returned from exeCmd\n");
+
+			// exit the child process
+			exit(last_exe.val);
+
+		} else { // parent code
+			struct job* now = createJob(childPid, RUNNING, (argv + prog));
+
+			addJob(now);
+
+			fprintf(stdout, "[%d]     %5d     %s\n", now->jid, now->pid, now->cmd);
+		}
+
+		return last_exe.val;
+	}
+
+	if ( (childPid = fork()) == 0 ){
 		debug("Child process: %s(pid=%d) is program\n", argv[prog], getpid());
 
 		debug("pipe_fd[READ_END]=%d, pipe_fd[WRITE_END]=%d\n", pipe_fd[READ_END], pipe_fd[WRITE_END]);
@@ -229,7 +252,7 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 		pid_t wpid = wait(&childStatus);
 
 		// close fds
-		CloseFd(pipe_fd);        
+		CloseFd(pipe_fd);
 
 		// print out the status code
 		HandleExit(wpid, childStatus);

@@ -1,6 +1,8 @@
 /** sfish_helper.c
 */
 #include "sfish_helper.h"
+#include "sfconst.h"
+#include "sfbuiltin.h"
 
 char* LT_PIPE = "<";
 char* GT_PIPE = ">";
@@ -152,6 +154,14 @@ int exeBuiltIn(int argc, char** argv){
     	return builtin_chpmt(argv);
     } else if( strcmp(cmd, "chclr") == 0){
     	return builtin_chclr(argv);
+    } else if( strcmp(cmd, "jobs") == 0){
+    	return builtin_jobs();
+    } else if( strcmp(cmd, "fg") == 0){
+    	return builtin_fg(argv);
+    } else if( strcmp(cmd, "bg") == 0){
+    	return builtin_bg(argv);
+    } else if( strcmp(cmd, "kill") == 0){
+    	return builtin_kill(argv);
     } else {
     	error("Not a bulitin cmd:%s\n", cmd);
     	return SF_FAIL;	
@@ -256,14 +266,27 @@ int isBuiltin(char* argv_0){
     	strcmp(cmd, "pwd") == 0 || 
         strcmp(cmd, "prt") == 0 ||
         strcmp(cmd, "chpmt") == 0 ||
-    	strcmp(cmd, "chclr") == 0 ){
+    	strcmp(cmd, "chclr") == 0 || 
+    	strcmp(cmd, "jobs") == 0 ||
+    	strcmp(cmd, "bg") == 0 ||
+    	strcmp(cmd, "fg") == 0 ||
+    	strcmp(cmd, "kill") == 0){
     	return !SF_FALSE;
     }
 
     return SF_FALSE;
 }
 
-int isBgProc(char* cmd){
+int isBgProc(char** argv){
+	char** tmp = argv;
+	while(*tmp != NULL){
+		debug("*tmp=\"%s\"\n", *tmp);
+		if( strcmp(*tmp, BG_RUN) == 0){
+			return !SF_FALSE;
+		}
+		tmp++;
+	}
+
     return SF_FALSE;
 }
 

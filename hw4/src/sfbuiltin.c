@@ -1,5 +1,6 @@
 #include "sfbuiltin.h"
 #include "sfconst.h"
+#include "job_arraylist.h"
 
 #ifndef DEBUG
 #define DEBUG
@@ -243,5 +244,26 @@ int builtin_chclr(char** argv){
 		return SF_FAIL;
 	}
 
+	return SF_SUCCESS;
+}
+
+int builtin_jobs(){
+	printJobs();
+	return SF_SUCCESS;
+}
+
+int builtin_fg(char** argv){
+	return SF_SUCCESS;
+}
+
+int builtin_bg(char** argv){
+	return SF_SUCCESS;
+}
+
+int builtin_kill(char** argv){
+	return SF_SUCCESS;
+}
+
+int builtin_disown(char** argv){
 	return SF_SUCCESS;
 }

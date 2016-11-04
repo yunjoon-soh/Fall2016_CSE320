@@ -12,6 +12,7 @@
 #include "sfish_helper.h"
 #include "sfbuiltin.h"
 #include "sfconst.h"
+#include "job_arraylist.h"
 
 struct exe_info{
 	int prog_index;

@@ -1,8 +1,11 @@
 #include <criterion/criterion.h>
 
 #include <stdio.h>
+
 #include "sfbuiltin.h"
 #include "sfish_helper.h"
+#include "sfconst.h"
+#include "job_arraylist.h"
 
 #define HOME "/home/dan"
 void checkCurHist(char* cmp);
@@ -1399,4 +1402,187 @@ Test(builtin_chpmt, chpmt_valid, .init=setup) {
 	cr_assert( strcmp(pmt, "sfish-\x1B[0mdan\x1B[0m@\x1B[0mdan-ubuntu\x1B[0m:[~]> ") == 0);
 
 	free(promptBuf);
+}
+
+// job_arraylist
+Test(job_arraylist_createJob, isCorrect){
+	debug("First job\n");
+	char *cmd1[3] = {"ABC", "DEF", 0};
+	struct job* j = createJob(1234, RUNNING, cmd1);
+
+	addJob(j);
+	cr_assert(job_start == job_end);
+	cr_assert(equals(job_start, j->pid, JOB_FALSE));
+	cr_assert(j->next == NULL);
+	cr_assert(j->prev == NULL);
+
+	debug("Second job\n");
+	char *cmd2[6] = {"ABC", "DEF", "GHI", "|", "grep", 0};
+	struct job* j2 = createJob(12345, STOPPED, cmd2);
+	
+	addJob(j2);
+	cr_assert(job_start != job_end);
+	cr_assert(equals(job_start, j->pid, JOB_FALSE));
+	cr_assert(equals(job_start, j->jid, JOB_TRUE));
+	cr_assert(equals(job_end, j2->pid, JOB_FALSE));
+	cr_assert(equals(job_end, j2->jid, JOB_TRUE));
+
+	debug("Third job\n");
+	char *cmd3[3] = {"333", "THREE", 0};
+	struct job* j3 = createJob(33333, RUNNING, cmd3);
+	
+	addJob(j3);
+	cr_assert(job_start != job_end);
+	cr_assert(equals(job_start, j->pid, JOB_FALSE));
+	cr_assert(equals(job_start, j->jid, JOB_TRUE));
+	cr_assert(equals(job_end, j3->pid, JOB_FALSE));
+	cr_assert(equals(job_end, j3->jid, JOB_TRUE));
+	cr_assert(equals(job_start->next, j2->pid, JOB_FALSE));
+	cr_assert(equals(job_start->next, j2->jid, JOB_TRUE));
+	cr_assert(equals(job_end->prev, j2->pid, JOB_FALSE));
+	cr_assert(equals(job_end->prev, j2->jid, JOB_TRUE));
+
+	debug("Remove Middle Job\n");
+	removeJob(2, JOB_TRUE);
+	cr_assert(job_start != job_end);
+	cr_assert(equals(job_start, j->pid, JOB_FALSE));
+	cr_assert(equals(job_start, j->jid, JOB_TRUE));
+	cr_assert(equals(job_end, j3->pid, JOB_FALSE));
+	cr_assert(equals(job_end, j3->jid, JOB_TRUE));
+	cr_assert(equals(job_start->next, j3->pid, JOB_FALSE));
+	cr_assert(equals(job_start->next, j3->jid, JOB_TRUE));
+	cr_assert(equals(job_end->prev, j->pid, JOB_FALSE));
+	cr_assert(equals(job_end->prev, j->jid, JOB_TRUE));
+
+	debug("Add fourth job\n");
+	char *cmd4[3] = {"4444", "Fourt", 0};
+	struct job* j4 = createJob(4444, RUNNING, cmd4);
+
+	addJob(j4);
+	cr_assert(equals(job_start, j->pid, JOB_FALSE));
+	cr_assert(equals(job_start, j->jid, JOB_TRUE));
+	cr_assert(equals(job_end, j4->pid, JOB_FALSE));
+	cr_assert(equals(job_end, j4->jid, JOB_TRUE));
+	cr_assert(equals(job_start->next, j3->pid, JOB_FALSE));
+	cr_assert(equals(job_start->next, j3->jid, JOB_TRUE));
+	cr_assert(equals(job_end->prev, j3->pid, JOB_FALSE));
+	cr_assert(equals(job_end->prev, j3->jid, JOB_TRUE));
+
+	// test from middle
+	cr_assert(equals(j3->prev, j->pid, JOB_FALSE));
+	cr_assert(equals(j3->next, j4->jid, JOB_TRUE));
+
+	debug("Remove Head Job\n");
+	removeJob(1, JOB_TRUE);
+	cr_assert(equals(job_start, j3->pid, JOB_FALSE));
+	cr_assert(equals(job_start, j3->jid, JOB_TRUE));
+	cr_assert(equals(job_end, j4->pid, JOB_FALSE));
+	cr_assert(equals(job_end, j4->jid, JOB_TRUE));
+	cr_assert(equals(job_start->next, j4->pid, JOB_FALSE));
+	cr_assert(equals(job_start->next, j4->jid, JOB_TRUE));
+	cr_assert(equals(job_end->prev, j3->pid, JOB_FALSE));
+	cr_assert(equals(job_end->prev, j3->jid, JOB_TRUE));
+
+	debug("Add fifth job\n");
+	char *cmd5[3] = {"55555", "Five", 0};
+	struct job* j5 = createJob(55555, RUNNING, cmd5);
+
+	addJob(j5);
+	cr_assert(equals(job_start, j3->pid, JOB_FALSE));
+	cr_assert(equals(job_start, j3->jid, JOB_TRUE));
+	cr_assert(equals(job_end, j5->pid, JOB_FALSE));
+	cr_assert(equals(job_end, j5->jid, JOB_TRUE));
+	cr_assert(equals(job_start->next, j4->pid, JOB_FALSE));
+	cr_assert(equals(job_start->next, j4->jid, JOB_TRUE));
+	cr_assert(equals(job_end->prev, j4->pid, JOB_FALSE));
+	cr_assert(equals(job_end->prev, j4->jid, JOB_TRUE));
+
+	// test from middle
+	cr_assert(equals(j4->prev, j3->pid, JOB_FALSE));
+	cr_assert(equals(j4->next, j5->jid, JOB_TRUE));
+	
+	debug("Remove Tail Job\n");
+	removeJob(5, JOB_TRUE);
+	cr_assert(equals(job_start, j3->pid, JOB_FALSE));
+	cr_assert(equals(job_start, j3->jid, JOB_TRUE));
+	cr_assert(equals(job_end, j4->pid, JOB_FALSE));
+	cr_assert(equals(job_end, j4->jid, JOB_TRUE));
+	cr_assert(equals(job_start->next, j4->pid, JOB_FALSE));
+	cr_assert(equals(job_start->next, j4->jid, JOB_TRUE));
+	cr_assert(equals(job_end->prev, j3->pid, JOB_FALSE));
+	cr_assert(equals(job_end->prev, j3->jid, JOB_TRUE));
+
+	debug("Remove by pid 4444 Job\n");
+	removeJob(4444, JOB_FALSE);
+	cr_assert(job_start == job_end);
+	cr_assert(equals(job_start, j3->pid, JOB_FALSE));
+	cr_assert(j3->next == NULL);
+	cr_assert(j3->prev == NULL);
+
+	debug("Remove by pid 55555 Job\n");
+	removeJob(55555, JOB_FALSE);
+	cr_assert(job_start == job_end);
+	cr_assert(equals(job_start, j3->pid, JOB_FALSE));
+	cr_assert(j3->next == NULL);
+	cr_assert(j3->prev == NULL);
+
+	debug("Remove by pid 333 Job\n");
+	removeJob(33333, JOB_FALSE);
+	cr_assert(job_start == job_end);
+	cr_assert(job_start == NULL);
+	cr_assert(job_end == NULL);
+}
+
+// isBgProc
+Test(sfish_helper_isBgProc, isBgProc_various){
+	int ret;
+
+	char *cmd1[2] = {"grep", 0};
+	ret = isBgProc(cmd1);
+	cr_assert(ret == SF_FALSE);
+
+	char *cmd2[3] = {"grep", "&", 0};
+	ret = isBgProc(cmd2);
+	cr_assert(ret == !SF_FALSE);
+
+	char *cmd3[4] = {"ls", "|", "grep", 0};
+	ret = isBgProc(cmd3);
+	cr_assert(ret == SF_FALSE);
+
+	debug("cmd4\n");
+	char *cmd4[5] = {"ls", "|", "grep", "&", 0};
+	char *buf[5];
+	parseNCmd(cmd4, buf, 5);
+	ret = isBgProc(cmd4); // even after parseNCmd, it still works
+	cr_assert(ret == !SF_FALSE);
+}
+
+Test(sfish_helper_isBgProc, isBgProc_lt){
+	int ret;
+
+	char *cmd3[4] = {"ls", "<", "grep", 0};
+	ret = isBgProc(cmd3);
+	cr_assert(ret == SF_FALSE);
+
+	debug("cmd4\n");
+	char *cmd4[5] = {"ls", "<", "grep", "&", 0};
+	char *buf[5];
+	parseNCmd(cmd4, buf, 5);
+	ret = isBgProc(cmd4); // even after parseNCmd, it still works
+	cr_assert(ret == !SF_FALSE);
+}
+
+Test(sfish_helper_isBgProc, isBgProc_gt){
+	int ret;
+
+	char *cmd3[4] = {"ls", ">", "grep", 0};
+	ret = isBgProc(cmd3);
+	cr_assert(ret == SF_FALSE);
+
+	debug("cmd4\n");
+	char *cmd4[5] = {"ls", ">", "grep", "&", 0};
+	char *buf[5];
+	parseNCmd(cmd4, buf, 5);
+	ret = isBgProc(cmd4); // even after parseNCmd, it still works
+	cr_assert(ret == !SF_FALSE);
 }
