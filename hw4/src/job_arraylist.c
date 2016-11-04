@@ -210,7 +210,7 @@ struct job* findById(int jid_pid, int isjid){
 }
 
 void p_sigtstp_handler(int sig){
-	debug("parent handler: pid=%d pgid=%d is pausing\n", getpid(), getpgid(getpid()));
+	debug("parent sigtstp handler: pid=%d pgid=%d\n", getpid(), getpgid(getpid()));
 	int fg_pid = 0;
 	if(fg != NULL){
 		fg_pid = fg->pid;
@@ -220,11 +220,14 @@ void p_sigtstp_handler(int sig){
 			return;
 		}
 		fg = NULL;
+	} else {
+		debug("No foreground job, ignore it\n");
+		return;
 	}
 
 	struct job* j = findById(fg_pid, JOB_FALSE);
 	if(j == NULL){ // j should not be NULL
-		// error("Serious mistake!, j(fg_pid=%d) should not be null! \n", fg_pid);
+		error("Serious mistake!, j(fg_pid=%d) should not be null for SIGTSTP! \n", fg_pid);
 		return;
 	}
 
@@ -236,6 +239,52 @@ void p_sigtstp_handler(int sig){
 	j->jstate = STOPPED;
 }
 
+void p_sigint_handler(int sig){
+	debug("sigint handler: pid=%d pgid=%d\n", getpid(), getpgid(getpid()));
+	int fg_pid = 0;
+	if(fg != NULL){
+		fg_pid = fg->pid;
+		int ret = kill(fg->pid, SIGINT);
+		if(ret == -1){
+			perror("kill(2) failed\n");
+			return;
+		}
+		fg = NULL;
+	} else {
+		debug("No foreground job, ignore it\n");
+		return;
+	}
+
+	// remove from the job list
+	int ret = removeJob(fg_pid, JOB_FALSE);
+	if(ret == -1){ // j should not be NULL
+		error("Serious mistake!, j(fg_pid=%d) should not be null for SIGINT! \n", fg_pid);
+		return;
+	}
+}
+
+void p_sigchld_handler(int sig){
+	int childStatus;
+	pid_t wpid;
+	wpid = waitpid(-1, &childStatus, WNOHANG);
+	debug("sigchld handler wpid=%d\n", wpid);
+	if(wpid == 0){
+		debug("Still children to wait\n");
+	} else if(wpid == -1){
+		debug("No more child to wait\n");
+		perror("waitpid in sigchld handler");
+	} else if(wpid > 0){
+		debug("Child reaped!! wpid=%d\n", wpid);
+		struct job* now = findById(wpid, JOB_FALSE); // remove by pid
+
+		fprintf(stdout, "[%d]     %s       %5d     \"%s\"\n", now->jid, "Done", now->pid, now->cmd);
+		
+		int ret = removeJob(wpid, JOB_FALSE);
+		if(ret == -1){
+			fprintf(stderr, "Removing job failed!\n");
+		}
+	}
+}
 
 void sigtstp_handler(int sig){
 	debug("pid=%d pgid=%d is pausing\n", getpid(), getpgid(getpid()));

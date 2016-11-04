@@ -174,9 +174,7 @@ int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog){
 	if ( (childPid = fork()) == 0){ // if child process
 		debug("Child process: %s(pid=%d) is built in\n", argv[prog], getpid());
 
-		
-
-		// set signal handlers
+		// set signal handlers //TODO: do this?
 		// debug("Setting the child's signal handler\n");
 		// SetSigHandler();
 
@@ -205,7 +203,8 @@ int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog){
 
 
 int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
-	int childPid, childStatus;
+	int childPid;
+	int childStatus;
 
 	// check if it is a background program
 	if(isBgProc(argv + prog)){
@@ -239,13 +238,7 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 
 			addJob(now);
 
-			pid_t wpid = waitpid(childPid, &childStatus, WNOHANG);
-			debug("Parent is done waiting for %d\n", wpid);
-
-			if(WIFEXITED(childStatus)){
-				//TODO should this be printed at the termination of child process?
-				fprintf(stdout, "[%d]     %5d     %s\n", now->jid, now->pid, now->cmd);
-			}
+			// reaping handled by sigchld
 		}
 
 		return last_exe.val;
@@ -279,9 +272,7 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 		debug("fg=%d\n", fg->pid);
 
 		// wait for child to finish
-		debug("Parent is waiting for child to finish!\n");
 		pid_t wpid = waitpid(childPid, &childStatus, WUNTRACED);
-		debug("Parent is done waiting!\n");
 
 		if(WIFEXITED(childStatus)){
 			debug("exited\n");

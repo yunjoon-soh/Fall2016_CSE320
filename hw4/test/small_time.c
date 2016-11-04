@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define MAX 15
+#define MAX 3
 int main(){
 	int cnt = 0;
 	while(1){

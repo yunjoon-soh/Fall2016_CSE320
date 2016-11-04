@@ -45,6 +45,8 @@ int preprocess(){
 
     // sigprocmask(SIG_BLOCK, &mask, &prev_mask);
     signal(SIGTSTP, p_sigtstp_handler);
+    signal(SIGINT, p_sigint_handler);
+    signal(SIGCHLD, p_sigchld_handler);
 
     return SF_SUCCESS;
 }
@@ -342,7 +344,7 @@ int builtin_bg(char** argv){
 }
 
 int builtin_kill(char** argv){
-	int id, id_ind, sig, childStatus;
+	int id, id_ind, sig;//, childStatus;
 	sig_atomic_t isJid;	
 
 	// get signal parameter
@@ -371,29 +373,21 @@ int builtin_kill(char** argv){
 		return SF_FAIL;
 	}
 
-	// remove job
-	int removed_pid;
-	if( (removed_pid = removeJob(id, isJid)) == -1){
-		fprintf(stderr, "Removing job %d failed\n", id);
-		return SF_FAIL;
-	}
+	// remove job handled by sigchld_handler
+	// int removed_pid;
+	// if( (removed_pid = removeJob(id, isJid)) == -1){
+	// 	fprintf(stderr, "Removing job %d failed\n", id);
+	// 	return SF_FAIL;
+	// }
 
+	struct job* j = findById(id, isJid);
 	// send the signal
-	debug("Sending signal(%d) to pid=%d\n", sig, removed_pid);
-	int ret = kill(removed_pid, sig);
+	debug("Sending signal(%d) to pid=%d\n", sig, j->pid);
+	int ret = kill(j->pid, sig);
+	kill(j->pid, SIGCONT);
 	if(ret == -1){
 		perror("kill(2) failed");
 		return SF_FAIL;
-	}
-
-	// wait for that job to finish but continue if the child is stopped
-	debug("waitpid after kill(2)\n");
-	pid_t wpid = waitpid(removed_pid, &childStatus, 0);
-	if(wpid == -1){
-		perror("waitpid(%d, %d, WUNTRACED) failed\n");
-		return SF_FAIL;
-	} else{
-		HandleExit(wpid, childStatus);
 	}
 
 	return SF_SUCCESS;

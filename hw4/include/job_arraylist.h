@@ -103,7 +103,10 @@ int equals(struct job* j, int jid_pid, int isjid);
 struct job* findById(int jid_pid, int isjid);
 
 void p_sigtstp_handler(int sig);
+void p_sigint_handler(int sig);
+
 void sigtstp_handler(int sig);
 void sigcont_handler(int sig);
+void p_sigchld_handler(int sig);
 
 #endif
