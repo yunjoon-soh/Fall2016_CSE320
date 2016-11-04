@@ -89,11 +89,16 @@ struct job{
 	struct job* next;
 };
 
-int addJob(struct job* newJob);
 struct job* createJob(int pid, job_state jstate, char** cmd);
+
+int addJob(struct job* newJob);
+
 int removeJob(int jid_pid, int isjid);
+void removeAllJobs();
+
 void printJobs();
 void printJobsAll(); // print every child processes
+
 int equals(struct job* j, int jid_pid, int isjid);
 struct job* findById(int jid_pid, int isjid);
 

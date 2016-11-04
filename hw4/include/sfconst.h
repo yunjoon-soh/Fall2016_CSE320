@@ -2,8 +2,8 @@
 #ifndef _SFCONST_H_
 #define _SFCONST_H_
 
-#define SF_SUCCESS 1
-#define SF_FAIL 0
+#define SF_SUCCESS 0
+#define SF_FAIL 1
 
 #define SF_FALSE 0
 

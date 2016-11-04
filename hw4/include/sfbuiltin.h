@@ -91,6 +91,7 @@ int builtin_bg(char** argv);
 int builtin_kill(char** argv);
 int builtin_disown(char** argv);
 
+int isSignal(char* str);
 int parseToInt(char* str);
 
 #endif

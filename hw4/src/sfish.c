@@ -130,21 +130,20 @@ int main(int argc, char** argv, char *envp[]) {
 
 		for(int i = 0; i <= ei_cnt; i++){
 			int prog = ei_array[i].prog_index;
-			debug("pipe[0]=%d, pipe[1]=%d, prog=%d\n", ei_array[i].pipe_fd[0], ei_array[i].pipe_fd[1], prog);
+			// debug("pipe[0]=%d, pipe[1]=%d, prog=%d\n", ei_array[i].pipe_fd[0], ei_array[i].pipe_fd[1], prog);
 
 			if( strcmp(argv[prog], "cd") == 0 ||
 				strcmp(argv[prog], "chpmt") == 0 || 
 				strcmp(argv[prog], "chclr") == 0 ||
-				strcmp(argv[prog], "fg") == 0  ){ // if cd do not fork
-
-				debug("No fork, builtin\n");
+				strcmp(argv[prog], "fg") == 0 || 
+				strcmp(argv[prog], "bg") == 0 || 
+				strcmp(argv[prog], "kill") == 0 || 
+				strcmp(argv[prog], "disown") == 0){ // if cd do not fork
 
 				// execute the built in program
 				last_exe.val = exeBuiltIn(argc, (argv + prog));
 
 			} else { // forking is necessary
-				debug("Yes fork\n");
-
 				Fork(argc, argv, envp, &ei_array[i]);
 			}
 		}
@@ -175,14 +174,14 @@ int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog){
 	if ( (childPid = fork()) == 0){ // if child process
 		debug("Child process: %s(pid=%d) is built in\n", argv[prog], getpid());
 
-		debug("pipe_fd[READ_END]=%d, pipe_fd[WRITE_END]=%d\n", pipe_fd[READ_END], pipe_fd[WRITE_END]);
+		
 
 		// set signal handlers
-		debug("Setting the child's signal handler\n");
-		SetSigHandler();
+		// debug("Setting the child's signal handler\n");
+		// SetSigHandler();
 
 		// set fds
-		SetFd(pipe_fd);         
+		SetFd(pipe_fd);
 
 		// execute the built in program
 		last_exe.val = exeBuiltIn(argc, (argv + prog));
@@ -214,7 +213,6 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 		debug("background process\n");
 		
 		if( (childPid = fork()) == 0){ // child code
-
 			// set the pgid of the child process
 			setpgid(0,0);
 
@@ -241,8 +239,13 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 
 			addJob(now);
 
-			//TODO should this be printed at the termination of child process?
-			fprintf(stdout, "[%d]     %5d     %s\n", now->jid, now->pid, now->cmd);
+			pid_t wpid = waitpid(childPid, &childStatus, WNOHANG);
+			debug("Parent is done waiting for %d\n", wpid);
+
+			if(WIFEXITED(childStatus)){
+				//TODO should this be printed at the termination of child process?
+				fprintf(stdout, "[%d]     %5d     %s\n", now->jid, now->pid, now->cmd);
+			}
 		}
 
 		return last_exe.val;
@@ -252,12 +255,11 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 
 		debug("Child process: %s(pid=%d, pgid=%d) is program\n", argv[prog], getpid(), getpgid(getpid()));
 
-		debug("pipe_fd[READ_END]=%d, pipe_fd[WRITE_END]=%d\n", pipe_fd[READ_END], pipe_fd[WRITE_END]);
-
 		debug("Setting the child's signal handler\n");
 		SetSigHandler();
 
 		// set fds
+		debug("pipe_fd[READ_END]=%d, pipe_fd[WRITE_END]=%d\n", pipe_fd[READ_END], pipe_fd[WRITE_END]);
 		SetFd(pipe_fd);
 
 		// execute passed in program
@@ -270,7 +272,7 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 
 	} else {
 		struct job* now = createJob(childPid, RUNNING, (argv + prog));
-		debug("Added job now(pid=%d)\n", now->pid);
+		
 		addJob(now);
 
 		fg = now;

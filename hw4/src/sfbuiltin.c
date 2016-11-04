@@ -1,6 +1,7 @@
 #include "sfbuiltin.h"
 #include "sfconst.h"
 #include "job_arraylist.h"
+#include "sfish_helper.h"
 
 #ifndef DEBUG
 #define DEBUG
@@ -258,9 +259,55 @@ int builtin_jobs(){
 }
 
 int builtin_fg(char** argv){
-	int childStatus;
+	int childStatus, id;
 	sig_atomic_t isJid;
-	int id;
+
+	// PID|JID parameter
+	if( *((char *)argv[1]) == '%'){
+		id = parseToInt((char *)argv[1] + 1); // ignore first character
+		isJid = JOB_TRUE;
+	} else{
+		id = parseToInt(argv[1]);
+		isJid = JOB_FALSE;
+	}
+	if(id == -1){
+		fprintf(stderr, "Invalid fg parameter\n");
+		return SF_FAIL;
+	}
+
+	// find job by id number
+	struct job* j = findById(id, isJid);
+	if(j == NULL){
+		fprintf(stderr, "Invalid fg parameter\n");
+		return SF_FAIL;
+	}
+
+	// update the stat of the job
+	j->jstate = RUNNING; // it is runnning in foreground
+
+	// set to foreground job
+	fg = j;
+
+	// send signal to continue
+	int ret = kill(j->pid, SIGCONT);
+	if(ret == -1){
+		perror("kill(2) failed");
+		return SF_FAIL;
+	}
+
+	// wait for that job to finish but continue if the child is stopped
+	pid_t wpid = waitpid(j->pid, &childStatus, WUNTRACED);
+	if(wpid == -1){
+		perror("waitpid(%d, %d, WUNTRACED) failed\n");
+		return SF_FAIL;
+	}
+
+	return SF_SUCCESS;
+}
+
+int builtin_bg(char** argv){
+	sig_atomic_t isJid;
+	int id, childStatus;
 	if( *((char *)argv[1]) == '%'){
 		id = parseToInt((char *)argv[1] + 1); // ignore first character
 		isJid = JOB_TRUE;
@@ -275,33 +322,131 @@ int builtin_fg(char** argv){
 		return SF_FAIL;
 	}
 
-	j->jstate = RUNNING; // it is runnning in foreground
+	j->jstate = RUNNING; // it is runnning in background
 
-	fg = j;
-	debug("Wait started for foreground running pid=%d\n", j->pid);
-	kill(j->pid, SIGCONT);
-	pid_t wpid = waitpid(j->pid, &childStatus, WUNTRACED);
-	debug("Wait done! pid=%d, childStatus=%d\n", wpid, childStatus);
+	int ret = kill(j->pid, SIGCONT);
+	if(ret == -1){
+		perror("kill(2) failed");
+		return SF_FAIL;
+	}
 
-	return SF_SUCCESS;
-}
+	// wait for that job to finish but continue if the child is stopped
+	pid_t wpid = waitpid(j->pid, &childStatus, WNOHANG);
+	if(wpid == -1){
+		perror("waitpid(%d, %d, WUNTRACED) failed\n");
+		return SF_FAIL;
+	}
 
-int builtin_bg(char** argv){
+
 	return SF_SUCCESS;
 }
 
 int builtin_kill(char** argv){
+	int id, id_ind, sig, childStatus;
+	sig_atomic_t isJid;	
+
+	// get signal parameter
+	if(argv[2] == 0){
+		sig = SIGTERM; // by default send SIGTERM
+		id_ind = 1;
+	} else{
+		sig = parseToInt(argv[1]);
+		id_ind = 2;
+	}
+	if(sig <= 0 || sig > 31){
+		fprintf(stderr, "Invalid kill parameter, check 1\n");
+		return SF_FAIL;
+	}
+
+	// get PID|JID parameter
+	if( *((char *)argv[id_ind]) == '%'){
+		id = parseToInt((char *)argv[id_ind] + 1); // ignore first character
+		isJid = JOB_TRUE;
+	} else{
+		id = parseToInt(argv[id_ind]);
+		isJid = JOB_FALSE;
+	}
+	if(id == -1){
+		fprintf(stderr, "Invalid kill parameter\n");
+		return SF_FAIL;
+	}
+
+	// remove job
+	int removed_pid;
+	if( (removed_pid = removeJob(id, isJid)) == -1){
+		fprintf(stderr, "Removing job %d failed\n", id);
+		return SF_FAIL;
+	}
+
+	// send the signal
+	debug("Sending signal(%d) to pid=%d\n", sig, removed_pid);
+	int ret = kill(removed_pid, sig);
+	if(ret == -1){
+		perror("kill(2) failed");
+		return SF_FAIL;
+	}
+
+	// wait for that job to finish but continue if the child is stopped
+	debug("waitpid after kill(2)\n");
+	pid_t wpid = waitpid(removed_pid, &childStatus, 0);
+	if(wpid == -1){
+		perror("waitpid(%d, %d, WUNTRACED) failed\n");
+		return SF_FAIL;
+	} else{
+		HandleExit(wpid, childStatus);
+	}
+
 	return SF_SUCCESS;
 }
 
 int builtin_disown(char** argv){
+	int id;
+	sig_atomic_t isJid;
+
+	if(argv[1] == 0){
+		removeAllJobs();
+		return SF_SUCCESS;
+	} else {
+		// PID|JID parameter
+		if( *((char *)argv[1]) == '%'){
+			id = parseToInt((char *)argv[1] + 1); // ignore first character
+			isJid = JOB_TRUE;
+		} else{
+			id = parseToInt(argv[1]);
+			isJid = JOB_FALSE;
+		}
+	}
+
+	int ret = removeJob(id, isJid);
+	if(ret == -1){
+		fprintf(stderr, "Remove Job failed id=%d, isJid=%d\n", id, isJid);
+		return SF_FAIL;
+	}
+
 	return SF_SUCCESS;
 }
 
+int isSignal(char* str){
+	char *c = str;
+
+	while(*c != '\0'){
+		if(*c > '9' || *c < '0'){
+			return SF_FAIL;
+		}
+		c++;
+	}
+
+	return SF_SUCCESS;
+}
+
+// return -1 if str has non-numeric char
 int parseToInt(char* str){
 	char* c = str;
 
 	while(*c != '\0'){
+		if(*c > '9' || *c < '0'){
+			return -1;
+		}
 		c++;
 	}
 

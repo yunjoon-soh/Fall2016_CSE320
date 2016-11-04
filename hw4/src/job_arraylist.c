@@ -68,13 +68,16 @@ struct job* createJob(int pid, job_state jstate, char** cmd){
 	return newJob;
 }
 
+// return -1 on failure
+// return pid if successful
 int removeJob(int jid_pid, int isjid){
 	struct job *now = findById(jid_pid, isjid);
-
 	if(now == NULL){
 		fprintf(stderr, "Job not found!");
-		return JOB_FALSE;
+		return -1;
 	}
+
+	int pid = now->pid;
 
 	// fprintf(stderr, "about to delete now=%d\n", now->pid);
 	if(now->prev == NULL && now->next == NULL){
@@ -102,12 +105,29 @@ int removeJob(int jid_pid, int isjid){
 	free(now->cmd);
 	free(now);
 
-	return JOB_TRUE;
+	return pid;
+}
+
+void removeAllJobs(){
+	struct job *now = job_start, *next_now;
+	
+	while(now != NULL){
+		next_now = now->next;
+
+		free(now->cmd);
+		free(now);
+
+		now = next_now;
+	}
+
+	job_start = NULL;
+	job_end = NULL;
+	fg = NULL;	
 }
 
 void printJobs(){
 	struct job *now = job_start;
-	fprintf (stdout, "Current job_start=%d, job_end=%d\n", (now==NULL)?0:now->pid, (job_end==NULL)?0:job_end->pid);
+	debug("Current job_start=%d, job_end=%d\n", (now==NULL)?0:now->pid, (job_end==NULL)?0:job_end->pid);
 	while(now != NULL){
 		if(!now->inJob){
 			now = now->next;
@@ -191,20 +211,20 @@ struct job* findById(int jid_pid, int isjid){
 
 void p_sigtstp_handler(int sig){
 	debug("parent handler: pid=%d pgid=%d is pausing\n", getpid(), getpgid(getpid()));
-
-	int fg_pid;
+	int fg_pid = 0;
 	if(fg != NULL){
 		fg_pid = fg->pid;
-		debug("fg's pid=%d\n", fg->pid);
-		kill(fg->pid, SIGTSTP);
+		int ret = kill(fg->pid, SIGTSTP);
+		if(ret == -1){
+			perror("kill(2) failed\n");
+			return;
+		}
 		fg = NULL;
 	}
 
-	printJobs();
 	struct job* j = findById(fg_pid, JOB_FALSE);
-	// j should not be NULL
-	if(j == NULL){
-		error("Serious mistake!, j should not be null! \n");
+	if(j == NULL){ // j should not be NULL
+		// error("Serious mistake!, j(fg_pid=%d) should not be null! \n", fg_pid);
 		return;
 	}
 
@@ -214,11 +234,8 @@ void p_sigtstp_handler(int sig){
 		j->inJob = 1;
 	}
 	j->jstate = STOPPED;
-	
-	// int ret = waitpid(fg_pid, 0, WNOHANG);
-	// debug("waitpid(%d, 0, WNOHANG)=%d\n", fg_pid, ret);
-
 }
+
 
 void sigtstp_handler(int sig){
 	debug("pid=%d pgid=%d is pausing\n", getpid(), getpgid(getpid()));
@@ -227,4 +244,5 @@ void sigtstp_handler(int sig){
 }
 
 void sigcont_handler(int sig){	
+	debug("pid=%d pgid=%d got sigcont\n", getpid(), getpgid(getpid()));
 }

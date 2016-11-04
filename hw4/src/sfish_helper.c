@@ -163,6 +163,8 @@ int exeBuiltIn(int argc, char** argv){
     	return builtin_bg(argv);
     } else if( strcmp(cmd, "kill") == 0){
     	return builtin_kill(argv);
+    } else if( strcmp(cmd, "disown") == 0){
+    	return builtin_disown(argv);
     } else {
     	error("Not a bulitin cmd:%s\n", cmd);
     	return SF_FAIL;	
@@ -213,21 +215,21 @@ int existsInPath(char* cmd){
 
 int exeCmd(int argc, char** argv, char* envp[]){
 	int ret;
-	debug("exeCmd(%d, %s, ..)\n", argc, argv[0]);
+	// debug("exeCmd(%d, %s, ..)\n", argc, argv[0]);
 
 	if(isPath(argv[0]) == SF_FALSE){
 		// not a path
-		debug("*isPath:False\n");
+		// debug("*isPath:False\n");
 
 		if(existsInPath(argv[0]) != SF_FALSE){
 
-			debug("EXECUTE pid=%d\n", getpid());
+			// debug("EXECUTE pid=%d\n", getpid());
 
-			int i = 0;
-			while(argv[i] != 0){
-				debug("argc=%d, argv[%d]=%s\n", argc, i, argv[i]);
-				i++;
-			}
+			// int i = 0;
+			// while(argv[i] != 0){
+			// 	debug("argc=%d, argv[%d]=%s\n", argc, i, argv[i]);
+			// 	i++;
+			// }
 
 			ret = execvp(argv[0], argv);
 
@@ -241,7 +243,7 @@ int exeCmd(int argc, char** argv, char* envp[]){
 		}		
 	} else {
 		// is path
-		debug("*isPath:True\n");
+		// debug("*isPath:True\n");
 		
 		ret = execv((const char*)argv[0], argv);
 
@@ -271,7 +273,8 @@ int isBuiltin(char* argv_0){
     	strcmp(cmd, "jobs") == 0 ||
     	strcmp(cmd, "bg") == 0 ||
     	strcmp(cmd, "fg") == 0 ||
-    	strcmp(cmd, "kill") == 0){
+    	strcmp(cmd, "kill") == 0 || 
+    	strcmp(cmd, "disown") == 0){
     	return !SF_FALSE;
     }
 
