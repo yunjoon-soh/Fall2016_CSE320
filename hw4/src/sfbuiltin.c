@@ -6,6 +6,8 @@
 #define DEBUG
 #endif
 
+sigset_t mask, prev_mask;
+
 #define USAGE_LENGTH 7
 const char* USAGE[USAGE_LENGTH] = {
 	"help\n",
@@ -18,7 +20,7 @@ const char* USAGE[USAGE_LENGTH] = {
 };
 
 int preprocess(){
-	debug("Preprocess called\n");
+	debug("Preprocess called pid=%d, pgid=%d\n", getpid(), getpgid(getpid()));
 
     // get current dir and set it as cd_history
     getcwd(cd_history, PATH_MAX);
@@ -39,6 +41,9 @@ int preprocess(){
     PROMPT_BOLD_HOST = NOML;
     PROMPT_COLOR_USER = KNRM;
     PROMPT_COLOR_HOST = KNRM;
+
+    // sigprocmask(SIG_BLOCK, &mask, &prev_mask);
+    signal(SIGTSTP, p_sigtstp_handler);
 
     return SF_SUCCESS;
 }
@@ -253,6 +258,31 @@ int builtin_jobs(){
 }
 
 int builtin_fg(char** argv){
+	int childStatus;
+	sig_atomic_t isJid;
+	int id;
+	if( *((char *)argv[1]) == '%'){
+		id = parseToInt((char *)argv[1] + 1); // ignore first character
+		isJid = JOB_TRUE;
+	} else{
+		id = parseToInt(argv[1]);
+		isJid = JOB_FALSE;
+	}
+
+	struct job* j = findById(id, isJid);
+	if(j == NULL){
+		fprintf(stderr, "Invalid arg for fg\n");
+		return SF_FAIL;
+	}
+
+	j->jstate = RUNNING; // it is runnning in foreground
+
+	fg = j;
+	debug("Wait started for foreground running pid=%d\n", j->pid);
+	kill(j->pid, SIGCONT);
+	pid_t wpid = waitpid(j->pid, &childStatus, WUNTRACED);
+	debug("Wait done! pid=%d, childStatus=%d\n", wpid, childStatus);
+
 	return SF_SUCCESS;
 }
 
@@ -266,4 +296,26 @@ int builtin_kill(char** argv){
 
 int builtin_disown(char** argv){
 	return SF_SUCCESS;
+}
+
+int parseToInt(char* str){
+	char* c = str;
+
+	while(*c != '\0'){
+		c++;
+	}
+
+	int ret = 0;
+	int mult = 1;
+	c--; // starting from the right most number
+
+	while(c != str){
+		ret += (*c - '0') * mult;
+		mult *= 10;
+		c--;
+	}
+
+	ret += (*c - '0') * mult;
+
+	return ret;
 }

@@ -7,8 +7,13 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
 
+#ifndef COLOR
 #define COLOR
+#endif
+
 #ifdef COLOR
     #define NOML  "\x1B[0"
     #define BOLD  "\x1B[1"
@@ -85,5 +90,7 @@ int builtin_fg(char** argv);
 int builtin_bg(char** argv);
 int builtin_kill(char** argv);
 int builtin_disown(char** argv);
+
+int parseToInt(char* str);
 
 #endif

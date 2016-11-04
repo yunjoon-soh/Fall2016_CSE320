@@ -1,5 +1,7 @@
 #include "sfish.h"
 
+volatile sig_atomic_t bg;
+
 int main(int argc, char** argv, char *envp[]) {
 	//DO NOT MODIFY THIS. If you do you will get a ZERO.
 	rl_catch_signals = 0;
@@ -132,7 +134,8 @@ int main(int argc, char** argv, char *envp[]) {
 
 			if( strcmp(argv[prog], "cd") == 0 ||
 				strcmp(argv[prog], "chpmt") == 0 || 
-				strcmp(argv[prog], "chclr") == 0 ){ // if cd do not fork
+				strcmp(argv[prog], "chclr") == 0 ||
+				strcmp(argv[prog], "fg") == 0  ){ // if cd do not fork
 
 				debug("No fork, builtin\n");
 
@@ -174,6 +177,10 @@ int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog){
 
 		debug("pipe_fd[READ_END]=%d, pipe_fd[WRITE_END]=%d\n", pipe_fd[READ_END], pipe_fd[WRITE_END]);
 
+		// set signal handlers
+		debug("Setting the child's signal handler\n");
+		SetSigHandler();
+
 		// set fds
 		SetFd(pipe_fd);         
 
@@ -197,6 +204,7 @@ int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog){
 	}
 }
 
+
 int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 	int childPid, childStatus;
 
@@ -206,7 +214,14 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 		debug("background process\n");
 		
 		if( (childPid = fork()) == 0){ // child code
-			debug("Child process: %s(pid=%d) is program\n", argv[prog], getpid());
+
+			// set the pgid of the child process
+			setpgid(0,0);
+
+			debug("Child process: %s(pid=%d, pgid=%d) is program\n", argv[prog], getpid(), getpgid(getpid()));
+
+			debug("Setting the child's signal handler\n");
+			SetSigHandler();
 
 			// set fds
 			debug("pipe_fd[READ_END]=%d, pipe_fd[WRITE_END]=%d\n", pipe_fd[READ_END], pipe_fd[WRITE_END]);
@@ -222,19 +237,25 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 
 		} else { // parent code
 			struct job* now = createJob(childPid, RUNNING, (argv + prog));
+			now->inJob = 1; // this is background job, so should be added to the Job list
 
 			addJob(now);
 
+			//TODO should this be printed at the termination of child process?
 			fprintf(stdout, "[%d]     %5d     %s\n", now->jid, now->pid, now->cmd);
 		}
 
 		return last_exe.val;
-	}
+	} else if ( (childPid = fork()) == 0 ){
+		// set the pgid of the child process
+		setpgid(0,0);
 
-	if ( (childPid = fork()) == 0 ){
-		debug("Child process: %s(pid=%d) is program\n", argv[prog], getpid());
+		debug("Child process: %s(pid=%d, pgid=%d) is program\n", argv[prog], getpid(), getpgid(getpid()));
 
 		debug("pipe_fd[READ_END]=%d, pipe_fd[WRITE_END]=%d\n", pipe_fd[READ_END], pipe_fd[WRITE_END]);
+
+		debug("Setting the child's signal handler\n");
+		SetSigHandler();
 
 		// set fds
 		SetFd(pipe_fd);
@@ -248,14 +269,28 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 		exit(last_exe.val);
 
 	} else {
+		struct job* now = createJob(childPid, RUNNING, (argv + prog));
+		debug("Added job now(pid=%d)\n", now->pid);
+		addJob(now);
+
+		fg = now;
+		debug("fg=%d\n", fg->pid);
+
 		// wait for child to finish
-		pid_t wpid = wait(&childStatus);
+		debug("Parent is waiting for child to finish!\n");
+		pid_t wpid = waitpid(childPid, &childStatus, WUNTRACED);
+		debug("Parent is done waiting!\n");
 
-		// close fds
-		CloseFd(pipe_fd);
+		if(WIFEXITED(childStatus)){
+			debug("exited\n");
+			removeJob(now->pid, JOB_FALSE);
 
-		// print out the status code
-		HandleExit(wpid, childStatus);
+			// close fds
+			CloseFd(pipe_fd);
+
+			// print out the status code
+			HandleExit(wpid, childStatus);
+		}
 
 		return last_exe.val;
 	}

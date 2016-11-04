@@ -3,6 +3,7 @@
 #include "sfish_helper.h"
 #include "sfconst.h"
 #include "sfbuiltin.h"
+#include "job_arraylist.h"
 
 char* LT_PIPE = "<";
 char* GT_PIPE = ">";
@@ -345,4 +346,13 @@ void HandleExit(pid_t wpid, int childStatus){
         last_exe.val = WEXITSTATUS(childStatus);
         debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
     }
+}
+
+void SetSigHandler(){
+	if(signal(SIGCONT, sigcont_handler) == SIG_ERR){
+		fprintf(stderr, "Setting SIGCONT handler failed\n");
+	}
+	if(signal(SIGTSTP, sigtstp_handler) == SIG_ERR){
+		fprintf(stderr, "Setting SIGTSTP handler failed\n");	
+	}
 }

@@ -29,4 +29,5 @@ int getNextPipe(int argc, char** argv, int from);
 void SetFd(int pipe_fd[2]);
 void CloseFd(int pipe_fd[2]);
 void HandleExit(pid_t wpid, int childStatus);
+void SetSigHandler();
 #endif

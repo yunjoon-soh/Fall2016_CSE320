@@ -13,4 +13,7 @@
 #define READ_END 0
 #define WRITE_END 1
 
+#define JOB_TRUE 1
+#define JOB_FALSE 0
+
 #endif
