@@ -12,6 +12,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <time.h>
 
 #include "sfconst.h"
 
@@ -87,6 +88,7 @@ struct job{
 
 	struct job* prev;
 	struct job* next;
+	struct tm* timeinfo;
 };
 
 struct job* createJob(int pid, job_state jstate, char** cmd);

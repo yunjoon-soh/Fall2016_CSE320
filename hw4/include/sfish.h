@@ -9,6 +9,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include <time.h>
+
 #include "sfish_helper.h"
 #include "sfbuiltin.h"
 #include "sfconst.h"

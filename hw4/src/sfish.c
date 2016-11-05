@@ -1,12 +1,19 @@
 #include "sfish.h"
 
 volatile sig_atomic_t bg;
+int cmd_cnt = 0;
 
 int main(int argc, char** argv, char *envp[]) {
 	//DO NOT MODIFY THIS. If you do you will get a ZERO.
 	rl_catch_signals = 0;
 	//This is disable readline's default signal handlers, since you are going
 	//to install your own.
+	
+	rl_command_func_t ctrl_b, ctrl_g, ctrl_h, ctrl_p;
+	rl_bind_keyseq ("\\C-b", ctrl_b);
+	rl_bind_keyseq ("\\C-g", ctrl_g);
+	rl_bind_keyseq ("\\C-h", ctrl_h);
+	rl_bind_keyseq ("\\C-p", ctrl_p);
 
 	preprocess();
 
@@ -197,6 +204,8 @@ int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog){
 		// print out the status code
 		HandleExit(wpid, childStatus);
 
+		cmd_cnt++;
+
 		return last_exe.val;
 	}
 }
@@ -235,8 +244,14 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 		} else { // parent code
 			struct job* now = createJob(childPid, RUNNING, (argv + prog));
 			now->inJob = 1; // this is background job, so should be added to the Job list
+			time_t rawtime;
+
+			time ( &rawtime );
+			localtime_r ( &rawtime, now->timeinfo);
 
 			addJob(now);
+
+			cmd_cnt++;
 
 			// reaping handled by sigchld
 		}
@@ -265,8 +280,14 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 
 	} else {
 		struct job* now = createJob(childPid, RUNNING, (argv + prog));
+		time_t rawtime;
+
+		time ( &rawtime );
+		localtime_r ( &rawtime, now->timeinfo);
 		
 		addJob(now);
+
+		cmd_cnt++;
 
 		fg = now;
 		debug("fg=%d\n", fg->pid);

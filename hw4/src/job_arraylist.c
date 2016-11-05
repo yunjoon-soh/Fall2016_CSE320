@@ -64,6 +64,7 @@ struct job* createJob(int pid, job_state jstate, char** cmd){
 	newJob->inJob = 0; // false by default
 	newJob->prev = NULL;
 	newJob->next = NULL;
+	newJob->timeinfo = (struct tm*) malloc(sizeof(struct tm));
 
 	return newJob;
 }
@@ -103,6 +104,7 @@ int removeJob(int jid_pid, int isjid){
 	}
 
 	free(now->cmd);
+	free(now->timeinfo);
 	free(now);
 
 	return pid;
@@ -196,7 +198,7 @@ struct job* findById(int jid_pid, int isjid){
 	struct job *now = job_start;
 
 	if(now == NULL){ // empty list
-		return JOB_FALSE;
+		return NULL;
 	}
 
 	while( equals(now, jid_pid, isjid) != JOB_TRUE ){
@@ -216,7 +218,7 @@ void p_sigtstp_handler(int sig){
 		fg_pid = fg->pid;
 		int ret = kill(fg->pid, SIGTSTP);
 		if(ret == -1){
-			perror("kill(2) failed\n");
+			perror("kill(2) failed");
 			return;
 		}
 		fg = NULL;

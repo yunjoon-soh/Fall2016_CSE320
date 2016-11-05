@@ -2,12 +2,11 @@
 #include "sfconst.h"
 #include "job_arraylist.h"
 #include "sfish_helper.h"
+#include "sfkey.h"
 
 #ifndef DEBUG
 #define DEBUG
 #endif
-
-sigset_t mask, prev_mask;
 
 #define USAGE_LENGTH 7
 const char* USAGE[USAGE_LENGTH] = {
@@ -23,32 +22,31 @@ const char* USAGE[USAGE_LENGTH] = {
 int preprocess(){
 	debug("Preprocess called pid=%d, pgid=%d\n", getpid(), getpgid(getpid()));
 
-    // get current dir and set it as cd_history
-    getcwd(cd_history, PATH_MAX);
-    if(cd_history == NULL){
-        perror("Failed: getcwd...");
-        return SF_FAIL;
-    }
+	// get current dir and set it as cd_history
+	getcwd(cd_history, PATH_MAX);
+	if(cd_history == NULL){
+		perror("Failed: getcwd...");
+		return SF_FAIL;
+	}
 
-    // initialize last_execution result
-    last_exe.val = 0;
+	// initialize last_execution result
+	last_exe.val = 0;
 
-    HOME_DIR = getenv("HOME");
+	HOME_DIR = getenv("HOME");
 
-    PROMPT_USER = PROMPT_ENABLED;
-    PROMPT_HOST = PROMPT_ENABLED;
+	PROMPT_USER = PROMPT_ENABLED;
+	PROMPT_HOST = PROMPT_ENABLED;
 
-    PROMPT_BOLD_USER = NOML;
-    PROMPT_BOLD_HOST = NOML;
-    PROMPT_COLOR_USER = KNRM;
-    PROMPT_COLOR_HOST = KNRM;
+	PROMPT_BOLD_USER = NOML;
+	PROMPT_BOLD_HOST = NOML;
+	PROMPT_COLOR_USER = KNRM;
+	PROMPT_COLOR_HOST = KNRM;
+	
+	signal(SIGTSTP, p_sigtstp_handler);
+	signal(SIGINT, p_sigint_handler);
+	signal(SIGCHLD, p_sigchld_handler);
 
-    // sigprocmask(SIG_BLOCK, &mask, &prev_mask);
-    signal(SIGTSTP, p_sigtstp_handler);
-    signal(SIGINT, p_sigint_handler);
-    signal(SIGCHLD, p_sigchld_handler);
-
-    return SF_SUCCESS;
+	return SF_SUCCESS;
 }
 
 int countArgs(char** argv, int index){
