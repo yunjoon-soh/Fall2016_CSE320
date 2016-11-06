@@ -6,7 +6,7 @@
 volatile sig_atomic_t SPID = -1;
 extern int cmd_cnt;
 
-#define SFISH_INFO_LENGTH 15
+#define SFISH_INFO_LENGTH 16
 const char* SFISH_INFO[SFISH_INFO_LENGTH] = {
 	"----Info----",
 	"help",
@@ -22,6 +22,7 @@ const char* SFISH_INFO[SFISH_INFO_LENGTH] = {
 	"fg",
 	"disown",
 	"jobs",
+	"kill",
 	"----Number of Commands Run----"
 };
 

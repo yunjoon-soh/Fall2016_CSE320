@@ -4,7 +4,7 @@
 #include "sfish_helper.h"
 #include "sfkey.h"
 
-#define USAGE_LENGTH 8
+#define USAGE_LENGTH 13
 const char* USAGE[USAGE_LENGTH] = {
 	"help\n",
 	"exit\n",
@@ -13,6 +13,11 @@ const char* USAGE[USAGE_LENGTH] = {
 	"prt\n",
 	"chpmt user|machine 0|1\n",
 	"chclr user|machine 0|1 COLOR\n"
+	"bg PID|%%JID",
+	"fg PID|%%JID",
+	"disown [PID|%%JID]",
+	"jobs",
+	"kill PID|%%JID",
 	"COLORS: red, blue, green, yellow, cyan, magenta, black, white\n"
 };
 
@@ -259,7 +264,10 @@ int builtin_fg(char** argv){
 	sig_atomic_t isJid;
 
 	// PID|JID parameter
-	if( *((char *)argv[1]) == '%'){
+	if(argv[1] == 0){
+		fprintf(stderr, "Not enough arguments: fg\n");
+		return SF_FAIL;
+	}else if( *((char *)argv[1]) == '%'){
 		id = parseToInt((char *)argv[1] + 1); // ignore first character
 		isJid = JOB_TRUE;
 	} else{
@@ -304,7 +312,11 @@ int builtin_fg(char** argv){
 int builtin_bg(char** argv){
 	sig_atomic_t isJid;
 	int id, childStatus;
-	if( *((char *)argv[1]) == '%'){
+
+	if(argv[1] == 0){
+		fprintf(stderr, "Not enough arguments: bg\n");
+		return SF_FAIL;
+	}else if( *((char *)argv[1]) == '%'){
 		id = parseToInt((char *)argv[1] + 1); // ignore first character
 		isJid = JOB_TRUE;
 	} else{
@@ -342,10 +354,14 @@ int builtin_kill(char** argv){
 	sig_atomic_t isJid;	
 
 	// get signal parameter
-	if(argv[2] == 0){
+	if(argv[1] == 0){
+		fprintf(stderr, "Not enough arguments: kill\n");
+		return SF_FAIL;
+	} else if (argv[2] == 0){
 		sig = SIGTERM; // by default send SIGTERM
 		id_ind = 1;
-	} else{
+	}
+	else{
 		sig = parseToInt(argv[1]);
 		id_ind = 2;
 	}
