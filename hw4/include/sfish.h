@@ -19,11 +19,12 @@
 struct exe_info{
 	int prog_index;
 	int pipe_fd[2];
+	int stderr_pipe;
 };
 
 int Fork(int argc, char** argv, char *envp[], struct exe_info* ei);
-int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog);
-int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char *envp[], int prog);
+int Fork_Builtin(int pipe_fd[2], int stderr, int argc, char** argv, int prog);
+int Fork_Cmd(int pipe_fd[2], int stderr, int argc, char** argv, char *envp[], int prog);
 
 
 

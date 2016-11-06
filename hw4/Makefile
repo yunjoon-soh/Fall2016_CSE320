@@ -16,10 +16,12 @@ LIBS := readline
 
 .PHONY: clean all
 
-debug: CFLAGS += -g -DDEBUG
-debug: all
+all: exec
 
-all: folder $(EXEC)	
+debug: CFLAGS += -g -DDEBUG
+debug: exec
+
+exec: folder $(EXEC)	
 
 folder: 
 	mkdir -p bin build
@@ -28,7 +30,7 @@ $(EXEC): $(_OBJF)
 	$(CC) $^ -o $(BIND)/$@ -l $(LIBS)
 
 $(BLDD)/%.o: $(SRCD)/%.c
-	$(CC) $(CFLAGS) $(DFLAGS) $(INC) -c -o $@ $<
+	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
 
 clean:
 	$(RM) -r $(BLDD) $(BIND)
@@ -36,7 +38,7 @@ clean:
 
 # I added
 TESTD= test
-test: folder $(BIND)/sfunit
+test: folder debug $(BIND)/sfunit
 
 bin/sfunit: $(TESTD)/sfunit.o $(BLDD)/job_arraylist.o $(BLDD)/sfbuiltin.o $(BLDD)/sfish_helper.o 
 	$(CC) $(CFLAGS) $(DFLAGS) $^ $(INC) -lcriterion -lreadline -o $@

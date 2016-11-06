@@ -1409,6 +1409,7 @@ Test(job_arraylist_createJob, isCorrect){
 	debug("First job\n");
 	char *cmd1[3] = {"ABC", "DEF", 0};
 	struct job* j = createJob(1234, RUNNING, cmd1);
+	j->inJob = 1;
 
 	addJob(j);
 	cr_assert(job_start == job_end);
@@ -1419,6 +1420,7 @@ Test(job_arraylist_createJob, isCorrect){
 	debug("Second job\n");
 	char *cmd2[6] = {"ABC", "DEF", "GHI", "|", "grep", 0};
 	struct job* j2 = createJob(12345, STOPPED, cmd2);
+	j2->inJob = 1;
 	
 	addJob(j2);
 	cr_assert(job_start != job_end);
@@ -1430,6 +1432,7 @@ Test(job_arraylist_createJob, isCorrect){
 	debug("Third job\n");
 	char *cmd3[3] = {"333", "THREE", 0};
 	struct job* j3 = createJob(33333, RUNNING, cmd3);
+	j3->inJob = 1;
 	
 	addJob(j3);
 	cr_assert(job_start != job_end);
@@ -1442,6 +1445,7 @@ Test(job_arraylist_createJob, isCorrect){
 	cr_assert(equals(job_end->prev, j2->pid, JOB_FALSE));
 	cr_assert(equals(job_end->prev, j2->jid, JOB_TRUE));
 
+	printJobsAll();
 	debug("Remove Middle Job\n");
 	removeJob(2, JOB_TRUE);
 	cr_assert(job_start != job_end);
@@ -1449,6 +1453,7 @@ Test(job_arraylist_createJob, isCorrect){
 	cr_assert(equals(job_start, j->jid, JOB_TRUE));
 	cr_assert(equals(job_end, j3->pid, JOB_FALSE));
 	cr_assert(equals(job_end, j3->jid, JOB_TRUE));
+	printJobsAll();
 	cr_assert(equals(job_start->next, j3->pid, JOB_FALSE));
 	cr_assert(equals(job_start->next, j3->jid, JOB_TRUE));
 	cr_assert(equals(job_end->prev, j->pid, JOB_FALSE));
@@ -1457,6 +1462,7 @@ Test(job_arraylist_createJob, isCorrect){
 	debug("Add fourth job\n");
 	char *cmd4[3] = {"4444", "Fourt", 0};
 	struct job* j4 = createJob(4444, RUNNING, cmd4);
+	j4->inJob = 1;
 
 	addJob(j4);
 	cr_assert(equals(job_start, j->pid, JOB_FALSE));
@@ -1486,6 +1492,7 @@ Test(job_arraylist_createJob, isCorrect){
 	debug("Add fifth job\n");
 	char *cmd5[3] = {"55555", "Five", 0};
 	struct job* j5 = createJob(55555, RUNNING, cmd5);
+	j5->inJob = 1;
 
 	addJob(j5);
 	cr_assert(equals(job_start, j3->pid, JOB_FALSE));

@@ -49,6 +49,7 @@ int main(int argc, char** argv, char *envp[]) {
 			ei_array[i].prog_index = -1;
 			ei_array[i].pipe_fd[READ_END] = STDIN_FILENO;
 			ei_array[i].pipe_fd[WRITE_END] = STDOUT_FILENO;
+			ei_array[i].stderr_pipe = STDERR_FILENO;
 		}
 		int ei_cnt = 0;
 
@@ -109,9 +110,17 @@ int main(int argc, char** argv, char *envp[]) {
 					continue;
 				}
 
-				ei_array[ei_cnt].pipe_fd[WRITE_END] = open_fd;
+				char *ptr = argv[next_pipe - 1];
+				if( *(ptr) != '2'){
+					ei_array[ei_cnt].pipe_fd[WRITE_END] = open_fd;
+					ei_array[ei_cnt].stderr_pipe = open_fd;
 
-				argv[next_pipe] = 0;
+					argv[next_pipe] = 0;
+				} else {
+					debug("READ_END set to stderr\n");
+
+					ei_array[ei_cnt].stderr_pipe = open_fd;
+				}
 
 			} else if( strcmp(argv[next_pipe], "<") == 0 ){
 				if(next_pipe == 0){
@@ -168,13 +177,13 @@ int main(int argc, char** argv, char *envp[]) {
 
 int Fork(int argc, char** argv, char *envp[], struct exe_info* ei){
 	if( isBuiltin(argv[ei->prog_index]) ){
-		return Fork_Builtin(ei->pipe_fd, argc, argv, ei->prog_index);
+		return Fork_Builtin(ei->pipe_fd, ei->stderr_pipe, argc, argv, ei->prog_index);
 	} else {
-		return Fork_Cmd(ei->pipe_fd, argc, argv, envp, ei->prog_index);
+		return Fork_Cmd(ei->pipe_fd, ei->stderr_pipe, argc, argv, envp, ei->prog_index);
 	}
 }
 
-int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog){
+int Fork_Builtin(int pipe_fd[2], int stderr_no, int argc, char** argv, int prog){
 	int childPid, childStatus;
 
 	// execution
@@ -186,10 +195,15 @@ int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog){
 		// SetSigHandler();
 
 		// set fds
-		SetFd(pipe_fd);
+		SetFd(pipe_fd, stderr_no);
 
 		// execute the built in program
 		last_exe.val = exeBuiltIn(argc, (argv + prog));
+
+		CloseFd(pipe_fd, stderr_no);
+		close(STDIN_FILENO);
+		close(STDOUT_FILENO);
+		close(STDERR_FILENO);
 
 		// exit the child process
 		exit(last_exe.val);
@@ -199,7 +213,7 @@ int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog){
 		pid_t wpid = wait(&childStatus);
 
 		// close fds
-		CloseFd(pipe_fd);
+		CloseFd(pipe_fd, stderr_no);
 
 		// print out the status code
 		HandleExit(wpid, childStatus);
@@ -211,9 +225,9 @@ int Fork_Builtin(int pipe_fd[2], int argc, char** argv, int prog){
 }
 
 
-int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
-	int childPid;
-	int childStatus;
+int Fork_Cmd(int pipe_fd[2], int stderr_no, int argc, char** argv, char* envp[], int prog){
+	int childPid = -1;
+	int childStatus = 0;
 
 	// check if it is a background program
 	if(isBgProc(argv + prog)){
@@ -231,12 +245,17 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 
 			// set fds
 			debug("pipe_fd[READ_END]=%d, pipe_fd[WRITE_END]=%d\n", pipe_fd[READ_END], pipe_fd[WRITE_END]);
-			SetFd(pipe_fd);
+			SetFd(pipe_fd, stderr_no);
 
 			// execute passed in program
 			last_exe.val = exeCmd(argc, (argv + prog), envp);
 
 			fprintf(stderr, "Returned from exeCmd\n");
+
+			CloseFd(pipe_fd, stderr_no);
+			close(STDIN_FILENO);
+			close(STDOUT_FILENO);
+			close(STDERR_FILENO);
 
 			// exit the child process
 			exit(last_exe.val);
@@ -244,10 +263,6 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 		} else { // parent code
 			struct job* now = createJob(childPid, RUNNING, (argv + prog));
 			now->inJob = 1; // this is background job, so should be added to the Job list
-			time_t rawtime;
-
-			time ( &rawtime );
-			localtime_r ( &rawtime, now->timeinfo);
 
 			addJob(now);
 
@@ -268,23 +283,23 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 
 		// set fds
 		debug("pipe_fd[READ_END]=%d, pipe_fd[WRITE_END]=%d\n", pipe_fd[READ_END], pipe_fd[WRITE_END]);
-		SetFd(pipe_fd);
+		SetFd(pipe_fd, stderr_no);
 
 		// execute passed in program
 		last_exe.val = exeCmd(argc, (argv + prog), envp);
 
 		fprintf(stderr, "Returned from exeCmd\n");
+		CloseFd(pipe_fd, stderr_no);
+		close(STDIN_FILENO);
+		close(STDOUT_FILENO);
+		close(STDERR_FILENO);
 
 		// exit the child process
 		exit(last_exe.val);
 
 	} else {
 		struct job* now = createJob(childPid, RUNNING, (argv + prog));
-		time_t rawtime;
 
-		time ( &rawtime );
-		localtime_r ( &rawtime, now->timeinfo);
-		
 		addJob(now);
 
 		cmd_cnt++;
@@ -296,11 +311,10 @@ int Fork_Cmd(int pipe_fd[2], int argc, char** argv, char* envp[], int prog){
 		pid_t wpid = waitpid(childPid, &childStatus, WUNTRACED);
 
 		if(WIFEXITED(childStatus)){
-			debug("exited\n");
-			removeJob(now->pid, JOB_FALSE);
+			removeJob(childPid, JOB_FALSE);
 
 			// close fds
-			CloseFd(pipe_fd);
+			CloseFd(pipe_fd, stderr_no);
 
 			// print out the status code
 			HandleExit(wpid, childStatus);

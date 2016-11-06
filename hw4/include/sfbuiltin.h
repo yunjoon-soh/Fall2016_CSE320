@@ -61,6 +61,16 @@
     #define info(S, ...)    fprintf(stdout, KBLU2 "INFO: %s:%s:%d " KNRM2 S, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
     #define success(S, ...) fprintf(stdout, KGRN2 "SUCCESS: %s:%s:%d " KNRM2 S, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #else
+    #define KNRM2  "\x1B[0m"
+    #define KRED2  "\x1B[1;31m"
+    #define KGRN2  "\x1B[1;32m"
+    #define KYEL2  "\x1B[1;33m"
+    #define KBLU2  "\x1B[1;34m"
+    #define KMAG2  "\x1B[1;35m"
+    #define KCYN2  "\x1B[1;36m"
+    #define KWHT2  "\x1B[1;37m"
+    #define KBWN2  "\x1B[0;33m"
+    
     #define debug(S, ...)
     #define error(S, ...)   fprintf(stderr, KRED2 "ERROR: " KNRM2 S, ##__VA_ARGS__)
     #define warn(S, ...)    fprintf(stderr, KYEL2 "WARN: " KNRM2 S, ##__VA_ARGS__)

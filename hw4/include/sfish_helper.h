@@ -26,8 +26,10 @@ int isBgProc(char** argv);
 
 /* Pipeline*/
 int getNextPipe(int argc, char** argv, int from);
-void SetFd(int pipe_fd[2]);
-void CloseFd(int pipe_fd[2]);
+
+void SetFd(int pipe_fd[2], int stderr_no);
+void CloseFd(int pipe_fd[2], int stderr_no);
+
 void HandleExit(pid_t wpid, int childStatus);
 void SetSigHandler();
 #endif

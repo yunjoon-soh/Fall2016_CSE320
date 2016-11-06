@@ -223,13 +223,13 @@ int exeCmd(int argc, char** argv, char* envp[]){
 
 		if(existsInPath(argv[0]) != SF_FALSE){
 
-			// debug("EXECUTE pid=%d\n", getpid());
+			debug("EXECUTE pid=%d\n", getpid());
 
-			// int i = 0;
-			// while(argv[i] != 0){
-			// 	debug("argc=%d, argv[%d]=%s\n", argc, i, argv[i]);
-			// 	i++;
-			// }
+			int i = 0;
+			while(argv[i] != 0){
+				debug("argc=%d, argv[%d]=%s\n", argc, i, argv[i]);
+				i++;
+			}
 
 			ret = execvp(argv[0], argv);
 
@@ -284,7 +284,6 @@ int isBuiltin(char* argv_0){
 int isBgProc(char** argv){
 	char** tmp = argv;
 	while(*tmp != NULL){
-		debug("*tmp=\"%s\"\n", *tmp);
 		if( strcmp(*tmp, BG_RUN) == 0){
 			return !SF_FALSE;
 		}
@@ -309,35 +308,49 @@ int getNextPipe(int argc, char** argv, int from){
 	return -1;
 }
 
-void SetFd(int pipe_fd[2]){
+void SetFd(int pipe_fd[2], int stderr_no){
+	debug("Old READ_END=%d\n", STDIN_FILENO);
     if(pipe_fd[READ_END] != STDIN_FILENO){
+    	debug("New READ_END=%d\n", pipe_fd[READ_END]);
         int ret = dup2(pipe_fd[READ_END], STDIN_FILENO);
         if(ret == -1){
             fprintf(stderr, "dup2(pipe_fd[READ_END]=%d, STDIN_FILENO=%d) failed\n",pipe_fd[READ_END], STDIN_FILENO);
             perror("dup2 for read_end");
             last_exe.val = ret;
-            exit(last_exe.val); //TODO
         }
     }
 
     if(pipe_fd[WRITE_END] != STDOUT_FILENO){
+    	debug("New WRITE_END=%d\n", pipe_fd[WRITE_END]);
         int ret = dup2(pipe_fd[WRITE_END], STDOUT_FILENO);
         if(ret == -1){
             fprintf(stderr, "dup2(pipe_fd[READ_END]=%d, STDIN_FILENO=%d) failed\n",pipe_fd[READ_END], STDIN_FILENO);
             perror("dup2 for write_end");
             last_exe.val = ret;
-            exit(last_exe.val);
         }
     }
+
+    if(stderr_no != STDERR_FILENO){
+		int ret = dup2(stderr_no, STDERR_FILENO);
+		if(ret == -1){
+			fprintf(stderr, "dup2(pipe_fd[READ_END]=%d, STDIN_FILENO=%d) failed\n",pipe_fd[READ_END], STDIN_FILENO);
+			perror("dup2 for write_end");
+			last_exe.val = ret;
+		}
+	}
 }
 
-void CloseFd(int pipe_fd[2]){
+void CloseFd(int pipe_fd[2], int stderr_no){
 	if(pipe_fd[READ_END] != STDIN_FILENO){
 	    close(pipe_fd[READ_END]);
 	}
 
 	if(pipe_fd[WRITE_END] != STDOUT_FILENO){
 	    close(pipe_fd[WRITE_END]);
+	}
+
+	if(stderr_no != STDERR_FILENO){
+		close(stderr_no);
 	}
 }
 
@@ -346,7 +359,7 @@ void HandleExit(pid_t wpid, int childStatus){
         last_exe.val = WEXITSTATUS(childStatus);
         debug("Child %d terminated with exit code %d\n", wpid, last_exe.val);
     } else{
-        last_exe.val = WEXITSTATUS(childStatus);
+        last_exe.val = -1;
         debug("Child %d terminated abnormally: %d\n", wpid, last_exe.val);
     }
 }

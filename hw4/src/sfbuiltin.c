@@ -4,19 +4,16 @@
 #include "sfish_helper.h"
 #include "sfkey.h"
 
-#ifndef DEBUG
-#define DEBUG
-#endif
-
-#define USAGE_LENGTH 7
+#define USAGE_LENGTH 8
 const char* USAGE[USAGE_LENGTH] = {
 	"help\n",
 	"exit\n",
-	"cd\n",
+	"cd [PATH]\n",
 	"pwd\n",
 	"prt\n",
-	"chpmt\n",
-	"chclr\n"
+	"chpmt user|machine 0|1\n",
+	"chclr user|machine 0|1 COLOR\n"
+	"COLORS: red, blue, green, yellow, cyan, magenta, black, white\n"
 };
 
 int preprocess(){
@@ -58,7 +55,6 @@ int countArgs(char** argv, int index){
 }
 
 int builtin_help(){
-	debug("print help\n");
 	int i;
 	for(i = 0; i < USAGE_LENGTH; i++){
 		printf("%s", USAGE[i]); 
@@ -159,13 +155,13 @@ int builtin_cd(char** argv){
 }
 
 int builtin_pwd(){
-	char cwd[PATH_MAX], * ret;
+	char cwd[PATH_MAX], *ret;
 	ret = getcwd(cwd, PATH_MAX);
 	if(ret == NULL){
 		error("getcwd failed");
 		return SF_FAIL;
 	} else{
-		printf("%s\n", ret);
+		fprintf(stdout, "%s\n", ret);
 		return SF_SUCCESS;
 	}
 }
@@ -379,6 +375,10 @@ int builtin_kill(char** argv){
 	// }
 
 	struct job* j = findById(id, isJid);
+	if(j == NULL){
+		debug("Job not found!\n");
+		return SF_FAIL;
+	}
 	// send the signal
 	debug("Sending signal(%d) to pid=%d\n", sig, j->pid);
 	int ret = kill(j->pid, sig);

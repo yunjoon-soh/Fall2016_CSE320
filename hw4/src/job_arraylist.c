@@ -1,6 +1,7 @@
 //job_arraylist.c
 
 #include "job_arraylist.h"
+#include "sfbuiltin.h"
 
 int job_cnt = 0;
 
@@ -30,10 +31,10 @@ struct job* createJob(int pid, job_state jstate, char** cmd){
 		return NULL;
 	}
 
-	int len = 1; // for the last '\0'
+	int len = 0; // for the last '\0'
 	char **cmd_ptr = cmd;
 	while( *cmd_ptr != 0 ){
-		len += strlen(*cmd);
+		len += (strlen(*cmd) + 1); // +1 for space
 		cmd_ptr++;
 	}
 
@@ -41,6 +42,7 @@ struct job* createJob(int pid, job_state jstate, char** cmd){
 	newJob->pid = pid;
 	newJob->jstate = jstate;
 	newJob->cmd = (char*) malloc(sizeof(char) * len);
+	debug("Malloced %d for job's cmd\n", len);
 	if(newJob->cmd == NULL){
 		fprintf(stderr, "Malloc for newJob->cmd failed\n");
 		return NULL;
@@ -64,7 +66,12 @@ struct job* createJob(int pid, job_state jstate, char** cmd){
 	newJob->inJob = 0; // false by default
 	newJob->prev = NULL;
 	newJob->next = NULL;
-	newJob->timeinfo = (struct tm*) malloc(sizeof(struct tm));
+
+	time_t rawtime;
+	time ( &rawtime );
+
+	localtime_r ( &rawtime, &newJob->timeinfo);
+
 
 	return newJob;
 }
@@ -72,6 +79,7 @@ struct job* createJob(int pid, job_state jstate, char** cmd){
 // return -1 on failure
 // return pid if successful
 int removeJob(int jid_pid, int isjid){
+	debug("Remove job id=%d\n", jid_pid);
 	struct job *now = findById(jid_pid, isjid);
 	if(now == NULL){
 		fprintf(stderr, "Job not found!");
@@ -104,7 +112,6 @@ int removeJob(int jid_pid, int isjid){
 	}
 
 	free(now->cmd);
-	free(now->timeinfo);
 	free(now);
 
 	return pid;
@@ -129,7 +136,6 @@ void removeAllJobs(){
 
 void printJobs(){
 	struct job *now = job_start;
-	debug("Current job_start=%d, job_end=%d\n", (now==NULL)?0:now->pid, (job_end==NULL)?0:job_end->pid);
 	while(now != NULL){
 		if(!now->inJob){
 			now = now->next;
@@ -229,7 +235,7 @@ void p_sigtstp_handler(int sig){
 
 	struct job* j = findById(fg_pid, JOB_FALSE);
 	if(j == NULL){ // j should not be NULL
-		error("Serious mistake!, j(fg_pid=%d) should not be null for SIGTSTP! \n", fg_pid);
+		debug("Serious mistake!, j(fg_pid=%d) should not be null for SIGTSTP! \n", fg_pid);
 		return;
 	}
 
@@ -260,7 +266,7 @@ void p_sigint_handler(int sig){
 	// remove from the job list
 	int ret = removeJob(fg_pid, JOB_FALSE);
 	if(ret == -1){ // j should not be NULL
-		error("Serious mistake!, j(fg_pid=%d) should not be null for SIGINT! \n", fg_pid);
+		debug("Serious mistake!, j(fg_pid=%d) should not be null for SIGINT! \n", fg_pid);
 		return;
 	}
 }
@@ -274,7 +280,9 @@ void p_sigchld_handler(int sig){
 		debug("Still children to wait\n");
 	} else if(wpid == -1){
 		debug("No more child to wait\n");
-		perror("waitpid in sigchld handler");
+
+		// surpressed
+		// perror("waitpid in sigchld handler");
 	} else if(wpid > 0){
 		debug("Child reaped!! wpid=%d\n", wpid);
 		struct job* now = findById(wpid, JOB_FALSE); // remove by pid

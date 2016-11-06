@@ -91,7 +91,7 @@ void ctrl_p(){
 		while(now != NULL){
 			if(now->jstate == RUNNING){
 				fprintf(stdout, "%7d %7d    %2d:%2d %10s\n", getpgid(now->pid), now->pid, 
-					now->timeinfo->tm_hour, now->timeinfo->tm_min, now->cmd);
+					now->timeinfo.tm_hour, now->timeinfo.tm_min, now->cmd);
 			}
 			now = now->next;
 		}
