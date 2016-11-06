@@ -62,7 +62,7 @@ int countArgs(char** argv, int index){
 int builtin_help(){
 	int i;
 	for(i = 0; i < USAGE_LENGTH; i++){
-		printf("%s", USAGE[i]); 
+		fprintf(stdout, "%s", USAGE[i]); 
 	}
 
 	return SF_SUCCESS;
@@ -123,11 +123,10 @@ int builtin_cd(char** argv){
 	ret = stat(path, &stat_res);
 	if(ret == -1){
 		perror("stat");
-		fprintf(stderr, "%s\n", path);
 		return SF_FAIL;
 	} else if(ret == 0){
 		if(!S_ISDIR(stat_res.st_mode)){
-			fprintf(stderr, "%s: Not a directory", path);
+			fprintf(stderr, "%s: Not a directory\n", path);
 			return SF_FAIL;
 		}
 	}
@@ -172,7 +171,7 @@ int builtin_pwd(){
 }
 
 int builtin_prt(){
-	printf("Last executed result: %d\n", last_exe.val);
+	fprintf(stdout, "Last executed result: %d\n", last_exe.val);
 	return SF_SUCCESS;
 }
 
@@ -236,7 +235,7 @@ int builtin_chclr(char** argv){
 	} else if( strcmp(argv[3], "white") == 0){
 		color = KWHT;
 	} else {
-		fprintf(stderr, "%s\n", "Error: chclr: second argument is invalid");
+		fprintf(stderr, "Error: chclr: second argument is invalid\n");
 		return SF_FAIL;
 	}
 
@@ -382,13 +381,6 @@ int builtin_kill(char** argv){
 		fprintf(stderr, "Invalid kill parameter\n");
 		return SF_FAIL;
 	}
-
-	// remove job handled by sigchld_handler
-	// int removed_pid;
-	// if( (removed_pid = removeJob(id, isJid)) == -1){
-	// 	fprintf(stderr, "Removing job %d failed\n", id);
-	// 	return SF_FAIL;
-	// }
 
 	struct job* j = findById(id, isJid);
 	if(j == NULL){

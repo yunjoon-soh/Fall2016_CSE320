@@ -82,30 +82,25 @@ int removeJob(int jid_pid, int isjid){
 	debug("Remove job id=%d\n", jid_pid);
 	struct job *now = findById(jid_pid, isjid);
 	if(now == NULL){
-		fprintf(stderr, "Job not found!");
+		debug(stderr, "Job not found!");
 		return -1;
 	}
 
 	int pid = now->pid;
 
-	// fprintf(stderr, "about to delete now=%d\n", now->pid);
 	if(now->prev == NULL && now->next == NULL){
-		// fprintf(stderr, "just this one left\n");
 		// now is headjob and the tailjob
 		job_start = NULL;
 		job_end = NULL;
 	} else if(now->prev == NULL && now->next != NULL){
-		// fprintf(stderr, "rm head\n");
 		// head job but not tailjob
 		now->next->prev = NULL;
 		job_start = now->next;
 	} else if(now->prev != NULL && now->next == NULL){
-		// fprintf(stderr, "rm tail\n");
 		// tail job but not headjob
 		now->prev->next = NULL;
 		job_end = now->prev;
 	} else {
-		// fprintf(stderr, "rm middle\n");
 		// neither head nor tail
 		now->prev->next = now->next;
 		now->next->prev = now->prev;
@@ -141,8 +136,7 @@ void printJobs(){
 			now = now->next;
 			continue;
 		}
-		// fprintf(stdout, "[%d]     %s       %5d     \"%s\"\n", now->jid, 
-			// (now->jstate == RUNNING)?"Running":"Stopped", now->pid, now->cmd);
+
 		int prev_pid, next_pid;
 		if(now->prev != NULL){
 			prev_pid = now->prev->pid;
@@ -162,10 +156,8 @@ void printJobs(){
 
 void printJobsAll(){
 	struct job *now = job_start;
-	fprintf (stdout, "Current job_start=%d, job_end=%d\n", (now==NULL)?0:now->pid, (job_end==NULL)?0:job_end->pid);
-	while(now != NULL){
-		// fprintf(stdout, "[%d]     %s       %5d     \"%s\"\n", now->jid, 
-			// (now->jstate == RUNNING)?"Running":"Stopped", now->pid, now->cmd);
+	debug("Current job_start=%d, job_end=%d\n", (now==NULL)?0:now->pid, (job_end==NULL)?0:job_end->pid);
+	while(now != NULL){;
 		int prev_pid, next_pid;
 		if(now->prev != NULL){
 			prev_pid = now->prev->pid;
@@ -218,6 +210,7 @@ struct job* findById(int jid_pid, int isjid){
 }
 
 void p_sigtstp_handler(int sig){
+	int tmp_errno = errno;
 	debug("parent sigtstp handler: pid=%d pgid=%d\n", getpid(), getpgid(getpid()));
 	int fg_pid = 0;
 	if(fg != NULL){
@@ -245,9 +238,11 @@ void p_sigtstp_handler(int sig){
 		j->inJob = 1;
 	}
 	j->jstate = STOPPED;
+	errno = tmp_errno;
 }
 
 void p_sigint_handler(int sig){
+	int tmp_errno = errno;
 	debug("sigint handler: pid=%d pgid=%d\n", getpid(), getpgid(getpid()));
 	int fg_pid = 0;
 	if(fg != NULL){
@@ -269,6 +264,7 @@ void p_sigint_handler(int sig){
 		debug("Serious mistake!, j(fg_pid=%d) should not be null for SIGINT! \n", fg_pid);
 		return;
 	}
+	errno = tmp_errno;
 }
 
 void p_sigchld_handler(int sig){
@@ -291,7 +287,7 @@ void p_sigchld_handler(int sig){
 		
 		int ret = removeJob(wpid, JOB_FALSE);
 		if(ret == -1){
-			fprintf(stderr, "Removing job failed!\n");
+			debug(stderr, "Removing job failed!\n");
 		}
 	}
 }

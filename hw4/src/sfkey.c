@@ -26,7 +26,6 @@ const char* SFISH_INFO[SFISH_INFO_LENGTH] = {
 	"----Number of Commands Run----"
 };
 
-
 void ctrl_b(){
 	struct job *now = job_start;
 	if(now == NULL){
@@ -41,18 +40,18 @@ void ctrl_b(){
 	}
 
 	SPID = (now==NULL)?-1:now->pid;
-	fprintf(stdout, "SPID is %d\n", SPID);
+	fprintf(stdout, "\nSPID is %d\n", SPID);
 }
 
 void ctrl_g(){
 	if(SPID == -1){
-		fprintf(stderr, "SPID does not exists and has been set to -1\n");
+		fprintf(stderr, "\nSPID does not exists and has been set to -1\n");
 		return;
 	}
 
 	struct job *found = findById(SPID, JOB_FALSE);
 	if(found == NULL){
-		fprintf(stderr, "SPID does not exists and has been set to -1\n");
+		fprintf(stderr, "\nSPID does not exists and has been set to -1\n");
 		SPID = -1;
 		return;	
 	}
