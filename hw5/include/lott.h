@@ -12,9 +12,9 @@
 
 #define HELP do{ \
                 printf("%s\n", "Lord of the Threads");\
-                printf("%s\n", "bin/lott QUERY N [M]");\
-                printf("%s\n", "QUERY - The calculation the program is to execute: LOW, HIGH, or AVG");\
-                printf("%s\n", "N - Part specification, parts 1,2,3,4,5 are valid choices.");\
+                printf("%s\n", "bin/lott N QUERY [M]");\
+                printf("%s\n", "N - Part specification: 1, 2, 3, 4, 5 are valid choices.");\
+                printf("%s\n", "QUERY - The calculation the program is to execute: A, B, C, D or E");\
                 printf("%s\n", "M - Number of threads for parts that take a specified amount");\
             }while(0)
 
@@ -26,9 +26,11 @@
     PART(PART5)
 
 #define FOREACH_QUERY(QUERY) \
-    QUERY(LOW)               \
-    QUERY(HIGH)              \
-    QUERY(AVG)
+    QUERY(A)               \
+    QUERY(B)               \
+    QUERY(C)               \
+    QUERY(D)               \
+    QUERY(E)
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
