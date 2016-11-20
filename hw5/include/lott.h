@@ -1,6 +1,8 @@
 #ifndef LOTT_H
 #define LOTT_H
 
+#define _GNU_SOURCE
+
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
