@@ -1,4 +1,8 @@
 bin/
 build/
 data/
+core
+*.out
+test/build/
+test/*.out
 

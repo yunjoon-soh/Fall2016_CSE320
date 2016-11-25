@@ -1,13 +1,9 @@
-// helper.h
-#ifndef _HELPER_H_
-#define _HELPER_H_
+//list.h
+#ifndef _LIST_H_
+#define _LIST_H_
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <pthread.h>
-
-#include <dirent.h>
 
 // Colors
 #ifdef COLOR
@@ -47,16 +43,16 @@
 	#define success(S, ...) fprintf(stdout, KGRN "SUCCESS: " KNRM S, ##__VA_ARGS__)
 #endif
 
-// funcs
-char **splitByComma(char *line, char *buf[], size_t cnt);
-int cntry_code_converter(char code[2]);
+struct list{
+	struct list *next;
+	int key;
+	int value;
+};
 
-// wrapper
-FILE **Fopen(const char *path, const char *mode, FILE **fp);
-DIR **Opendir(const char *name, DIR **dir);
-int Closedir(DIR **pdir);
+void add(struct list **head, int key, int value);
+struct list*createNode(int key, int value);
+struct list*find(struct list *head, int key);
+void freeAll(struct list **head);
 
-int Pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
-int Pthread_join(pthread_t thread, void **retval);
 
 #endif

@@ -68,18 +68,18 @@ int cntry_code_converter(char code[2]){
 /*
 * Wrapper
 */
-FILE *Fopen(const char *path, const char *mode, FILE *fp){
-	fp = fopen(path, mode);
-	if(fp == NULL){
-		perror("Fopen");
+FILE **Fopen(const char *path, const char *mode, FILE **fp){
+	*fp = fopen(path, mode);
+	if(*fp == NULL){
+		perror(path);
 		exit(EXIT_FAILURE);
 	}
 
 	return fp;
 }
 
-DIR *Opendir(const char *name, DIR *dir){
-	if((dir = opendir (name)) != NULL){
+DIR **Opendir(const char *name, DIR **dir){
+	if((*dir = opendir (name)) != NULL){
 		return dir;
 	} else {
 		perror("");
@@ -89,8 +89,8 @@ DIR *Opendir(const char *name, DIR *dir){
 	return dir;
 }
 
-int Closedir(DIR *dirp){
-	if(closedir(dirp) != -1){
+int Closedir(DIR **pdir){
+	if(closedir(*pdir) != -1){
 		return 0;
 	} else {
 		perror("");
