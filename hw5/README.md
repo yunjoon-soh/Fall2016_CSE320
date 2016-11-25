@@ -1,4 +1,6 @@
 # Lord of the Threads
 
-## Author:
-### ID:
+## Author: Yun Joon (Daniel) Soh
+### ID: 108256259
+
+
