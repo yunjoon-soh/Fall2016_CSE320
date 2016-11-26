@@ -119,3 +119,20 @@ int Pthread_join(pthread_t thread, void **retval){
 
 	return ret;
 }
+
+void print_map_res(struct map_res *res){
+	debug("%s: %lu(%p)\n", res->filename, res->datum_cnt, &res->datum_cnt);
+	debug("tot_duration: %lu\n", res->tot_duration);
+	debug("year_head:\n");
+	struct list *now = res->year_root;
+	while(now != NULL){
+		debug("\t%12d: %12d\n", now->key, now->value);
+		now = now->next;
+	}
+	debug("cntry_root:\n");
+	now = res->cntry_root;
+	while(now != NULL){
+		debug("\t%12d: %12d\n", now->key, now->value);
+		now = now->next;
+	}
+}

@@ -9,8 +9,12 @@
 
 #include <dirent.h>
 
+#include "list.h"
+#include "map_reduce.h"
+
 // Colors
-#ifdef COLOR
+#ifndef COLOR
+	#define COLOR
 	#define KNRM  "\x1B[0m"
 	#define KRED  "\x1B[1;31m"
 	#define KGRN  "\x1B[1;32m"
@@ -20,17 +24,6 @@
 	#define KCYN  "\x1B[1;36m"
 	#define KWHT  "\x1B[1;37m"
 	#define KBWN  "\x1B[0;33m"
-#else
-	/* Color was either not defined or Terminal did not support */
-	#define KNRM
-	#define KRED
-	#define KGRN
-	#define KYEL
-	#define KBLU
-	#define KMAG
-	#define KCYN
-	#define KWHT
-	#define KBWN
 #endif
 
 #ifdef DEBUG
@@ -58,5 +51,7 @@ int Closedir(DIR **pdir);
 
 int Pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
 int Pthread_join(pthread_t thread, void **retval);
+
+void print_map_res(struct map_res *res);
 
 #endif

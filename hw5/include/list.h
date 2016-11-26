@@ -6,7 +6,8 @@
 #include <stdlib.h>
 
 // Colors
-#ifdef COLOR
+#ifndef COLOR
+	#define COLOR
 	#define KNRM  "\x1B[0m"
 	#define KRED  "\x1B[1;31m"
 	#define KGRN  "\x1B[1;32m"
@@ -16,17 +17,6 @@
 	#define KCYN  "\x1B[1;36m"
 	#define KWHT  "\x1B[1;37m"
 	#define KBWN  "\x1B[0;33m"
-#else
-	/* Color was either not defined or Terminal did not support */
-	#define KNRM
-	#define KRED
-	#define KGRN
-	#define KYEL
-	#define KBLU
-	#define KMAG
-	#define KCYN
-	#define KWHT
-	#define KBWN
 #endif
 
 #ifdef DEBUG
