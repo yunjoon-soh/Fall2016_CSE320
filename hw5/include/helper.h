@@ -43,6 +43,7 @@
 // funcs
 char **splitByComma(char *line, char *buf[], size_t cnt);
 int cntry_code_converter(char code[2]);
+char** cntry_code_reverter(int code, char **buf);
 
 // wrapper
 FILE **Fopen(const char *path, const char *mode, FILE **fp);

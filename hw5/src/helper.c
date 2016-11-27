@@ -65,6 +65,14 @@ int cntry_code_converter(char code[2]){
 	return toRet;
 }
 
+char** cntry_code_reverter(int code, char **buf){
+	(*buf)[0] = (char) (code / 26 + 'A');
+	(*buf)[1] = (char) (code % 26 + 'A');
+	(*buf)[2] = '\0';
+
+	return buf;
+}
+
 /*
 * Wrapper
 */

@@ -49,11 +49,11 @@ void freeAll(struct list **head){
 
 	struct list *now = *head;
 	struct list *next;
-	do{
+	while(now != NULL){
 		next = now->next; // save next head before free
 		free(now); // free head
 		now = next; // new head is next
-	}while(now != NULL); // if now is NULL, done
+	}
 
 	*head = NULL;
 }

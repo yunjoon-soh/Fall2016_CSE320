@@ -9,7 +9,7 @@ static int f_cnt;
 
 int part1(){
 
-	printf(
+	fprintf( stderr,
 		"Part: %s\n"
 		"Query: %s\n",
 		PART_STRINGS[current_part], QUERY_STRINGS[current_query]);
@@ -76,8 +76,12 @@ int part1(){
 	}
 
 	reduce(mr_a);
+
 	for (int i = 0; i< f_cnt; i++){
 		free(mr_a[i]->filename);
+		freeAll(&(mr_a[i]->year_root));
+		freeAll(&(mr_a[i]->cntry_root));
+
 		free(mr_a[i]);
 	}
 
@@ -126,6 +130,9 @@ static void* map(void* v){
 		res->datum_cnt += 1;
 	}
 
+	fclose(fp);
+	free(line);
+
 	return (void*)res;
 }
 
@@ -145,18 +152,19 @@ static void* reduce(void* v){
 	// Find country with the most users
 	res_value[4] = 0;
 
+	struct list *cntry_based = NULL;
 	for(int i = 0; i < f_cnt; i++){
 		struct map_res *now = mr_a[i];
 		debug("Reduce check for result %3d: %s\n", i, now->filename);
 		print_map_res(now);
 
 		double AB = (double)now->tot_duration / (double)now->datum_cnt;
-		if(res_value[0] < AB){
+		if(AB > res_value[0]){ // max
 			res_value[0] = AB;
 			res[0] = now;
 		} 
 
-		if(res_value[1] > AB){
+		if(AB < res_value[1]){ // min
 			res_value[1] = AB;
 			res[1] = now;
 		}
@@ -172,12 +180,12 @@ static void* reduce(void* v){
 			}
 
 			double CD = (double)now->datum_cnt/(double)dist_year;
-			if(CD > res_value[2]){
+			if(CD > res_value[2]){ // max
 				res_value[2] = CD;
 				res[2] = now;
-			} 
+			}
 
-			if(CD < res_value[3]){
+			if(CD < res_value[3]){ // min
 				res_value[3] = CD;
 				res[3] = now;
 			}
@@ -188,23 +196,39 @@ static void* reduce(void* v){
 			warn("No cntry_root found!\n");
 		} else {
 			while(c_now != NULL){
-				if(res_value[4] < c_now->value){
-					res_value[4] = c_now->value;
-					res[4] = now;
-				}
+				add(&cntry_based, c_now->key, c_now->value);
 				c_now = c_now->next;
 			}
 		}
 	}
 
-	for(int i =0; i < 5 ; i++){
-		debug("Part: %s\nQuery: %s\nResult: %.5f, %s\n", PART_STRINGS[i], QUERY_STRINGS[i], res_value[i], res[i]->filename);
+	struct list *c_now = cntry_based;
+	int cntry_code;
+	if(c_now == NULL){
+		warn("No cntry_root found!\n");
+	} else {
+		while(c_now != NULL){
+			if(res_value[4] < c_now->value){
+				cntry_code = c_now->key;
+				res_value[4] = c_now->value;
+			}
+			c_now = c_now->next;
+		}
+	}
+	freeAll(&cntry_based);
+
+	for(int i =0; i < 4; i++){
+		printf("Result: %.5f, %s\n", res_value[i], res[i]->filename);
 	}
 
+	char *buf = (char*) malloc(sizeof(char) * 2 + 1); // + 1 for null term
+	printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
+	free(buf);
+
 	/* Where result is variables you define */
-	printf("Part: %s\nQuery: %s\nResult: %.5f, %s\n",
-		PART_STRINGS[current_part], QUERY_STRINGS[current_query], 
-		res_value[current_query], res[current_query]->filename);
+	// printf("Part: %s\nQuery: %s\nResult: %.5f, %s\n",
+	// 	PART_STRINGS[current_part], QUERY_STRINGS[current_query], 
+	// 	res_value[current_query], res[current_query]->filename);
 
 	return NULL;
 }
