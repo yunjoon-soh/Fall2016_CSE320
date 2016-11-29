@@ -1,82 +1,74 @@
 #include "lott.h"
 #include "helper.h"
-#include "map_reduce.h"
 #include "list.h"
+#include "map_reduce.h"
 
 static void* map(void*);
 static void* reduce(void*);
-static int f_cnt;
+static size_t f_cnt;
 
 int part1(){
-
-	fprintf( stderr,
+	printf(
 		"Part: %s\n"
 		"Query: %s\n",
 		PART_STRINGS[current_part], QUERY_STRINGS[current_query]);
 
-	DIR *dir = NULL;
-	struct dirent *ent;
-	f_cnt = 0;
+	DIR *dir = NULL; /*DIR pointer to data/ folder*/
+	struct dirent *ent; /*variable for reading the data/ folder*/
+	f_cnt = 0; /*# of files in data/ folder */
+	const char *base_dir = "./data/";
+	int base_dir_len = 8; // 7 chars + 1 null term
 
-	char *base_dir = "./data/";
-	int base_dir_len = 8;
+	// 1. Count the number of files
 	Opendir(base_dir, &dir);
-	while ((ent = readdir (dir)) != NULL) {
-		if( strncmp(ent->d_name, ".", 1) == 0 || strncmp(ent->d_name, "..", 2) == 0){
+	while ((ent = Readdir (dir, &ent)) != NULL) {
+		if( strncmp(ent->d_name, ".", 1) == 0 || strncmp(ent->d_name, "..", 2) == 0){// skip . and ..
 			continue;
 		}
 		f_cnt++;
 	}
 	Closedir (&dir);
 
+	// 2. Spawn f_cnt # of threads
 	struct map_res *mr_a[f_cnt];
 	pthread_t t[f_cnt];
 
-	/* print all the files and directories within directory */
-	// assume no recursive sub dirs
+	// Note. assume no recursive sub dirs
 	Opendir(base_dir, &dir);
-	for(int i = 0; i < f_cnt;){
-		int tmp_errno = errno;
-		ent = readdir (dir);
-		if(ent == NULL && tmp_errno == errno){
-			warn("Number of files differ: Not all of them are found!");
-			break;
-		} else if(ent == NULL && tmp_errno != errno){
-			perror("Part1.c");
-			exit(EXIT_FAILURE); // TODO : bad idea?
-		}
+	for(int i = 0; i < f_cnt; ){ // For every file in the dir...
+		ent = Readdir (dir, &ent);
 		debug("%3d: \"%s\"\n", i, ent->d_name);
 
-		if( strncmp(ent->d_name, ".", 1) == 0 || strncmp(ent->d_name, "..", 2) == 0){
+		if( strncmp(ent->d_name, ".", 1) == 0 || strncmp(ent->d_name, "..", 2) == 0){// skip . and ..
 			continue;
 		}
 
+		// prepare map_res struct
 		struct map_res *mr = (struct map_res *) malloc(sizeof(struct map_res));
 		mr_a[i] = mr;
-		mr->datum_cnt = 0;
 		
+		// set the filename with data/FILENAME
 		int filename_len = sizeof(ent->d_name) + base_dir_len;
 		mr->filename = (char*) malloc(filename_len);
 		memcpy(mr->filename, base_dir, base_dir_len);
 		strncat(mr->filename, ent->d_name, sizeof(ent->d_name));
 
-		mr->tot_duration = 0;
-		mr->year_root = NULL;
-		mr->cntry_root = NULL;
-
+		// create thread
 		Pthread_create(&t[i], NULL, map, mr);
-		i++;
+		i++; // put it here, because we don't want to increase i, even when ent->d_name is . or ..
 	}
 
-	// after spawning all of the children, start joining them
+	// 3. Joining threads
 	for (int i = 0; i< f_cnt; i++){
 		debug("Joining %d\n", i);
 		Pthread_join(t[i], (void **) &mr_a[i]);
 		print_map_res(mr_a[i]);
 	}
 
+	// 4. After join finishes, call reduce
 	reduce(mr_a);
 
+	// 5. Clean up
 	for (int i = 0; i< f_cnt; i++){
 		free(mr_a[i]->filename);
 		freeAll(&(mr_a[i]->year_root));
@@ -84,49 +76,58 @@ int part1(){
 
 		free(mr_a[i]);
 	}
-
 	Closedir (&dir);
 
 	return 0;
 }
 
 static void* map(void* v){
+	// Init map_res
 	struct map_res *res = (struct map_res *) v;
 	res->year_root = NULL;
 	res->cntry_root = NULL;
 	res->tot_duration = 0;
 	res->datum_cnt = 0;
 
-	// read per line
+	// fopen the file
 	FILE *fp = NULL;
 	Fopen(res->filename, "r", &fp);
 
+	// read per line
 	size_t len = 4096;
-	char *line = (char*) malloc(4096 * sizeof(char));	
 	ssize_t read;
+	char *line = (char*) malloc(4096 * sizeof(char));	
 
 	while ((read = getline(&line, &len, fp)) != -1) {
 		// debug("Retrieved line of length %zu : %s\n", read, line);
-
-		int cnt = 0;
+		
+		// 1. count number of comma, to prepare for invalid input
+		int cnt = 0; /*# of comma*/
 		char *ptr = line;
+		while(*ptr != '\0')	if(*ptr++ == ',') cnt++;
 
-		while(*ptr != '\0')	if(*ptr++ == ',')	cnt++; // count number of comma
+		if(cnt != 3){
+			error("Unexpected number of comma(=%d), skip %s\n", cnt, res->filename);
+			break;
+		}
 
+		// 2. split by comma
 		char *buf[cnt];
 		splitByComma(line, buf, cnt);
 
-		// country root
-		add(&res->cntry_root, cntry_code_converter(buf[3]), 1);
-		
+		// 3. Add year value
 		struct tm lt;
 		time_t t_val = (time_t) strtol(buf[0], NULL, 10);
 		localtime_r( &t_val, &lt);
-
-		// year root
 		add(&res->year_root, lt.tm_year + 1900, 1);
 
+		// 4. Add country value
+		add(&res->cntry_root, cntry_code_converter(buf[3]), 1);
+		
+		// 5. Sum up the total duration
 		res->tot_duration += atoi(buf[2]);
+
+		// 6. Add up the user cnt;
 		res->datum_cnt += 1;
 	}
 
@@ -152,45 +153,53 @@ static void* reduce(void* v){
 	// Find country with the most users
 	res_value[4] = 0;
 
-	struct list *cntry_based = NULL;
-	for(int i = 0; i < f_cnt; i++){
+	struct list *cntry_based = NULL; /*Sum of cnt per country*/
+	for(int i = 0; i < f_cnt; i++){ // for every map_res...
 		struct map_res *now = mr_a[i];
 		debug("Reduce check for result %3d: %s\n", i, now->filename);
 		print_map_res(now);
 
+		// 1. Set max, min for query A/B
 		double AB = (double)now->tot_duration / (double)now->datum_cnt;
 		if(AB > res_value[0]){ // max
 			res_value[0] = AB;
 			res[0] = now;
-		} 
+		} else if( (AB - res_value[0]) < EPSILON && (AB - res_value[0]) > -1 * EPSILON ){
+			res[0] = (strcmp(res[0]->filename, now->filename) < 0)?res[0]:now;
+		}
 
 		if(AB < res_value[1]){ // min
 			res_value[1] = AB;
 			res[1] = now;
+		} else if( (AB - res_value[1]) < EPSILON && (AB - res_value[1]) > -1 * EPSILON ){
+			res[1] = (strcmp(res[1]->filename, now->filename) < 0)?res[1]:now;
 		}
 
 		struct list *y_now = now->year_root;
 		if(y_now == NULL){
 			warn("No year_root found!\n");
 		} else {
-			int dist_year = 0; // count number of distinct years
-			while(y_now != NULL){
-				dist_year++;
-				y_now = y_now->next;
-			}
+			// count number of distinct years
+			size_t dist_year = count_list(y_now); 
 
+			// 2. Set max, min for query C/D
 			double CD = (double)now->datum_cnt/(double)dist_year;
 			if(CD > res_value[2]){ // max
 				res_value[2] = CD;
 				res[2] = now;
+			} else if((CD - res_value[2]) < EPSILON && (CD - res_value[2]) > -1 * EPSILON ){
+				res[2] = (strcmp(res[2]->filename, now->filename) < 0)?res[2]:now;
 			}
 
 			if(CD < res_value[3]){ // min
 				res_value[3] = CD;
 				res[3] = now;
+			} else if((CD - res_value[3]) < EPSILON && (CD - res_value[3]) > -1 * EPSILON ){
+				res[3] = (strcmp(res[3]->filename, now->filename) < 0)?res[3]:now;
 			}
 		}
 
+		// 3. Add up the cnt per cntry
 		struct list *c_now = now->cntry_root;
 		if(c_now == NULL){
 			warn("No cntry_root found!\n");
@@ -202,6 +211,7 @@ static void* reduce(void* v){
 		}
 	}
 
+	// 4. Find cntry with max cnt
 	struct list *c_now = cntry_based;
 	int cntry_code;
 	if(c_now == NULL){
@@ -215,8 +225,11 @@ static void* reduce(void* v){
 			c_now = c_now->next;
 		}
 	}
+
+	// 5. Clean up
 	freeAll(&cntry_based);
 
+	// 6. Print out the debugging result
 	for(int i =0; i < 4; i++){
 		printf("Result: %.5f, %s\n", res_value[i], res[i]->filename);
 	}
@@ -225,6 +238,7 @@ static void* reduce(void* v){
 	printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
 	free(buf);
 
+	// 7. Print out the actual query result
 	/* Where result is variables you define */
 	// printf("Part: %s\nQuery: %s\nResult: %.5f, %s\n",
 	// 	PART_STRINGS[current_part], QUERY_STRINGS[current_query], 

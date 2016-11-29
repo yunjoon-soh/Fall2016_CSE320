@@ -66,7 +66,7 @@ int cntry_code_converter(char code[2]){
 }
 
 char** cntry_code_reverter(int code, char **buf){
-	(*buf)[0] = (char) (code / 26 + 'A');
+	(*buf)[0] = (char) ((code / 26) + 'A');
 	(*buf)[1] = (char) (code % 26 + 'A');
 	(*buf)[2] = '\0';
 
@@ -97,6 +97,16 @@ DIR **Opendir(const char *name, DIR **dir){
 	return dir;
 }
 
+struct dirent *Readdir(DIR *dirp, struct dirent **ent){
+	int tmp_errno = errno; // save errno
+	*ent = readdir (dirp);
+	if(ent == NULL && tmp_errno != errno){
+		perror("Part1.c");
+		exit(EXIT_FAILURE); // TODO : bad idea?
+	}
+	return *ent;
+}
+
 int Closedir(DIR **pdir){
 	if(closedir(*pdir) != -1){
 		return 0;
@@ -106,6 +116,72 @@ int Closedir(DIR **pdir){
 	}
 
 	return -1;
+}
+
+void Fread_r(struct map_res **res, FILE *fp){
+	P(&mutex);
+	readcnt++;
+	if(readcnt == 1)
+		P(&w); // if anyone is reading, hold write mutex
+	V(&mutex);
+
+	P(&line);
+	while(linecnt <= 0)
+		usleep(300);
+	V(&line);
+
+	set_struct(res, fp);
+	P(&line);
+	linecnt--;
+	V(&line);
+
+	P(&mutex);
+	readcnt--;
+	if(readcnt == 0)
+		V(&w); // if no one is reading anymore, release write mutex
+	V(&mutex);
+}
+
+void Fwrite_r(struct map_res *res, FILE *fp){
+	P(&w);
+	fprintf_struct(res, fp);
+	fflush(fp);
+
+	P(&line);
+	linecnt++;
+	V(&line);
+	
+	V(&w);
+}
+
+int Sem_init(sem_t *sem, int pshared, unsigned int value){
+	int ret = sem_init(sem, pshared, value);
+	if(ret == -1){
+		perror("Sem_init()");
+		exit(EXIT_FAILURE);
+	}
+
+	return -1;
+}
+
+int P(sem_t* sem){
+	int ret = sem_post(sem);
+
+	if(ret == -1){
+		perror("");
+	}
+
+	return ret;
+}
+
+int V(sem_t* sem){
+	int ret = sem_wait(sem);
+
+	if(ret == -1){
+		perror("");
+	}
+
+	return ret;
 }
 
 int Pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg){
@@ -128,19 +204,3 @@ int Pthread_join(pthread_t thread, void **retval){
 	return ret;
 }
 
-void print_map_res(struct map_res *res){
-	debug("%s: %lu(%p)\n", res->filename, res->datum_cnt, &res->datum_cnt);
-	debug("tot_duration: %lu\n", res->tot_duration);
-	debug("year_head:\n");
-	struct list *now = res->year_root;
-	while(now != NULL){
-		debug("\t%12d: %12d\n", now->key, now->value);
-		now = now->next;
-	}
-	debug("cntry_root:\n");
-	now = res->cntry_root;
-	while(now != NULL){
-		debug("\t%12d: %12d\n", now->key, now->value);
-		now = now->next;
-	}
-}

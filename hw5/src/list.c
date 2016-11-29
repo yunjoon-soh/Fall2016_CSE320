@@ -1,6 +1,16 @@
 // list.c
 #include "list.h"
 
+size_t count_list(struct list *head){
+	struct list *now = head;
+	size_t cnt = 0;
+	while(now != NULL){
+		cnt++;
+		now = now->next;
+	}
+	return cnt;
+}
+
 void add(struct list **head, int key, int value){
 	if(*head == NULL){
 		// debug("Head is null, create new one!\n");

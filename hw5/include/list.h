@@ -39,6 +39,7 @@ struct list{
 	int value;
 };
 
+size_t count_list(struct list *head);
 void add(struct list **head, int key, int value);
 struct list*createNode(int key, int value);
 struct list*find(struct list *head, int key);

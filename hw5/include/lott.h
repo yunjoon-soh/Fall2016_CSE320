@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <semaphore.h>
 
 #define DATA_DIR "data"
 

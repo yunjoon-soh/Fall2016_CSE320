@@ -4,10 +4,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
 
 #include <dirent.h>
+#include <semaphore.h>
 
 #include "list.h"
 #include "map_reduce.h"
@@ -48,11 +50,19 @@ char** cntry_code_reverter(int code, char **buf);
 // wrapper
 FILE **Fopen(const char *path, const char *mode, FILE **fp);
 DIR **Opendir(const char *name, DIR **dir);
+struct dirent *Readdir(DIR *dirp, struct dirent **ent);
 int Closedir(DIR **pdir);
+void Fread_r(struct map_res **res, FILE *fp);
+void Fwrite_r(struct map_res *res, FILE *fp);
+
+int Sem_init(sem_t *sem, int pshared, unsigned int value);
+int P(sem_t* sem);
+int V(sem_t* sem);
 
 int Pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
 int Pthread_join(pthread_t thread, void **retval);
 
-void print_map_res(struct map_res *res);
+extern sem_t mutex, w, line;
+extern size_t readcnt, linecnt;
 
 #endif

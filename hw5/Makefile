@@ -39,4 +39,4 @@ $(BLDD)/%.o: $(SRCD)/%.c
 	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
 
 clean:
-	$(RM) -r $(BLDD) $(BIND)
+	$(RM) -r $(BLDD) $(BIND) mapred.tmp core
