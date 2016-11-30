@@ -110,7 +110,13 @@ int part3(size_t nthreads){
 		free(fnames[i]);
 	}
 
+	unlink(tmp_fname);
 	Closedir (&dir);
+	fclose(tmp_f_r);
+	fclose(tmp_f_w);
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	close(STDERR_FILENO);
 
 	return 0;
 }
@@ -122,9 +128,13 @@ static void* map(void* v){
 
 	for(int i = 0; i < per_thread; i++){
 		mr->filename = filenames[i];
-		debug("mr_a[%d]: %s\n", i, mr->filename);
+		debug("mr[%d]: %s\n", i, mr->filename);
 		map_part1_3(mr);
 		Fwrite_r(mr, tmp_f_w);
+		if(mr->cntry_root != NULL)
+			freeAll(&mr->cntry_root);
+		if(mr->year_root != NULL)
+			freeAll(&mr->year_root);
 	}
 
 	free(mr);
@@ -186,6 +196,11 @@ static void* reduce(void* v){
 	FILE *fp = (FILE *) v;
 
 	char *res[5];
+	res[0] = "";
+	res[1] = "";
+	res[2] = "";
+	res[3] = "";
+	res[4] = "";
 	double res_value[5];
 	// Max/Min average duration of all of the websites
 	res_value[0] = 0; // max by default is 0
@@ -199,10 +214,12 @@ static void* reduce(void* v){
 	res_value[4] = 0;
 
 	struct list *cntry_based = NULL;
+	struct map_res *keep_track[f_cnt];
 	for(int i = 0; i < f_cnt; i++){
 		struct map_res *now = NULL;
 
 		Fread_r(&now, fp);
+		keep_track[i] = now;
 
 		debug("Reduce check for result %3d: %s\n", i, now->filename);
 		// print_map_res(now);
@@ -223,7 +240,6 @@ static void* reduce(void* v){
 		}
 
 		long dist_year = (long) now->year_root;
-		debug("dist_year = %lu\n", dist_year);
 		if(dist_year != 0){
 			double CD = (double)now->datum_cnt/(double)dist_year;
 			if(CD > res_value[2]){ // max
@@ -279,6 +295,14 @@ static void* reduce(void* v){
 	// printf("Part: %s\nQuery: %s\nResult: %.5f, %s\n",
 	//  PART_STRINGS[current_part], QUERY_STRINGS[current_query], 
 	//  res_value[current_query], res[current_query]->filename);
+
+	// clean up
+	for(int i = 0; i < f_cnt; i++){
+		struct map_res *now = keep_track[i];
+		free(now->filename);
+		freeAll(&now->cntry_root);
+		free(now);
+	}
 
 	return NULL;
 }
