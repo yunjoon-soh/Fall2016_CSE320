@@ -32,6 +32,7 @@ int part1(){
 	// 2. Spawn f_cnt # of threads
 	struct map_res *mr_a[f_cnt];
 	pthread_t t[f_cnt];
+	char *thread_name = (char*) malloc(sizeof(char) * 20);
 
 	// Note. assume no recursive sub dirs
 	Opendir(base_dir, &dir);
@@ -55,8 +56,11 @@ int part1(){
 
 		// create thread
 		Pthread_create(&t[i], NULL, map, mr);
+		sprintf(thread_name, "map %3d", i);
+		Pthread_setname(t[i], thread_name);
 		i++; // put it here, because we don't want to increase i, even when ent->d_name is . or ..
 	}
+	free(thread_name);
 
 	// 3. Joining threads
 	for (int i = 0; i< f_cnt; i++){
@@ -204,10 +208,17 @@ static void* reduce(void* v){
 		if(c_now == NULL){
 			warn("No cntry_root found!\n");
 		} else {
+			int max_key = -1, max_cnt = -1;
 			while(c_now != NULL){
-				add(&cntry_based, c_now->key, c_now->value);
+				if(c_now->value > max_cnt){
+					max_key = c_now->key;
+					max_cnt = c_now->value;
+				} else if(c_now->value == max_cnt){
+					max_key = (c_now->key < max_key)?c_now->key:max_key;
+				}
 				c_now = c_now->next;
 			}
+			add(&cntry_based, max_key, max_cnt);
 		}
 	}
 
@@ -221,6 +232,8 @@ static void* reduce(void* v){
 			if(res_value[4] < c_now->value){
 				cntry_code = c_now->key;
 				res_value[4] = c_now->value;
+			} else if(res_value[4] == c_now->value){
+				cntry_code = (cntry_code > c_now->key)?c_now->key:cntry_code;
 			}
 			c_now = c_now->next;
 		}

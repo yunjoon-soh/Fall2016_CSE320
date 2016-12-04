@@ -81,12 +81,15 @@ int part2(size_t nthreads){
 	}
 
 	debug("Before creating threads\n");
-
+	char *thread_name = (char*) malloc(sizeof(char) * 20);
 	for (int i = 0; i < upto; i++){
 		debug("Create thread %d: %lu\n", i, per_thread * i);
 		struct map_res **mr = &mr_a[per_thread * i];
 		Pthread_create(&t[i], NULL, map, mr);
+		sprintf(thread_name, "map %3d", i);
+		Pthread_setname(t[i], thread_name);
 	}
+	free(thread_name);
 		
 	// after spawning all of the children, start joining them
 	for (int i = 0; i < upto; i++){
@@ -248,10 +251,17 @@ static void* reduce(void* v){
 		if(c_now == NULL){
 			warn("No cntry_root found!\n");
 		} else {
+			int max_key = -1, max_cnt = -1;
 			while(c_now != NULL){
-				add(&cntry_based, c_now->key, c_now->value);
+				if(c_now->value > max_cnt){
+					max_key = c_now->key;
+					max_cnt = c_now->value;
+				} else if(c_now->value == max_cnt){
+					max_key = (c_now->key < max_key)?c_now->key:max_key;
+				}
 				c_now = c_now->next;
 			}
+			add(&cntry_based, max_key, max_cnt);
 		}
 	}
 
@@ -265,6 +275,8 @@ static void* reduce(void* v){
 			if(res_value[4] < c_now->value){
 				cntry_code = c_now->key;
 				res_value[4] = c_now->value;
+			} else if(res_value[4] == c_now->value){
+				cntry_code = (cntry_code > c_now->key)?c_now->key:cntry_code;
 			}
 			c_now = c_now->next;
 		}

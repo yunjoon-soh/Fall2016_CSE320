@@ -2,6 +2,7 @@
 #ifndef _HELPER_H_
 #define _HELPER_H_
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -60,9 +61,13 @@ int P(sem_t* sem);
 int V(sem_t* sem);
 
 int Pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
+int Pthread_setname(pthread_t thread, const char *name);
 int Pthread_join(pthread_t thread, void **retval);
 
-extern sem_t mutex, w, line;
-extern size_t readcnt, linecnt;
+extern sem_t mutex, w, line, r, write_ind_sem;
+extern size_t readcnt, linecnt, writecnt, cur_write_ind;
+struct map_res *buf[3];
+void write_to_buf(struct map_res* buf, struct map_res *res);
+void Write_struct_r(struct map_res *res);
 
 #endif

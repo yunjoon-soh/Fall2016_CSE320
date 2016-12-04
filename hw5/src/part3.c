@@ -82,17 +82,22 @@ int part3(size_t nthreads){
 	Fopen(tmp_fname, "w", &tmp_f_w);
 
 	debug("Before creating threads\n");
+	char *thread_name = (char*) malloc(sizeof(char) * 20);
 	for (int i = 0; i < upto; i++){ // 
 		debug("Create thread %d: %lu\n", i, per_thread * i);
 		// pass on the ptr to first filename
 		Pthread_create(&t[i], NULL, map, &fnames[per_thread * i]);
+		sprintf(thread_name, "map %3d", i);
+		Pthread_setname(t[i], thread_name);
 	}
+	free(thread_name);
 
 	debug("Reduce thread starts\n");
 	FILE* tmp_f_r;
 	Fopen(tmp_fname, "r", &tmp_f_r);
 	Pthread_create(&treduce, NULL, reduce, tmp_f_r);
-		
+	Pthread_setname(treduce, "reduce");
+
 	// after spawning all of the children, start joining them
 	for (int i = 0; i < upto; i++){
 		debug("Joining %d\n", i);
@@ -127,7 +132,7 @@ static void* map(void* v){
 		mr->filename = filenames[i]; // reference to heap
 		debug("mr[%d]: %s\n", i, mr->filename);
 		map_part1_3(mr); // same as part 1's map()
-		Fwrite_r(mr, tmp_f_w); // write to temp file only when possible
+		Fwrite_r(mr, tmp_f_w); // write to temp file
 
 		// clean up
 		if(mr->cntry_root != NULL)
@@ -261,10 +266,17 @@ static void* reduce(void* v){
 		if(c_now == NULL){
 			warn("No cntry_root found!\n");
 		} else {
+			int max_key = -1, max_cnt = -1;
 			while(c_now != NULL){
-				add(&cntry_based, c_now->key, c_now->value);
+				if(c_now->value > max_cnt){
+					max_key = c_now->key;
+					max_cnt = c_now->value;
+				} else if(c_now->value == max_cnt){
+					max_key = (c_now->key < max_key)?c_now->key:max_key;
+				}
 				c_now = c_now->next;
 			}
+			add(&cntry_based, max_key, max_cnt);
 		}
 	}
 
@@ -277,6 +289,8 @@ static void* reduce(void* v){
 			if(res_value[4] < c_now->value){
 				cntry_code = c_now->key;
 				res_value[4] = c_now->value;
+			} else if(res_value[4] == c_now->value){
+				cntry_code = (cntry_code > c_now->key)?c_now->key:cntry_code;
 			}
 			c_now = c_now->next;
 		}

@@ -118,40 +118,100 @@ int Closedir(DIR **pdir){
 	return -1;
 }
 
+size_t usleep_time = 10000;
 void Fread_r(struct map_res **res, FILE *fp){
 	P(&mutex);
 	readcnt++;
-	if(readcnt == 1)
+	if(readcnt == 1){
 		P(&w); // if anyone is reading, hold write mutex
+		debug("Hold write mutex\n");
+	}
 	V(&mutex);
 
 	P(&line);
-	while(linecnt <= 0)
-		usleep(300);
+	int local_line_cnt = linecnt;
+	debug("local_line_cnt=%lu\n", linecnt);
 	V(&line);
 
-	set_struct(res, fp);
+	while(local_line_cnt <= 0){ // while nothing to read...
+		// release write mutex and wait
+		debug("Release write mutex\n");
+		V(&w);
+		debug("Sleep for %lu\n", usleep_time);
+		usleep(usleep_time);
+
+		// update the local_line_cnt
+		P(&line);
+		local_line_cnt = linecnt;
+		V(&line);
+	}
+
+	P(&w); // now take the writing mutex
+
+	set_struct(res, fp); // read from file
+
 	P(&line);
-	linecnt--;
+	linecnt--; // update the linecnt
 	V(&line);
 
 	P(&mutex);
 	readcnt--;
-	if(readcnt == 0)
+	if(readcnt == 0){
 		V(&w); // if no one is reading anymore, release write mutex
+		debug("Release write mutex\n");
+	}
 	V(&mutex);
 }
 
 void Fwrite_r(struct map_res *res, FILE *fp){
 	P(&w);
+
 	fprintf_struct(res, fp);
 	fflush(fp);
 
 	P(&line);
 	linecnt++;
+	debug("New Linecnt=%lu\n", linecnt);
 	V(&line);
 	
 	V(&w);
+}
+
+/*For Part4*/
+void Read_struct_r(struct map_res **res){
+	// if no writer is in active
+	P(&r);
+
+	// set_struct(res, fp); // read
+	
+	V(&r);
+}
+
+/*For Part4*/
+void Write_struct_r(struct map_res *res){
+	P(&mutex);
+	writecnt++;
+	if(writecnt >= 1)
+		P(&r); // if anyone is writing, hold read mutex
+	V(&mutex);
+
+	P(&write_ind_sem); // lock the current buffer
+	write_to_buf((buf[cur_write_ind++]), res);
+	V(&write_ind_sem);
+	
+	// fprintf_struct(res, fp);
+	// fflush(fp);	
+
+	P(&mutex);
+	writecnt--;
+	if(writecnt == 0)
+		V(&r); // if no one is writing anymore, release read mutex
+	V(&mutex);
+}
+
+void write_to_buf(struct map_res* buf, struct map_res *res){
+	(buf)->datum_cnt = res->datum_cnt;
+	(buf)->tot_duration = res->tot_duration;
 }
 
 int Sem_init(sem_t *sem, int pshared, unsigned int value){
@@ -165,7 +225,7 @@ int Sem_init(sem_t *sem, int pshared, unsigned int value){
 }
 
 int P(sem_t* sem){
-	int ret = sem_post(sem);
+	int ret = sem_wait(sem);
 
 	if(ret == -1){
 		perror("");
@@ -175,7 +235,7 @@ int P(sem_t* sem){
 }
 
 int V(sem_t* sem){
-	int ret = sem_wait(sem);
+	int ret = sem_post(sem);
 
 	if(ret == -1){
 		perror("");
@@ -188,6 +248,16 @@ int Pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_
 	int ret = pthread_create(thread, attr, start_routine, arg);
 	if(ret){
 		error("ERROR; return code from pthread_create() is %d\n", ret);
+	}
+
+	return ret;
+}
+
+int Pthread_setname(pthread_t thread, const char *name){
+	int ret = pthread_setname_np(thread, name);
+
+	if(ret != 0){
+		perror("");
 	}
 
 	return ret;
