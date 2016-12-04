@@ -15,6 +15,8 @@
 #include "list.h"
 #include "map_reduce.h"
 
+#define BUF_SIZE 10
+
 // Colors
 #ifndef COLOR
 	#define COLOR
@@ -64,9 +66,13 @@ int Pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_
 int Pthread_setname(pthread_t thread, const char *name);
 int Pthread_join(pthread_t thread, void **retval);
 
-extern sem_t mutex, w, line, r, write_ind_sem;
-extern size_t readcnt, linecnt, writecnt, cur_write_ind;
-struct map_res *buf[3];
+extern sem_t mutex, w, line;
+extern sem_t slots, items; // part 4
+extern size_t readcnt, linecnt;
+extern size_t start, end;
+extern struct map_res *buf[];
+
+void Read_struct_r(struct map_res **res);
 void write_to_buf(struct map_res* buf, struct map_res *res);
 void Write_struct_r(struct map_res *res);
 

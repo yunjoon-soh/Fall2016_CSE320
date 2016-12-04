@@ -11,8 +11,13 @@ struct map_res{
 	char *filename;
 	unsigned long datum_cnt;
 	unsigned long tot_duration; // total duaration
-	struct list *year_root;
-	struct list *cntry_root; // country
+	
+	struct list *year_root; // deprecated: for compatibility reason (part 1,2,3)
+	unsigned long unique_years; // introduced at part 4
+
+	struct list *cntry_root; // deprecated: for compatibility reason (part 1,2,3)
+	unsigned long max_cntry_cnt; // introduced at part 4
+	int max_cntry_code; // introduced at part 4
 };
 
 void print_map_res(struct map_res *res);

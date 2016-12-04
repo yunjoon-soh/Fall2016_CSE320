@@ -118,7 +118,7 @@ int Closedir(DIR **pdir){
 	return -1;
 }
 
-size_t usleep_time = 10000;
+size_t usleep_time = 1000;
 void Fread_r(struct map_res **res, FILE *fp){
 	P(&mutex);
 	readcnt++;
@@ -135,9 +135,9 @@ void Fread_r(struct map_res **res, FILE *fp){
 
 	while(local_line_cnt <= 0){ // while nothing to read...
 		// release write mutex and wait
-		debug("Release write mutex\n");
+		// debug("Release write mutex\n");
 		V(&w);
-		debug("Sleep for %lu\n", usleep_time);
+		// debug("Sleep for %lu\n", usleep_time);
 		usleep(usleep_time);
 
 		// update the local_line_cnt
@@ -179,39 +179,41 @@ void Fwrite_r(struct map_res *res, FILE *fp){
 
 /*For Part4*/
 void Read_struct_r(struct map_res **res){
-	// if no writer is in active
-	P(&r);
+	P(&items);
+	P(&mutex);
 
-	// set_struct(res, fp); // read
-	
-	V(&r);
+	// read from front of the buffer
+	*res = buf[++start % BUF_SIZE];
+
+	V(&mutex);
+	V(&slots);
 }
 
 /*For Part4*/
 void Write_struct_r(struct map_res *res){
-	P(&mutex);
-	writecnt++;
-	if(writecnt >= 1)
-		P(&r); // if anyone is writing, hold read mutex
-	V(&mutex);
-
-	P(&write_ind_sem); // lock the current buffer
-	write_to_buf((buf[cur_write_ind++]), res);
-	V(&write_ind_sem);
+	P(&slots); // wait for available slot
+	P(&mutex); // lock to write
 	
-	// fprintf_struct(res, fp);
-	// fflush(fp);	
-
-	P(&mutex);
-	writecnt--;
-	if(writecnt == 0)
-		V(&r); // if no one is writing anymore, release read mutex
-	V(&mutex);
+	// write to end of buffer
+	write_to_buf(buf[++end % BUF_SIZE], res);
+	
+	V(&mutex); // allow others to write
+	V(&items); // update the # of items
 }
 
 void write_to_buf(struct map_res* buf, struct map_res *res){
-	(buf)->datum_cnt = res->datum_cnt;
-	(buf)->tot_duration = res->tot_duration;
+	debug("res->filename=%s\n", res->filename);
+	buf->datum_cnt = res->datum_cnt;
+	buf->tot_duration = res->tot_duration;
+	buf->unique_years = res->unique_years;
+
+	// TODO: Do I really need this?
+	size_t filename_len = sizeof(char) * strlen(res->filename) + 1;
+	buf->filename = (char*) malloc(filename_len);
+	strncpy(buf->filename, res->filename, filename_len);
+
+	buf->max_cntry_code = res->max_cntry_code;
+	buf->max_cntry_cnt = res->max_cntry_cnt;
 }
 
 int Sem_init(sem_t *sem, int pshared, unsigned int value){
