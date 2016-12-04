@@ -38,11 +38,15 @@ int part3(size_t nthreads){
 
 	//assign per thread
 	per_thread = f_cnt/nthreads;
+	// if the remainder is not 0, +1 for per thread; invalid files will be dummy files and ignored inside threads
 	per_thread = (f_cnt % nthreads == 0)?per_thread:per_thread+1;
+	// take the min of two values, if there were smaller number of files than the nthreads, we don't need to generate all the threads.
+	// e.g., passing 10 as nthreads when there are only 5 files in ./data/
 	size_t upto = (f_cnt < nthreads)?f_cnt:nthreads;
 
 	debug("per_thread=%lu upto=%lu\n", per_thread, upto);
 
+	// pointer for file names
 	char *fnames[f_cnt];
 
 	// Note. assume no recursive sub dirs
@@ -57,8 +61,8 @@ int part3(size_t nthreads){
 		// set the filename with data/FILENAME
 		int filename_len = sizeof(ent->d_name) + base_dir_len + 1;
 		fnames[i] = (char*) malloc(filename_len);
-		memcpy(fnames[i], base_dir, base_dir_len);
-		strncat(fnames[i], ent->d_name, sizeof(ent->d_name));
+		memcpy(fnames[i], base_dir, base_dir_len); // filenmae is now ./data/
+		strncat(fnames[i], ent->d_name, sizeof(ent->d_name)); // append filename
 
 		i++; // put it here, because we don't want to increase i, even when ent->d_name is . or ..
 	}
@@ -68,17 +72,17 @@ int part3(size_t nthreads){
 	pthread_t treduce;
 
 	debug("Initialize semaphores\n");
-	Sem_init(&mutex, 0, 1);
-	Sem_init(&w, 0, 1);
-	Sem_init(&line, 0, 1);
+	Sem_init(&mutex, 0, 1); /*For locking the readcnt*/
+	Sem_init(&w, 0, 1); /*For locking the writing action*/
+	Sem_init(&line, 0, 1); /*For locking the linecnt*/
 	readcnt = 0;
 	linecnt = 0;
 	
-	debug("Opening temp file caleed: %s\n", tmp_fname);
+	debug("Opening temp file called: %s\n", tmp_fname);
 	Fopen(tmp_fname, "w", &tmp_f_w);
 
 	debug("Before creating threads\n");
-	for (int i = 0; i < upto; i++){
+	for (int i = 0; i < upto; i++){ // 
 		debug("Create thread %d: %lu\n", i, per_thread * i);
 		// pass on the ptr to first filename
 		Pthread_create(&t[i], NULL, map, &fnames[per_thread * i]);
@@ -92,25 +96,18 @@ int part3(size_t nthreads){
 	// after spawning all of the children, start joining them
 	for (int i = 0; i < upto; i++){
 		debug("Joining %d\n", i);
-		// struct map_res **mr = &mr_a[per_thread * i];
+
 		// thread write the result to the tmp file
 		Pthread_join(t[i], NULL);
 	}
 
 	Pthread_join(treduce, NULL);
 
-	// for (int i = 0; i< per_thread * nthreads; i++){
-		// print_map_res(mr_a[i]);
-		// free(mr_a[i]->filename);
-		// freeAll(&(mr_a[i]->year_root));
-		// freeAll(&(mr_a[i]->cntry_root));
-		// free(mr_a[i]);
-	// }
 	for(int i = 0; i < f_cnt; i++){
 		free(fnames[i]);
 	}
 
-	unlink(tmp_fname);
+	unlink(tmp_fname); // remove temp file
 	Closedir (&dir);
 	fclose(tmp_f_r);
 	fclose(tmp_f_w);
@@ -127,10 +124,12 @@ static void* map(void* v){
 	struct map_res *mr = (struct map_res *) malloc(sizeof(struct map_res));
 
 	for(int i = 0; i < per_thread; i++){
-		mr->filename = filenames[i];
+		mr->filename = filenames[i]; // reference to heap
 		debug("mr[%d]: %s\n", i, mr->filename);
-		map_part1_3(mr);
-		Fwrite_r(mr, tmp_f_w);
+		map_part1_3(mr); // same as part 1's map()
+		Fwrite_r(mr, tmp_f_w); // write to temp file only when possible
+
+		// clean up
 		if(mr->cntry_root != NULL)
 			freeAll(&mr->cntry_root);
 		if(mr->year_root != NULL)
@@ -195,6 +194,7 @@ void* map_part1_3(void* v){
 static void* reduce(void* v){
 	FILE *fp = (FILE *) v;
 
+	// initialize values of results
 	char *res[5];
 	res[0] = "";
 	res[1] = "";
