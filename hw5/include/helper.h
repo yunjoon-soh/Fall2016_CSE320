@@ -12,6 +12,9 @@
 #include <dirent.h>
 #include <semaphore.h>
 
+#include <sys/select.h>
+#include <sys/socket.h>
+
 #include "list.h"
 #include "map_reduce.h"
 
@@ -75,5 +78,7 @@ extern struct map_res *buf[];
 void Read_struct_r(struct map_res **res);
 void write_to_buf(struct map_res* buf, struct map_res *res);
 void Write_struct_r(struct map_res *res);
+int Select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
+int Socketpair(int domain, int type, int protocol, int sv[2]);
 
 #endif

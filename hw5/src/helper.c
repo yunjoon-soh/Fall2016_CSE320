@@ -90,7 +90,7 @@ DIR **Opendir(const char *name, DIR **dir){
 	if((*dir = opendir (name)) != NULL){
 		return dir;
 	} else {
-		perror("");
+		perror("Opendir");
 		exit(EXIT_FAILURE);
 	}
 
@@ -111,7 +111,7 @@ int Closedir(DIR **pdir){
 	if(closedir(*pdir) != -1){
 		return 0;
 	} else {
-		perror("");
+		perror("Closedir");
 		exit(EXIT_FAILURE);
 	}
 
@@ -230,7 +230,7 @@ int P(sem_t* sem){
 	int ret = sem_wait(sem);
 
 	if(ret == -1){
-		perror("");
+		perror("P");
 	}
 
 	return ret;
@@ -240,7 +240,7 @@ int V(sem_t* sem){
 	int ret = sem_post(sem);
 
 	if(ret == -1){
-		perror("");
+		perror("V");
 	}
 
 	return ret;
@@ -259,7 +259,8 @@ int Pthread_setname(pthread_t thread, const char *name){
 	int ret = pthread_setname_np(thread, name);
 
 	if(ret != 0){
-		perror("");
+		errno = ret;
+		perror("Pthread_setname");
 	}
 
 	return ret;
@@ -270,8 +271,39 @@ int Pthread_join(pthread_t thread, void **retval){
 
 	if(ret){
 		errno = ret;
-		perror("");
+		perror("Pthread_join");
 	}
 
 	return ret;
 }
+
+int Select(int nfds, fd_set *readfds, fd_set *writefds,
+                  fd_set *exceptfds, struct timeval *timeout){
+	int ret = select(nfds, readfds, writefds, exceptfds, timeout);
+
+	if(ret == -1){
+		perror("select");
+	}
+
+	return ret;
+}
+
+int Socketpair(int domain, int type, int protocol, int sv[2]){
+	int ret = socketpair(domain, type, protocol, sv);
+
+	if(ret == -1){
+		perror("Socketpair");
+	}
+
+	return ret;
+}
+
+// int Accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen){
+// 	int ret = accept(sockfd, addr, addrlen);
+
+// 	if(ret == -1){
+// 		perror("");
+// 	}
+
+// 	return ret;
+// }
