@@ -81,6 +81,130 @@ char *trimWhiteSpace(char *line){
 	return ptr;
 }
 
+void* map_part1_original(void* v){
+	// 1. Init map_res
+	struct map_res *res = (struct map_res *) v;
+	res->year_root = NULL;
+	res->cntry_root = NULL;
+	res->tot_duration = 0;
+	res->datum_cnt = 0;
+
+	// 2. Fopen the file
+	FILE *fp = NULL;
+	Fopen(res->filename, "r", &fp);
+
+	// 3. Read the file per line
+	size_t len = 4096;
+	ssize_t read;
+	char *line = (char*) malloc(4096 * sizeof(char));	
+
+	while ((read = getline(&line, &len, fp)) != -1) {		
+		// 3-1. Count number of comma, to check invalid input
+		int cnt = 0; /*# of comma*/
+		char *ptr = line;
+		while(*ptr != '\0')	if(*ptr++ == ',') cnt++;
+
+		if(cnt != 3){
+			error("Unexpected number of comma(=%d), skip %s\n", cnt, res->filename);
+			break;
+		}
+
+		// 3-2. Split by comma
+		char *buf[cnt];
+		splitByComma(line, buf, cnt);
+
+		// 3-3. Add year value
+		struct tm lt;
+		time_t t_val = (time_t) strtol(buf[0], NULL, 10);
+		localtime_r( &t_val, &lt);
+		add(&res->year_root, lt.tm_year + 1900, 1);
+
+		// 3-4. Add country value
+		add(&res->cntry_root, cntry_code_converter(buf[3]), 1);
+		
+		// 3-5. Sum up the total duration
+		res->tot_duration += atoi(buf[2]);
+
+		// 3-6. Increment the user cnt;
+		res->datum_cnt += 1;
+	}
+
+	// 4. Clean up
+	fclose(fp);
+	free(line);
+
+	return (void*)res;
+}
+
+void* map_part1(void* v){
+	struct map_res *res = (struct map_res *) v;
+	res->year_root = NULL;
+	res->cntry_root = NULL;
+	res->tot_duration = 0;
+	res->datum_cnt = 0;
+	res->unique_years = 0;
+	res->max_cntry_code = 0;
+	res->max_cntry_cnt = 0;
+
+	if(strncmp(res->filename, "\0", 1) == 0){ // dummy input
+		return v;
+	}
+
+	// read per line
+	FILE *fp = NULL;
+	Fopen(res->filename, "r", &fp);
+
+	size_t len = 4096;
+	char *line = (char*) malloc(4096 * sizeof(char));   
+	ssize_t read;
+
+	while ((read = getline(&line, &len, fp)) != -1) {
+		int cnt = 0;
+		char *ptr = line;
+
+		while(*ptr != '\0') if(*ptr++ == ',')   cnt++; // count number of comma
+
+		char *buf[cnt];
+		splitByComma(line, buf, cnt);
+
+		// country root
+		add(&res->cntry_root, cntry_code_converter(buf[3]), 1);
+		
+		struct tm lt;
+		time_t t_val = (time_t) strtol(buf[0], NULL, 10);
+		localtime_r( &t_val, &lt);
+
+		// year root
+		add(&res->year_root, lt.tm_year + 1900, 1);
+
+		res->tot_duration += atoi(buf[2]);
+		res->datum_cnt += 1;
+	}
+
+	struct list *head = res->year_root;
+	while(head != NULL){
+		res->unique_years++;
+		head = head->next;
+	}
+
+	head = res->cntry_root;
+	while(head != NULL){
+		if(res->max_cntry_cnt < head->value){ // if value is larger
+			res->max_cntry_cnt = head->value;
+			res->max_cntry_code = head->key;
+		} else if(res->max_cntry_cnt == head->value){ // tie break
+			res->max_cntry_code = (res->max_cntry_code < head->key)?res->max_cntry_code:head->key;			
+		}
+		head = head->next;
+	}
+
+	// clean up
+	fclose(fp);
+	free(line);
+
+	return (void*)res;
+}
+
 /*
 * Wrapper
 */
@@ -210,16 +334,10 @@ void Write_struct_r(struct map_res *res){
 }
 
 void write_to_buf(struct map_res* buf, struct map_res *res){
-	debug("res->filename=%s\n", res->filename);
 	buf->datum_cnt = res->datum_cnt;
 	buf->tot_duration = res->tot_duration;
 	buf->unique_years = res->unique_years;
-
-	// TODO: Do I really need this?
-	size_t filename_len = sizeof(char) * strlen(res->filename) + 1;
-	buf->filename = (char*) malloc(filename_len);
-	strncpy(buf->filename, res->filename, filename_len);
-
+	buf->filename = res->filename;
 	buf->max_cntry_code = res->max_cntry_code;
 	buf->max_cntry_cnt = res->max_cntry_cnt;
 }

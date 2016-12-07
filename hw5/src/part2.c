@@ -5,10 +5,8 @@
 
 static void* map(void*);
 static void* reduce(void*);
-static size_t f_cnt;
-static size_t per_thread;
-
-void* map_part1(void* v);
+static size_t f_cnt; /* # of files in data/ */
+static size_t per_thread; /* # of files to be examined by one thread */
 
 int part2(size_t nthreads){
 	printf(
@@ -19,59 +17,56 @@ int part2(size_t nthreads){
 	DIR *dir = NULL;
 	struct dirent *ent;
 	f_cnt = 0;
+	const char *base_dir = "./data/";
+	const int base_dir_len = 8;
 
-	char *base_dir = "./data/";
-	int base_dir_len = 8;
+	// 1. Count the number of files
 	Opendir(base_dir, &dir);
-	while ((ent = readdir (dir)) != NULL) {
-		if( strncmp(ent->d_name, ".", 1) == 0 || strncmp(ent->d_name, "..", 2) == 0){
+	while ((ent = Readdir (dir, &ent)) != NULL) {
+		if( strncmp(ent->d_name, ".", 1) == 0 || strncmp(ent->d_name, "..", 2) == 0){// skip . and ..
 			continue;
 		}
 		f_cnt++;
 	}
 	Closedir (&dir);
 
-	//assign per thread
+	// 2. Count the number of files per thread
 	per_thread = f_cnt/nthreads;
+	// if the remainder is not 0, +1 for per thread; invalid files will be dummy files and ignored inside threads
 	per_thread = (f_cnt % nthreads == 0)?per_thread:per_thread+1;
-	size_t upto = (f_cnt < nthreads)?f_cnt:nthreads;
+	// take the min of two values, if there were smaller number of files than the nthreads, we don't need to generate all the threads.
+	// e.g., passing 10 as nthreads when there are only 5 files in ./data/
+	size_t upto = (f_cnt < nthreads)?f_cnt:nthreads; /* just in case there are more threads than files*/
 
-	debug("per_thread=%lu upto=%lu\n", per_thread, upto);
-
+	// 3. Prepare map_res array: f_cnt of them have name, others are dummy
 	struct map_res *mr_a[per_thread * nthreads];
 	pthread_t t[nthreads];
 
-	/* print all the files and directories within directory */
-	// assume no recursive sub dirs
+	// 3-1. f_cnt of them are real map_res
+	// Note. assume no recursive sub dirs
 	Opendir(base_dir, &dir);
 	for(int i = 0; i < f_cnt; ){
-		int tmp_errno = errno;
-		ent = readdir (dir);
-		if(ent == NULL && tmp_errno == errno){
-			warn("Number of files differ: Not all of them are found!");
-			break;
-		} else if(ent == NULL && tmp_errno != errno){
-			perror("Part1.c");
-			exit(EXIT_FAILURE); // TODO : bad idea?
-		}
+		ent = Readdir (dir, &ent);
 
+		// skip . and .. files
 		if( strncmp(ent->d_name, ".", 1) == 0 || strncmp(ent->d_name, "..", 2) == 0){
 			continue;
 		}
 
-		debug("%3d: \"%s\"\n", i, ent->d_name);
-
+		// prepare map_res struct
 		struct map_res *mr = (struct map_res *) malloc(sizeof(struct map_res));
 		mr_a[i] = mr;
 		
+		// set the filename with data/FILENAME
 		int filename_len = sizeof(ent->d_name) + base_dir_len;
 		mr->filename = (char*) malloc(filename_len);
 		memcpy(mr->filename, base_dir, base_dir_len);
 		strncat(mr->filename, ent->d_name, sizeof(ent->d_name));
 
-		i++;
+		i++; // put it here, because we don't want to increase i, even when ent->d_name is . or ..
 	}
 
+	// 3-2. Fill in with dummy map_res
 	for(int i = f_cnt; i < per_thread * nthreads; i++){
 		struct map_res *mr = (struct map_res *) malloc(sizeof(struct map_res));
 		mr_a[i] = mr;
@@ -80,37 +75,37 @@ int part2(size_t nthreads){
 		mr->filename[0] = '\0';
 	}
 
-	debug("Before creating threads\n");
-	char *thread_name = (char*) malloc(sizeof(char) * 20);
+	// 4. Spawn "upto" # of threads, each call map()
+	char thread_name[20];
 	for (int i = 0; i < upto; i++){
-		debug("Create thread %d: %lu\n", i, per_thread * i);
 		struct map_res **mr = &mr_a[per_thread * i];
+
 		Pthread_create(&t[i], NULL, map, mr);
-		sprintf(thread_name, "map %3d", i);
+		sprintf(thread_name, "map %d", i);
 		Pthread_setname(t[i], thread_name);
 	}
-	free(thread_name);
 		
-	// after spawning all of the children, start joining them
+	// 5. Join threads
 	for (int i = 0; i < upto; i++){
-		debug("Joining %d\n", i);
 		struct map_res **mr = &mr_a[per_thread * i];
 		Pthread_join(t[i], (void **) &mr);
 	}
 
+	// 6. reduce()
 	reduce(mr_a);
-	// reduce(NULL);
 
+	// 7. Clean up
 	for (int i = 0; i< per_thread * nthreads; i++){
-		print_map_res(mr_a[i]);
 		free(mr_a[i]->filename);
 		freeAll(&(mr_a[i]->year_root));
 		freeAll(&(mr_a[i]->cntry_root));
 
 		free(mr_a[i]);
 	}
-
 	Closedir (&dir);
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	close(STDERR_FILENO);
 
 	return 0;
 }
@@ -119,74 +114,16 @@ static void* map(void* v){
 	struct map_res **mr_a = (struct map_res **) v;
 
 	for(int i = 0; i < per_thread; i++){
-		debug("mr_a[%d]=%p\n", i, mr_a[i]);
-		print_map_res(mr_a[i]);
 		map_part1(mr_a[i]);
 	}
 
 	return mr_a;
 }
 
-void* map_part1(void* v){
-	// Init map_res
-	struct map_res *res = (struct map_res *) v;
-	res->year_root = NULL;
-	res->cntry_root = NULL;
-	res->tot_duration = 0;
-	res->datum_cnt = 0;
-
-	// fopen the file
-	FILE *fp = NULL;
-	Fopen(res->filename, "r", &fp);
-
-	// read per line
-	size_t len = 4096;
-	ssize_t read;
-	char *line = (char*) malloc(4096 * sizeof(char));	
-
-	while ((read = getline(&line, &len, fp)) != -1) {
-		// debug("Retrieved line of length %zu : %s\n", read, line);
-		
-		// 1. count number of comma, to prepare for invalid input
-		int cnt = 0; /*# of comma*/
-		char *ptr = line;
-		while(*ptr != '\0')	if(*ptr++ == ',') cnt++;
-
-		if(cnt != 3){
-			error("Unexpected number of comma(=%d), skip %s\n", cnt, res->filename);
-			break;
-		}
-
-		// 2. split by comma
-		char *buf[cnt];
-		splitByComma(line, buf, cnt);
-
-		// 3. Add year value
-		struct tm lt;
-		time_t t_val = (time_t) strtol(buf[0], NULL, 10);
-		localtime_r( &t_val, &lt);
-		add(&res->year_root, lt.tm_year + 1900, 1);
-
-		// 4. Add country value
-		add(&res->cntry_root, cntry_code_converter(buf[3]), 1);
-		
-		// 5. Sum up the total duration
-		res->tot_duration += atoi(buf[2]);
-
-		// 6. Add up the user cnt;
-		res->datum_cnt += 1;
-	}
-
-	fclose(fp);
-	free(line);
-
-	return (void*)res;
-}
-
-
 static void* reduce(void* v){
 	struct map_res **mr_a = (struct map_res**) v;
 
+	// 1. Init result values
 	struct map_res *res[5];
 	double res_value[5];
 	// Max/Min average duration of all of the websites
@@ -201,12 +138,12 @@ static void* reduce(void* v){
 	res_value[4] = 0;
 
 	struct list *cntry_based = NULL; /*Sum of cnt per country*/
+
+	// 2. Iterate mr_a and calculate values
 	for(int i = 0; i < f_cnt; i++){ // for every map_res...
 		struct map_res *now = mr_a[i];
-		debug("Reduce check for result %3d: %s\n", i, now->filename);
-		print_map_res(now);
 
-		// 1. Set max, min for query A/B
+		// 2-1. Set max, min for query A/B
 		double AB = (double)now->tot_duration / (double)now->datum_cnt;
 		if(AB > res_value[0]){ // max
 			res_value[0] = AB;
@@ -222,14 +159,14 @@ static void* reduce(void* v){
 			res[1] = (strcmp(res[1]->filename, now->filename) < 0)?res[1]:now;
 		}
 
+		// 2-2. Set max, min for query C/D
 		struct list *y_now = now->year_root;
 		if(y_now == NULL){
 			warn("No year_root found!\n");
 		} else {
 			// count number of distinct years
-			size_t dist_year = count_list(y_now); 
+			size_t dist_year = count_list(y_now);
 
-			// 2. Set max, min for query C/D
 			double CD = (double)now->datum_cnt/(double)dist_year;
 			if(CD > res_value[2]){ // max
 				res_value[2] = CD;
@@ -246,7 +183,7 @@ static void* reduce(void* v){
 			}
 		}
 
-		// 3. Add up the cnt per cntry
+		// 2-3. Find max cnt per cntry and append it to final result
 		struct list *c_now = now->cntry_root;
 		if(c_now == NULL){
 			warn("No cntry_root found!\n");
@@ -256,16 +193,16 @@ static void* reduce(void* v){
 				if(c_now->value > max_cnt){
 					max_key = c_now->key;
 					max_cnt = c_now->value;
-				} else if(c_now->value == max_cnt){
+				} else if(c_now->value == max_cnt){ // tie break
 					max_key = (c_now->key < max_key)?c_now->key:max_key;
 				}
 				c_now = c_now->next;
 			}
-			add(&cntry_based, max_key, max_cnt);
+			add(&cntry_based, max_key, max_cnt); // append to final result
 		}
 	}
 
-	// 4. Find cntry with max cnt
+	// 3. Find cntry with max cnt
 	struct list *c_now = cntry_based;
 	int cntry_code;
 	if(c_now == NULL){
@@ -282,23 +219,29 @@ static void* reduce(void* v){
 		}
 	}
 
-	// 5. Clean up
-	freeAll(&cntry_based);
+	char *buf;
+	#ifdef DEBUG
+		// if DEBUG is defined, print the whole result
+		buf = (char*) malloc(sizeof(char) * 2 + 1); // + 1 for null term
+		for(int i =0; i < 4; i++){
+			printf("Result: %.5f, %s\n", res_value[i], res[i]->filename);
+		}
+		printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
+		free(buf);
+	#endif
 
-	// 6. Print out the debugging result
-	for(int i =0; i < 4; i++){
-		printf("Result: %.5f, %s\n", res_value[i], res[i]->filename);
+	// 4. Print out the final result according to the query.
+	if(current_query != 4){
+		printf("Result: %.5f, %s\n",
+			res_value[current_query], res[current_query]->filename);
+	} else if(current_query == 4){
+		buf = (char*) malloc(sizeof(char) * 2 + 1); // + 1 for null term
+		printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
+		free(buf);
 	}
 
-	char *buf = (char*) malloc(sizeof(char) * 2 + 1); // + 1 for null term
-	printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
-	free(buf);
-
-	// 7. Print out the actual query result
-	/* Where result is variables you define */
-	// printf("Part: %s\nQuery: %s\nResult: %.5f, %s\n",
-	// 	PART_STRINGS[current_part], QUERY_STRINGS[current_query], 
-	// 	res_value[current_query], res[current_query]->filename);
+	// 5. Clean up
+	freeAll(&cntry_based);
 
 	return NULL;
 }

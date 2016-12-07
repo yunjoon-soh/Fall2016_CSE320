@@ -53,6 +53,8 @@ char **splitByComma(char *line, char *buf[], size_t cnt);
 int cntry_code_converter(char code[2]);
 char** cntry_code_reverter(int code, char **buf);
 char *trimWhiteSpace(char *line);
+void *map_part1_original(void *v);
+void *map_part1(void *v);
 
 // wrapper
 FILE **Fopen(const char *path, const char *mode, FILE **fp);
