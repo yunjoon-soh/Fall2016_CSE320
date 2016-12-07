@@ -44,6 +44,6 @@ void add(struct list **head, int key, int value);
 struct list*createNode(int key, int value);
 struct list*find(struct list *head, int key);
 void freeAll(struct list **head);
-
+struct list *find_max(struct list *head);
 
 #endif

@@ -67,3 +67,18 @@ void freeAll(struct list **head){
 
 	*head = NULL;
 }
+
+struct list *find_max(struct list *head){
+	struct list *now = head;
+	struct list *max = now;
+
+	while(now != NULL){
+		if(max->value < now->value)
+			max = now;
+		else if(max->value == now->value){
+			max = (max->key > now->key)?now:max;
+		}
+		now = now->next;
+	}
+	return max;
+}

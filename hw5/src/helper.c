@@ -73,6 +73,14 @@ char** cntry_code_reverter(int code, char **buf){
 	return buf;
 }
 
+char *trimWhiteSpace(char *line){
+	char *ptr = line;
+	while(*ptr == ' '){
+		ptr++;
+	}
+	return ptr;
+}
+
 /*
 * Wrapper
 */
@@ -277,8 +285,7 @@ int Pthread_join(pthread_t thread, void **retval){
 	return ret;
 }
 
-int Select(int nfds, fd_set *readfds, fd_set *writefds,
-                  fd_set *exceptfds, struct timeval *timeout){
+int Select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout){
 	int ret = select(nfds, readfds, writefds, exceptfds, timeout);
 
 	if(ret == -1){

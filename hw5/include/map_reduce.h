@@ -28,4 +28,7 @@ void fprintf_cntry(struct map_res *res, FILE* fp);
 struct map_res*set_struct(struct map_res **res, FILE* fp);
 void fprintf_struct(struct map_res *res, FILE* fp);
 
+struct map_res*Read_struct(int fd, struct map_res **res);
+int Write_struct(int fd, struct map_res *res);
+
 #endif

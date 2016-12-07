@@ -89,3 +89,63 @@ void fprintf_struct(struct map_res *res, FILE* fp){
 	fprintf_cntry(res, fp);
 	fprintf(fp, "\n");
 }
+
+// return NULL on EOF mark
+struct map_res*Read_struct(int fd, struct map_res **res){
+	struct map_res *mr = (struct map_res *) malloc( sizeof(struct map_res));
+	*res = mr;
+	mr->year_root = NULL;
+	mr->cntry_root = NULL;
+
+	// read the line
+	char line[410];
+	int ret = read(fd, line, 410);
+	if(ret == -1)
+		perror("read inside read_struct");
+
+	// split by comma
+	int cnt = 0;
+	char *ptr = line;
+	while(*ptr != '\0') if(*ptr++ == ',')   cnt++; // count number of comma
+	char *buf[cnt];
+	splitByComma(line, buf, cnt);
+
+	if(strcmp(trimWhiteSpace(buf[0]), "EOF") == 0){
+		return NULL;
+	}
+
+	mr->datum_cnt = atoi(trimWhiteSpace(buf[1]));
+	mr->tot_duration = atoi(trimWhiteSpace(buf[2]));
+	mr->unique_years = atoi(trimWhiteSpace(buf[3]));
+	mr->max_cntry_code = atoi(trimWhiteSpace(buf[4]));
+	mr->max_cntry_cnt = atoi(trimWhiteSpace(buf[5]));
+	
+	char *trimmed_fname = trimWhiteSpace(buf[0]);
+	size_t len = strlen(trimmed_fname) * sizeof(char) + 1;
+	mr->filename = (char*) malloc(len);
+	strncpy(mr->filename, trimmed_fname, len);
+
+	return mr;
+}
+
+int Write_struct(int fd, struct map_res *res){
+	char line[410];
+	if(res == NULL){
+		sprintf(line, "%300s,%20d,%20d,%20d,%20d,%20d\n", "EOF",
+			0, 0, 0, 0, 0);
+	} else {
+		struct list *max_cntry = find_max(res->cntry_root);
+		sprintf(line, "%300s,%20zu,%20zu,%20zu,%20d,%20d\n", res->filename,
+		res->datum_cnt, res->tot_duration, count_list(res->year_root), max_cntry->key, max_cntry->value);
+	}
+	
+	int ret = write(fd, line, 410);
+	if(ret == -1){
+		perror("write inside write_struct");
+		warn("FD=%d\n", fd);
+	}
+
+	// printf("%s\n", line);
+
+	return ret;
+}
