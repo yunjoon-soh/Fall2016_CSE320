@@ -53,8 +53,8 @@ int part5(size_t nthreads){
 	// take the min of two values, if there were smaller number of files than the nthreads, we don't need to generate all the threads.
 	// e.g., passing 10 as nthreads when there are only 5 files in ./data/
 
-	// pointer for file names
-	char *fnames[f_cnt];
+	// 3. Prepare filenames
+	char *fnames[per_thread * nthreads];
 
 	// Note. assume no recursive sub dirs
 	Opendir(base_dir, &dir);
@@ -74,11 +74,10 @@ int part5(size_t nthreads){
 		i++; // put it here, because we don't want to increase i, even when ent->d_name is . or ..
 	}
 
-	// Initialize the buffers
-	for(int i = 0; i < BUF_SIZE; i++){
-		buf[i] = (struct map_res *) malloc(sizeof(struct map_res));
-		buf[i]->year_root = NULL;
-		buf[i]->cntry_root = NULL;
+	// 3-2. Fill in with dummy filenames
+	for(int i = f_cnt; i < per_thread * nthreads; i++){		
+		fnames[i] = (char*) malloc(1);
+		fnames[i][0] = '\0';
 	}
 
 	// Now we have all the filenames on heap, ref to it on stack
@@ -98,23 +97,18 @@ int part5(size_t nthreads){
 
 		// add READ fd to read_set and update maxfd
 		FD_SET(fd[i][READ], &read_set);
-		debug("Added FD=%d to read_set, WRITE is %d\n", fd[i][READ], fd[i][WRITE]);
+		
 		P(&mutex);
 		maxfd = (maxfd < fd[i][READ])?fd[i][READ]:maxfd;
 		cnt++;
 		V(&mutex);
 		
-		debug("Socketpair returned %d, %d\n", fd[i][READ], fd[i][WRITE]);
 		FD_SET(fd[i][READ], &read_set);
-		debug("read_set FD=%d\n", fd[i][0]);
 	}
 
-	debug("Create thread starts\n");
 	struct thread_info tinfo[nthreads];
 	char thread_name[20];
 	for(int i = 0; i < nthreads; i++){
-		debug("Create thread %d\n", i);
-
 		tinfo[i].fname = (char**) malloc(per_thread * sizeof(char*));
 		tinfo[i].i = i;
 
@@ -129,8 +123,6 @@ int part5(size_t nthreads){
 
 	Pthread_create(&treduce, NULL, reduce, (void*) (intptr_t)nthreads);
 	Pthread_setname(treduce, "reduce");
-
-	debug("thread creation done\n");
 
 	for(int i = 0; i < nthreads; i++){
 		Pthread_join(t[i], NULL);
@@ -157,8 +149,12 @@ static void* map(void* v){
 
 	for(int j = 0; j < per_thread; j++){
 		mr->filename = filenames[j]; // reference to heap
+
+		if(strcmp(mr->filename, "") == 0)
+			continue;
+
 		debug("thread[%2d]:file[%3d]: %s\n", i, j, mr->filename);
-		map_part1_5(mr); // same as part 1's map()
+		map_part1(mr); // same as part 1's map()
 
 		// write data to the fd
 		Write_struct(fd[i][WRITE], mr);
@@ -178,75 +174,6 @@ static void* map(void* v){
 	debug("Write Done! Read with fd=%d\n", (int)fd[i][READ]);
 
 	return NULL;
-}
-
-void* map_part1_5(void* v){
-	struct map_res *res = (struct map_res *) v;
-	res->year_root = NULL;
-	res->cntry_root = NULL;
-	res->tot_duration = 0;
-	res->datum_cnt = 0;
-	res->unique_years = 0;
-	res->max_cntry_code = 0;
-	res->max_cntry_cnt = 0;
-
-	if(strncmp(res->filename, "\0", 1) == 0){ // dummy input
-		return v;
-	}
-
-	// read per line
-	FILE *fp = NULL;
-	Fopen(res->filename, "r", &fp);
-
-	size_t len = 4096;
-	char *line = (char*) malloc(4096 * sizeof(char));   
-	ssize_t read;
-
-	while ((read = getline(&line, &len, fp)) != -1) {
-		int cnt = 0;
-		char *ptr = line;
-
-		while(*ptr != '\0') if(*ptr++ == ',')   cnt++; // count number of comma
-
-		char *buf[cnt];
-		splitByComma(line, buf, cnt);
-
-		// country root
-		add(&res->cntry_root, cntry_code_converter(buf[3]), 1);
-		
-		struct tm lt;
-		time_t t_val = (time_t) strtol(buf[0], NULL, 10);
-		localtime_r( &t_val, &lt);
-
-		// year root
-		add(&res->year_root, lt.tm_year + 1900, 1);
-
-		res->tot_duration += atoi(buf[2]);
-		res->datum_cnt += 1;
-	}
-
-	struct list *head = res->year_root;
-	while(head != NULL){
-		res->unique_years++;
-		head = head->next;
-	}
-
-	head = res->cntry_root;
-	while(head != NULL){
-		if(res->max_cntry_cnt < head->value){ // if value is larger
-			res->max_cntry_cnt = head->value;
-			res->max_cntry_code = head->key;
-		} else if(res->max_cntry_cnt == head->value){ // tie break
-			res->max_cntry_code = (res->max_cntry_code < head->key)?res->max_cntry_code:head->key;			
-		}
-		head = head->next;
-	}
-
-	// clean up
-	fclose(fp);
-	free(line);
-
-	return (void*)res;
 }
 
 static void* reduce(void* v){
@@ -286,21 +213,18 @@ static void* reduce(void* v){
 		Select(maxfd + 1, &ready_set, NULL, NULL, NULL);
 
 		for(int i = 0; i < nthreads; i++){ // for every thread
-			// debug("FD_ISSET(%d)\n", fd[i][READ]);
 			if(FD_ISSET(fd[i][READ], &ready_set)) { // check if it has something readable
 
 				// read from the buffer
 				struct map_res* read_ret = Read_struct(fd[i][READ], &now);
-				if(read_ret == NULL){
+
+				if(read_ret == NULL){ // if EOF mark is read
 					FD_CLR(fd[i][READ], &read_set);
-					debug("Clear fd[i][read]=%d\n", fd[i][READ]);
 					P(&mutex);
 					cnt--;
 					V(&mutex);
 					continue;
 				}
-
-				debug("Reduce check for result %3d: %s\n", i, now->filename);
 
 				double AB = (double)now->tot_duration / (double)now->datum_cnt;
 				if(AB > res_value[0]){ // max
@@ -336,7 +260,6 @@ static void* reduce(void* v){
 				}
 
 				add(&cntry_based, now->max_cntry_code, now->max_cntry_cnt);
-				// printf("%d,%lu\n", now->max_cntry_code, now->max_cntry_cnt);
 			}
 		}
 		
@@ -344,8 +267,8 @@ static void* reduce(void* v){
 		P(&mutex);
 		int tmp_cnt = cnt;
 		V(&mutex);
+
 		if(tmp_cnt == 0){
-			debug("Size is empty\n");
 			break;
 		}
 	}
@@ -365,28 +288,29 @@ static void* reduce(void* v){
 			c_now = c_now->next;
 		}
 	}
-	freeAll(&cntry_based);
 
-	for(int i =0; i < 4; i++){
-		printf("Result: %.5f, %s\n", res_value[i], res[i]);
+	char *buf;
+	#ifdef DEBUG
+		// if DEBUG is defined, print the whole result
+		buf = (char*) malloc(sizeof(char) * 2 + 1); // + 1 for null term
+		for(int i =0; i < 4; i++){
+			printf("Result: %.5f, %s\n", res_value[i], res[i]);
+		}
+		printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
+		free(buf);
+	#endif
+
+	// 4. Print out the final result according to the query.
+	if(current_query != 4){
+		printf("Result: %.5f, %s\n", res_value[current_query], res[current_query]);
+	} else if(current_query == 4){
+		buf = (char*) malloc(sizeof(char) * 2 + 1); // + 1 for null term
+		printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
+		free(buf);
 	}
 
-	char *buf = (char*) malloc(sizeof(char) * 2 + 1); // + 1 for null term
-	printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
-	free(buf);
-
-	/* Where result is variables you define */
-	// printf("Part: %s\nQuery: %s\nResult: %.5f, %s\n",
-	//  PART_STRINGS[current_part], QUERY_STRINGS[current_query], 
-	//  res_value[current_query], res[current_query]->filename);
-
-	// clean up
-	// for(int i = 0; i < f_cnt; i++){
-	// 	struct map_res *now = keep_track[i];
-	// 	free(now->filename);
-	// 	freeAll(&now->cntry_root);
-	// 	free(now);
-	// }
+	// 5. Clean up
+	freeAll(&cntry_based);
 
 	return NULL;
 }

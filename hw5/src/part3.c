@@ -8,7 +8,7 @@ static void* reduce(void*);
 static size_t f_cnt;
 static size_t per_thread;
 
-size_t readcnt, linecnt;
+size_t linecnt, running_threads;
 sem_t mutex, w, line;
 char *tmp_fname = "mapred.tmp";
 FILE* tmp_f_w; /* FILE* opened with 'w' */
@@ -45,8 +45,9 @@ int part3(size_t nthreads){
 
 
 	// 3. Prepare filenames
-	char *fnames[f_cnt]; /* pointer for file names */
+	char *fnames[nthreads * per_thread]; /* pointer for file names */
 
+	// 3-1. f_cnt of them are real map_res
 	// Note. assume no recursive sub dirs
 	Opendir(base_dir, &dir);
 	for(int i = 0; i < f_cnt; ){ // For every file in the dir...
@@ -63,7 +64,13 @@ int part3(size_t nthreads){
 		memcpy(fnames[i], base_dir, base_dir_len); // filenmae is now ./data/
 		strncat(fnames[i], ent->d_name, sizeof(ent->d_name)); // append filename
 
-		i++; // put it here, because we don't want to increase i, even when ent->d_name is . or ..
+		i++; // put it here ,because we don't want to increase i, even when ent->d_name is . or ..
+	}
+
+	// 3-2. Fill in with dummy filenames
+	for(int i = f_cnt; i < per_thread * nthreads; i++){		
+		fnames[i] = (char*) malloc(1);
+		fnames[i][0] = '\0';
 	}
 	// Now we have all the filenames on heap
 
@@ -73,8 +80,9 @@ int part3(size_t nthreads){
 	Sem_init(&mutex, 0, 1); /*For locking the readcnt*/
 	Sem_init(&w, 0, 1); /*For locking the writing action*/
 	Sem_init(&line, 0, 1); /*For locking the linecnt*/
-	readcnt = 0; /* # of readers */
+	// readcnt = 0; /* # of readers */
 	linecnt = 0; /* # of newly readable item cnts*/
+	running_threads = 0;
 	
 	Fopen(tmp_fname, "w", &tmp_f_w);
 
@@ -100,7 +108,7 @@ int part3(size_t nthreads){
 	Pthread_join(treduce, NULL);
 
 	// 8. Clean up
-	for(int i = 0; i < f_cnt; i++){
+	for(int i = 0; i < per_thread * nthreads; i++){
 		free(fnames[i]);
 	}
 	Closedir (&dir);
@@ -118,13 +126,21 @@ int part3(size_t nthreads){
 static void* map(void* v){
 	char **filenames = (char **) v;
 
+	P(&mutex);
+	running_threads++;
+	V(&mutex);
+
 	struct map_res *mr = (struct map_res *) malloc(sizeof(struct map_res));
 	for(int i = 0; i < per_thread; i++){
 		mr->filename = filenames[i]; // reference to heap
 
+		if(strcmp(mr->filename, "") == 0)
+			continue;
+
 		map_part1(mr); // same as part 1's map()
 
 		Fwrite_r(mr, tmp_f_w); // write to temp file
+		debug("mr[%3d]: %s\n", i, mr->filename);
 
 		// clean up
 		if(mr->cntry_root != NULL)
@@ -134,19 +150,23 @@ static void* map(void* v){
 	}
 	free(mr);
 
+	P(&mutex);
+	running_threads--;
+	V(&mutex);
+
 	return NULL;
 }
 
+#define MAX_FILE_LEN 4096
 static void* reduce(void* v){
 	FILE *fp = (FILE *) v;
 
 	// 1. Init result values
 	char *res[5];
-	res[0] = "";
-	res[1] = "";
-	res[2] = "";
-	res[3] = "";
-	res[4] = "";
+	for(int i = 0; i < 5; i++){
+		res[i] = (char*) malloc(sizeof(char) * MAX_FILE_LEN);
+		memset(res[i], 0, sizeof(char) * MAX_FILE_LEN);
+	}
 	double res_value[5];
 	// Max/Min average duration of all of the websites
 	res_value[0] = 0; // max by default is 0
@@ -160,67 +180,65 @@ static void* reduce(void* v){
 	res_value[4] = 0;
 
 	struct list *cntry_based = NULL; /*Sum of cnt per country*/
-	struct map_res *keep_track[f_cnt]; /* Inorder to clean up latter*/
 
 	// 2. Iterate mr_a and calculate values
-	for(int i = 0; i < f_cnt; i++){ // for every map_res...
-		struct map_res *now = NULL;
+	struct map_res *now = NULL;
 
+	while(1){
 		// 2-1. Read from tmp file
-		Fread_r(&now, fp); 
-		keep_track[i] = now;
+		Fread_r(&now, fp);
 
 		// 2-2. Set max, min for query A/B
 		double AB = (double)now->tot_duration / (double)now->datum_cnt;
 		if(AB > res_value[0]){ // max
 			res_value[0] = AB;
-			res[0] = now->filename;
+			strncpy(res[0], now->filename, strlen(now->filename) + 1);
 		} else if( (AB - res_value[0]) < EPSILON && (AB - res_value[0]) > -1 * EPSILON ){
-			res[0] = (strcmp(res[0], now->filename) < 0)?res[0]:now->filename;
+			if(strcmp(res[0], now->filename) > 0)
+				strncpy(res[0], now->filename, strlen(now->filename) + 1);
 		}
 
 		if(AB < res_value[1]){ // min
 			res_value[1] = AB;
-			res[1] = now->filename;
+			strncpy(res[1], now->filename, strlen(now->filename) + 1);
 		} else if( (AB - res_value[1]) < EPSILON && (AB - res_value[1]) > -1 * EPSILON ){
-			res[1] = (strcmp(res[1], now->filename) < 0)?res[1]:now->filename;
+			if(strcmp(res[1], now->filename) > 0)
+				strncpy(res[1], now->filename, strlen(now->filename) + 1);
 		}
 
 		// 2-3. Set max, min for query C/D
-		long dist_year = (long) now->year_root;
+		long dist_year = (long) now->unique_years;
 		if(dist_year != 0){
 			double CD = (double)now->datum_cnt/(double)dist_year;
 			if(CD > res_value[2]){ // max
 				res_value[2] = CD;
-				res[2] = now->filename;
+				strncpy(res[2], now->filename, strlen(now->filename) + 1);
 			} else if((CD - res_value[2]) < EPSILON && (CD - res_value[2]) > -1 * EPSILON ){
-				res[2] = (strcmp(res[2], now->filename) < 0)?res[2]:now->filename;
+				if(strcmp(res[2], now->filename) > 0)
+					strncpy(res[2], now->filename, strlen(now->filename) + 1);
 			}
 
 			if(CD < res_value[3]){ // min
 				res_value[3] = CD;
-				res[3] = now->filename;
+				strncpy(res[3], now->filename, strlen(now->filename) + 1);
 			} else if((CD - res_value[3]) < EPSILON && (CD - res_value[3]) > -1 * EPSILON ){
-				res[3] = (strcmp(res[3], now->filename) < 0)?res[3]:now->filename;
+				if(strcmp(res[3], now->filename) > 0)
+					strncpy(res[0], now->filename, strlen(now->filename) + 1);
 			}
 		}
 
 		// 2-4. Find max cnt per cntry and append it to final result
-		struct list *c_now = now->cntry_root;
-		if(c_now == NULL){
-			warn("No cntry_root found!\n");
-		} else {
-			int max_key = -1, max_cnt = -1;
-			while(c_now != NULL){
-				if(c_now->value > max_cnt){
-					max_key = c_now->key;
-					max_cnt = c_now->value;
-				} else if(c_now->value == max_cnt){
-					max_key = (c_now->key < max_key)?c_now->key:max_key;
-				}
-				c_now = c_now->next;
-			}
-			add(&cntry_based, max_key, max_cnt);
+		add(&cntry_based, now->max_cntry_code, now->max_cntry_cnt);
+
+		P(&line);
+		int local_line_cnt = linecnt;
+		V(&line);
+
+		free(now->filename);
+		free(now);
+
+		if(running_threads == 0 && local_line_cnt == 0){
+			break;
 		}
 	}
 
@@ -263,12 +281,8 @@ static void* reduce(void* v){
 
 	// 5. Clean up
 	freeAll(&cntry_based);
-	for(int i = 0; i < f_cnt; i++){
-		struct map_res *now = keep_track[i];
-		free(now->filename);
-		freeAll(&now->cntry_root);
-		free(now);
-	}
+	for(int i = 0; i < 5; i++)
+		free(res[i]);
 
 	return NULL;
 }

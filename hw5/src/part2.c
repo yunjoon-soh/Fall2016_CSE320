@@ -124,7 +124,12 @@ static void* reduce(void* v){
 	struct map_res **mr_a = (struct map_res**) v;
 
 	// 1. Init result values
-	struct map_res *res[5];
+	char *res[5];
+	res[0] = "";
+	res[1] = "";
+	res[2] = "";
+	res[3] = "";
+	res[4] = "";
 	double res_value[5];
 	// Max/Min average duration of all of the websites
 	res_value[0] = 0; // max by default is 0
@@ -147,59 +152,39 @@ static void* reduce(void* v){
 		double AB = (double)now->tot_duration / (double)now->datum_cnt;
 		if(AB > res_value[0]){ // max
 			res_value[0] = AB;
-			res[0] = now;
+			res[0] = now->filename;
 		} else if( (AB - res_value[0]) < EPSILON && (AB - res_value[0]) > -1 * EPSILON ){
-			res[0] = (strcmp(res[0]->filename, now->filename) < 0)?res[0]:now;
+			res[0] = (strcmp(res[0], now->filename) < 0)?res[0]:now->filename;
 		}
 
 		if(AB < res_value[1]){ // min
 			res_value[1] = AB;
-			res[1] = now;
+			res[1] = now->filename;
 		} else if( (AB - res_value[1]) < EPSILON && (AB - res_value[1]) > -1 * EPSILON ){
-			res[1] = (strcmp(res[1]->filename, now->filename) < 0)?res[1]:now;
+			res[1] = (strcmp(res[1], now->filename) < 0)?res[1]:now->filename;
 		}
 
 		// 2-2. Set max, min for query C/D
-		struct list *y_now = now->year_root;
-		if(y_now == NULL){
-			warn("No year_root found!\n");
-		} else {
-			// count number of distinct years
-			size_t dist_year = count_list(y_now);
-
+		long dist_year = (long) now->unique_years;
+		if(dist_year != 0){
 			double CD = (double)now->datum_cnt/(double)dist_year;
 			if(CD > res_value[2]){ // max
 				res_value[2] = CD;
-				res[2] = now;
+				res[2] = now->filename;
 			} else if((CD - res_value[2]) < EPSILON && (CD - res_value[2]) > -1 * EPSILON ){
-				res[2] = (strcmp(res[2]->filename, now->filename) < 0)?res[2]:now;
+				res[2] = (strcmp(res[2], now->filename) < 0)?res[2]:now->filename;
 			}
 
 			if(CD < res_value[3]){ // min
 				res_value[3] = CD;
-				res[3] = now;
+				res[3] = now->filename;
 			} else if((CD - res_value[3]) < EPSILON && (CD - res_value[3]) > -1 * EPSILON ){
-				res[3] = (strcmp(res[3]->filename, now->filename) < 0)?res[3]:now;
+				res[3] = (strcmp(res[3], now->filename) < 0)?res[3]:now->filename;
 			}
 		}
 
 		// 2-3. Find max cnt per cntry and append it to final result
-		struct list *c_now = now->cntry_root;
-		if(c_now == NULL){
-			warn("No cntry_root found!\n");
-		} else {
-			int max_key = -1, max_cnt = -1;
-			while(c_now != NULL){
-				if(c_now->value > max_cnt){
-					max_key = c_now->key;
-					max_cnt = c_now->value;
-				} else if(c_now->value == max_cnt){ // tie break
-					max_key = (c_now->key < max_key)?c_now->key:max_key;
-				}
-				c_now = c_now->next;
-			}
-			add(&cntry_based, max_key, max_cnt); // append to final result
-		}
+		add(&cntry_based, now->max_cntry_code, now->max_cntry_cnt);
 	}
 
 	// 3. Find cntry with max cnt
@@ -224,7 +209,7 @@ static void* reduce(void* v){
 		// if DEBUG is defined, print the whole result
 		buf = (char*) malloc(sizeof(char) * 2 + 1); // + 1 for null term
 		for(int i =0; i < 4; i++){
-			printf("Result: %.5f, %s\n", res_value[i], res[i]->filename);
+			printf("Result: %.5f, %s\n", res_value[i], res[i]);
 		}
 		printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
 		free(buf);
@@ -233,7 +218,7 @@ static void* reduce(void* v){
 	// 4. Print out the final result according to the query.
 	if(current_query != 4){
 		printf("Result: %.5f, %s\n",
-			res_value[current_query], res[current_query]->filename);
+			res_value[current_query], res[current_query]);
 	} else if(current_query == 4){
 		buf = (char*) malloc(sizeof(char) * 2 + 1); // + 1 for null term
 		printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));

@@ -59,35 +59,27 @@ void fprintf_cntry(struct map_res *res, FILE* fp){
 struct map_res*set_struct(struct map_res **res, FILE* fp){
 	struct map_res *mr = (struct map_res *) malloc( sizeof(struct map_res));
 	*res = mr;
-	size_t year_cnt = 0, cntry_cnt = 0;
+	// size_t year_cnt = 0, cntry_cnt = 0;
 	mr->year_root = NULL;
 	mr->cntry_root = NULL;
 	char fname[4096];
 
-	int ret = fscanf(fp, "%s\n%lu,%lu,%lu,%lu,", fname, 
-		&mr->datum_cnt, &mr->tot_duration, &year_cnt, &cntry_cnt);
-	mr->year_root = (struct list *) year_cnt;
-	// int ret = fscanf(fp, "%s", &fname[0]);
-	// debug("LINE(ret=%d): %s\n", ret, fname);
+	int ret = fscanf(fp, "%s\n%lu,%lu,%lu,%d,%lu,", fname, 
+		&mr->datum_cnt, &mr->tot_duration, &mr->unique_years, &mr->max_cntry_code, &mr->max_cntry_cnt);
+
 	if(ret == -1)
-		perror("");
+		perror("fscanf in set_struct");
 
 	size_t len = strlen(&fname[0]) * sizeof(char) + 1;
 	mr->filename = (char*) malloc(len);
 	strncpy(mr->filename, fname, len);
 
-	// fprintf(stdout, "%s\n%lu,%lu,%lu,%lu,\n", mr->filename, 
-		// mr->datum_cnt, mr->tot_duration, year_cnt, cntry_cnt);
-	set_cntry(res, fp, cntry_cnt);
-
 	return mr;
 }
 
 void fprintf_struct(struct map_res *res, FILE* fp){
-	fprintf(fp, "%s\n%zu,%zu,%zu,%zu\n", res->filename,
-		res->datum_cnt, res->tot_duration, count_list(res->year_root), count_list(res->cntry_root));
-	fprintf_cntry(res, fp);
-	fprintf(fp, "\n");
+	fprintf(fp, "%s\n%zu,%zu,%zu,%d,%zu\n", res->filename,
+		res->datum_cnt, res->tot_duration, res->unique_years, res->max_cntry_code, res->max_cntry_cnt);
 }
 
 // return NULL on EOF mark

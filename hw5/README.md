@@ -98,11 +98,11 @@ Exactly same as part1.
 ### Basic concurrency related variable 
 All global variables
 
-*size_t readcnt, linecnt;*
-* readcnt: # of readers, this is used to give reader preference
+*size_t linecnt, running_threads;*
 * linecnt: # of new lines in tmp file, if linecnt==0, usleep the reduce thread
+* running_threads: # of running threads, if reached 0 and linecnt is 0, reduce breaks the while loop
 *sem_t mutex, w, line;*
-* mutex: used to lock *readcnt*
+* mutex: used to lock *running_threads*
 * w    : used to lock read/write to the tmp file
 * lien : used to lock *linecnt*
 
@@ -159,10 +159,8 @@ struct map_res{
 	char *filename;
 	unsigned long datum_cnt;
 	unsigned long tot_duration; // total duaration
-	
 	struct list \*year_root; // deprecated: for compatibility reason (part 1,2,3)
 	unsigned long unique_years; // introduced at part 4
-
 	struct list \*cntry_root; // deprecated: for compatibility reason (part 1,2,3)
 	unsigned long max_cntry_cnt; // introduced at part 4
 	int max_cntry_code; // introduced at part 4

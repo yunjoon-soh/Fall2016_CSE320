@@ -6,7 +6,7 @@
 static void* map(void*);
 static void* reduce(void*);
 static size_t f_cnt;
-static size_t per_thread;
+static size_t per_thread, nt;
 
 void* map_part1_4(void* v);
 size_t start, end; /* Used in Read_struct_r */
@@ -14,6 +14,7 @@ struct map_res *buf[BUF_SIZE];
 sem_t mutex, slots, items;
 
 int part4(size_t nthreads){
+	nt = nthreads;
 	printf(
 		"Part: %s\n"
 		"Query: %s\n",
@@ -43,10 +44,8 @@ int part4(size_t nthreads){
 	// e.g., passing 10 as nthreads when there are only 5 files in ./data/
 	size_t upto = (f_cnt < nthreads)?f_cnt:nthreads;
 
-	debug("per_thread=%lu upto=%lu\n", per_thread, upto);
-
 	// 3. Prepare filenames
-	char *fnames[f_cnt];
+	char *fnames[per_thread * nthreads];
 
 	// Note. assume no recursive sub dirs
 	Opendir(base_dir, &dir);
@@ -64,6 +63,12 @@ int part4(size_t nthreads){
 		strncat(fnames[i], ent->d_name, sizeof(ent->d_name)); // append filename
 
 		i++; // put it here, because we don't want to increase i, even when ent->d_name is . or ..
+	}
+
+	// 3-2. Fill in with dummy filenames
+	for(int i = f_cnt; i < per_thread * nthreads; i++){		
+		fnames[i] = (char*) malloc(1);
+		fnames[i][0] = '\0';
 	}
 	// Now we have all the filenames on heap
 
@@ -106,7 +111,7 @@ int part4(size_t nthreads){
 	for(int i = 0; i < BUF_SIZE; i++){
 		free(buf[i]);
 	}
-	for(int i = 0; i < f_cnt; i++){
+	for(int i = 0; i < per_thread * nthreads; i++){
 		free(fnames[i]);
 	}
 	Closedir (&dir);
@@ -119,15 +124,18 @@ int part4(size_t nthreads){
 
 static void* map(void* v){
 	char **filenames = (char **) v;
-	struct map_res *mr = (struct map_res *) malloc(sizeof(struct map_res));
 
+	struct map_res *mr = (struct map_res *) malloc(sizeof(struct map_res));
 	for(int i = 0; i < per_thread; i++){
 		mr->filename = filenames[i]; // reference to heap
-		debug("mr[%d]: %s\n", i, mr->filename);
+
+		if(strcmp(mr->filename, "") == 0)
+			continue;
 
 		map_part1(mr); // same as part 1's map()
 
 		Write_struct_r(mr); // write to buf only when possible
+		debug("mr[%3d]: %s\n", i, mr->filename);
 
 		// clean up
 		if(mr->cntry_root != NULL)
@@ -135,7 +143,6 @@ static void* map(void* v){
 		if(mr->year_root != NULL)
 			freeAll(&mr->year_root);
 	}
-
 	free(mr);
 
 	return NULL;
@@ -162,7 +169,7 @@ static void* reduce(void* v){
 	res_value[4] = 0;
 
 	struct list *cntry_based = NULL;
-	// struct map_res *now = (struct map_res *) malloc(sizeof(struct map_res));
+
 	struct map_res *now = NULL;
 	for(int i = 0; i < f_cnt; i++){
 

@@ -81,61 +81,6 @@ char *trimWhiteSpace(char *line){
 	return ptr;
 }
 
-void* map_part1_original(void* v){
-	// 1. Init map_res
-	struct map_res *res = (struct map_res *) v;
-	res->year_root = NULL;
-	res->cntry_root = NULL;
-	res->tot_duration = 0;
-	res->datum_cnt = 0;
-
-	// 2. Fopen the file
-	FILE *fp = NULL;
-	Fopen(res->filename, "r", &fp);
-
-	// 3. Read the file per line
-	size_t len = 4096;
-	ssize_t read;
-	char *line = (char*) malloc(4096 * sizeof(char));	
-
-	while ((read = getline(&line, &len, fp)) != -1) {		
-		// 3-1. Count number of comma, to check invalid input
-		int cnt = 0; /*# of comma*/
-		char *ptr = line;
-		while(*ptr != '\0')	if(*ptr++ == ',') cnt++;
-
-		if(cnt != 3){
-			error("Unexpected number of comma(=%d), skip %s\n", cnt, res->filename);
-			break;
-		}
-
-		// 3-2. Split by comma
-		char *buf[cnt];
-		splitByComma(line, buf, cnt);
-
-		// 3-3. Add year value
-		struct tm lt;
-		time_t t_val = (time_t) strtol(buf[0], NULL, 10);
-		localtime_r( &t_val, &lt);
-		add(&res->year_root, lt.tm_year + 1900, 1);
-
-		// 3-4. Add country value
-		add(&res->cntry_root, cntry_code_converter(buf[3]), 1);
-		
-		// 3-5. Sum up the total duration
-		res->tot_duration += atoi(buf[2]);
-
-		// 3-6. Increment the user cnt;
-		res->datum_cnt += 1;
-	}
-
-	// 4. Clean up
-	fclose(fp);
-	free(line);
-
-	return (void*)res;
-}
-
 void* map_part1(void* v){
 	struct map_res *res = (struct map_res *) v;
 	res->year_root = NULL;
@@ -211,7 +156,7 @@ void* map_part1(void* v){
 FILE **Fopen(const char *path, const char *mode, FILE **fp){
 	*fp = fopen(path, mode);
 	if(*fp == NULL){
-		perror(path);
+		perror("Fopen");
 		exit(EXIT_FAILURE);
 	}
 
@@ -250,26 +195,20 @@ int Closedir(DIR **pdir){
 	return -1;
 }
 
-size_t usleep_time = 1000;
+size_t usleep_time = 1000, hasWLock;
 void Fread_r(struct map_res **res, FILE *fp){
-	P(&mutex);
-	readcnt++;
-	if(readcnt == 1){
-		P(&w); // if anyone is reading, hold write mutex
-		debug("Hold write mutex\n");
-	}
-	V(&mutex);
-
+	// save the linecnt
 	P(&line);
 	int local_line_cnt = linecnt;
-	debug("local_line_cnt=%lu\n", linecnt);
 	V(&line);
 
 	while(local_line_cnt <= 0){ // while nothing to read...
-		// release write mutex and wait
-		// debug("Release write mutex\n");
-		V(&w);
-		// debug("Sleep for %lu\n", usleep_time);
+		
+		if(hasWLock == 1){
+			hasWLock = 0;
+			V(&w); // release write mutex and wait
+		}
+
 		usleep(usleep_time);
 
 		// update the local_line_cnt
@@ -278,21 +217,16 @@ void Fread_r(struct map_res **res, FILE *fp){
 		V(&line);
 	}
 
-	P(&w); // now take the writing mutex
+	if(hasWLock == 0){
+		hasWLock = 1;
+		P(&w); // if anyone is reading, hold write mutex
+	}
 
 	set_struct(res, fp); // read from file
 
 	P(&line);
 	linecnt--; // update the linecnt
 	V(&line);
-
-	P(&mutex);
-	readcnt--;
-	if(readcnt == 0){
-		V(&w); // if no one is reading anymore, release write mutex
-		debug("Release write mutex\n");
-	}
-	V(&mutex);
 }
 
 void Fwrite_r(struct map_res *res, FILE *fp){
@@ -303,7 +237,6 @@ void Fwrite_r(struct map_res *res, FILE *fp){
 
 	P(&line);
 	linecnt++;
-	debug("New Linecnt=%lu\n", linecnt);
 	V(&line);
 	
 	V(&w);
