@@ -72,7 +72,7 @@ int main(int argc, char const* argv[]) {
 		} break;
 	}
 
-	printf("Number of threads: %ld\n", nthreads);
+	// printf("Number of threads: %ld\n", nthreads);
 
 end:
 	if(ret < 0){

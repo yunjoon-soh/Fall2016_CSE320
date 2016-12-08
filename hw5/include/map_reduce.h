@@ -12,10 +12,10 @@ struct map_res{
 	unsigned long datum_cnt;
 	unsigned long tot_duration; // total duaration
 	
-	struct list *year_root; // deprecated: for compatibility reason (part 1,2,3)
+	struct list *year_root; // deprecated
 	unsigned long unique_years; // introduced at part 4
 
-	struct list *cntry_root; // deprecated: for compatibility reason (part 1,2,3)
+	struct list *cntry_root; // deprecated
 	unsigned long max_cntry_cnt; // introduced at part 4
 	int max_cntry_code; // introduced at part 4
 };

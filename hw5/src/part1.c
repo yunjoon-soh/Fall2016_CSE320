@@ -78,9 +78,9 @@ int part1(){
 		free(mr_a[i]);
 	}
 	Closedir (&dir);
-	close(STDIN_FILENO);
-	close(STDOUT_FILENO);
-	close(STDERR_FILENO);
+	// close(STDIN_FILENO);
+	// close(STDOUT_FILENO);
+	// close(STDERR_FILENO);
 
 	return 0;
 }
@@ -178,19 +178,18 @@ static void* reduce(void* v){
 		// if DEBUG is defined, print the whole result
 		buf = (char*) malloc(sizeof(char) * 2 + 1); // + 1 for null term
 		for(int i =0; i < 4; i++){
-			printf("Result: %.5f, %s\n", res_value[i], res[i]);
+			printf("Result: %.5f, %s\n", res_value[i], res[i] + 7);
 		}
-		printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
+		printf("Result: %d, %s\n", (int)res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
 		free(buf);
 	#endif
 
 	// 4. Print out the final result according to the query.
 	if(current_query != 4){
-		printf("Result: %.5f, %s\n",
-			res_value[current_query], res[current_query]);
+		printf("Result: %.5f, %s\n", res_value[current_query], res[current_query] + 7);
 	} else if(current_query == 4){
 		buf = (char*) malloc(sizeof(char) * 2 + 1); // + 1 for null term
-		printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
+		printf("Result: %d, %s\n", (int)res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
 		free(buf);
 	}
 

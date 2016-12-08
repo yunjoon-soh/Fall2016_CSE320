@@ -84,7 +84,8 @@ void fprintf_struct(struct map_res *res, FILE* fp){
 
 // return NULL on EOF mark
 struct map_res*Read_struct(int fd, struct map_res **res){
-	struct map_res *mr = (struct map_res *) malloc( sizeof(struct map_res));
+	struct map_res *mr = (struct map_res *) malloc( sizeof(struct map_res) );
+	memset(mr, 0, sizeof(struct map_res));
 	*res = mr;
 	mr->year_root = NULL;
 	mr->cntry_root = NULL;
@@ -122,6 +123,7 @@ struct map_res*Read_struct(int fd, struct map_res **res){
 
 int Write_struct(int fd, struct map_res *res){
 	char line[410];
+	memset(line, 0, 410);
 	if(res == NULL){
 		sprintf(line, "%300s,%20d,%20d,%20d,%20d,%20d\n", "EOF",
 			0, 0, 0, 0, 0);

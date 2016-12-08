@@ -112,16 +112,15 @@ int part3(size_t nthreads){
 		free(fnames[i]);
 	}
 	Closedir (&dir);
-	close(STDIN_FILENO);
-	close(STDOUT_FILENO);
-	close(STDERR_FILENO);
+	// close(STDIN_FILENO);
+	// close(STDOUT_FILENO);
+	// close(STDERR_FILENO);
 	fclose(tmp_f_r);
 	fclose(tmp_f_w);
 	unlink(tmp_fname); // remove temp file
 
 	return 0;
 }
-
 
 static void* map(void* v){
 	char **filenames = (char **) v;
@@ -188,14 +187,19 @@ static void* reduce(void* v){
 		// 2-1. Read from tmp file
 		Fread_r(&now, fp);
 
+		if(now == NULL)
+			continue;
+
 		// 2-2. Set max, min for query A/B
 		double AB = (double)now->tot_duration / (double)now->datum_cnt;
 		if(AB > res_value[0]){ // max
 			res_value[0] = AB;
 			strncpy(res[0], now->filename, strlen(now->filename) + 1);
 		} else if( (AB - res_value[0]) < EPSILON && (AB - res_value[0]) > -1 * EPSILON ){
-			if(strcmp(res[0], now->filename) > 0)
+			if(strcmp(res[0], now->filename) > 0){
+				// printf("res[0](%s)>now->filename(%s)\n", res[0], now->filename);
 				strncpy(res[0], now->filename, strlen(now->filename) + 1);
+			}
 		}
 
 		if(AB < res_value[1]){ // min
@@ -214,22 +218,27 @@ static void* reduce(void* v){
 				res_value[2] = CD;
 				strncpy(res[2], now->filename, strlen(now->filename) + 1);
 			} else if((CD - res_value[2]) < EPSILON && (CD - res_value[2]) > -1 * EPSILON ){
-				if(strcmp(res[2], now->filename) > 0)
+				if(strcmp(res[2], now->filename) > 0){
+					// printf("res[2](%s)>now->filename(%s)\n", res[2], now->filename);
 					strncpy(res[2], now->filename, strlen(now->filename) + 1);
+				}
 			}
 
 			if(CD < res_value[3]){ // min
 				res_value[3] = CD;
 				strncpy(res[3], now->filename, strlen(now->filename) + 1);
 			} else if((CD - res_value[3]) < EPSILON && (CD - res_value[3]) > -1 * EPSILON ){
-				if(strcmp(res[3], now->filename) > 0)
-					strncpy(res[0], now->filename, strlen(now->filename) + 1);
+				if(strcmp(res[3], now->filename) > 0){
+					// printf("res[3](%s)>now->filename(%s)\n", res[3], now->filename);
+					strncpy(res[3], now->filename, strlen(now->filename) + 1);
+				}
 			}
 		}
 
 		// 2-4. Find max cnt per cntry and append it to final result
 		add(&cntry_based, now->max_cntry_code, now->max_cntry_cnt);
 
+		debug("line\n");
 		P(&line);
 		int local_line_cnt = linecnt;
 		V(&line);
@@ -264,18 +273,18 @@ static void* reduce(void* v){
 		// if DEBUG is defined, print the whole result
 		buf = (char*) malloc(sizeof(char) * 2 + 1); // + 1 for null term
 		for(int i =0; i < 4; i++){
-			printf("Result: %.5f, %s\n", res_value[i], res[i]);
+			printf("Result: %.5f, %s\n", res_value[i], res[i] + 7);
 		}
-		printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
+		printf("Result: %d, %s\n", (int)res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
 		free(buf);
 	#endif
 
 	// 4. Print out the final result according to the query.
 	if(current_query != 4){
-		printf("Result: %.5f, %s\n", res_value[current_query], res[current_query]);
+		printf("Result: %.5f, %s\n", res_value[current_query], res[current_query] + 7);
 	} else if(current_query == 4){
 		buf = (char*) malloc(sizeof(char) * 2 + 1); // + 1 for null term
-		printf("Result: %.5f, %s\n", res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
+		printf("Result: %d, %s\n", (int)res_value[4], *(cntry_code_reverter(cntry_code, &buf)));
 		free(buf);
 	}
 

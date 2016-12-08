@@ -2,6 +2,7 @@
 
 ## Author: Yun Joon (Daniel) Soh
 ### ID: 108256259
+### Used 2 late days/grace days
 
 ## Part 1
 
@@ -147,7 +148,6 @@ Pretty much same as part1 and part2 except that it now reference to the filename
 5. Clean up
 
 ## Part 4
-### 
 ### Data structure
 Newly introduced field in Part 4
 
@@ -176,3 +176,126 @@ struct map_res{
 7. Spawn "reduce" thread
 8. Join threads
 9. Clean up
+
+### map() workflow
+* Argument
+Subset of filenames (i * per_thread ... (i+1) * per_thread - 1) inclusive.
+* Work flow
+Also a wrapper function that calls map_part1() internally. Main difference is that it uses Fwrite_r to print out the result to "mapred.tmp" file and as it enters it increment the number of running threads and decrease the value as it terminates.
+
+### reduce() workflow
+* Argument
+*FILE \** to "mapred.tmp" with "r" permission is given
+* Work flow
+Pretty much same as other reduce parts. Only difference is that it uses *Fread_r(..)* to read from the temp file.
+
+## Part 5
+### Data Structure
+Same as Part 4.
+
+Newly added structure.
+
+struct thread_info{
+	char **fname;
+	int i;
+};
+
+From my design I needed a way to pass both the pointer to file names and the thread number. So I created a *struct thread_info* to do the job.
+
+### Program Flow
+1. Count the number of files
+2. Count the number of files per thread
+3. Prepare filenames
+3-2. Fill in with dummy filenames
+4. Prepare threads, semaphores, sockets
+5. Spawn nthreads # of threads
+6. Spawn "reduce" thread
+7. Join threads
+8. Clean up
+
+### map() workflow
+Pretty much same as previous maps, except that it use *Write_struct(..)* to write the result to a socket. Also, write before the termination of a *map()* it writes a EOF mark to the socket. This is necessary for reduce() to get notified and clear the associated file descriptor from the FD_SET.
+
+### reduce() workflow
+Also similar to previous *reduce()*. Inside the main while loop, it waits for one of the buffers to be available for reading. When it is alerted that there exists a file descriptor that is ready to read from, it checks which one it was from and consume the data. When EOF mark is encountered, which is alerted by *Read_struct(..)* returning NULL value, it removes the associated file descriptor from FD_SET and continue.
+
+## Other Helper Functions and Structures
+
+### struct list (list.c)
+#### Structure
+struct list{
+	struct list *next;
+	int key;
+	int value;
+};
+
+This is just a one-way linked list where each node contains key, value pair. No two nodes with same key allowed.
+
+#### Helper functions
+
+size_t count_list(struct list *head);
+void add(struct list **head, int key, int value);
+struct list*createNode(int key, int value);
+struct list*find(struct list *head, int key);
+void freeAll(struct list **head);
+struct list *find_max(struct list *head);
+
+Most of them are pretty self-explanatory.
+
+##### add(..)
+This method first find a node for matching key. If there is one, add up the parameter value to existing node's value. Else, append the new node to the front of the list.
+
+##### createNode(..)/freeAll(..)
+Internally malloc space for new node. The whole list will be freed using freeAll.
+
+##### find(..)
+Return a node with the key. If not matched with any of the nodes, return NULL.
+
+##### find_max(..)
+Iterate the whole list and return the node with the max value. In case of tie, return a node with smaller key value.
+
+### struct map_reduce (map_reduce.c)
+#### Structure
+struct map_res{
+	char *filename;
+	unsigned long datum_cnt;
+	unsigned long tot_duration; // total duaration
+	struct list *year_root; // deprecated: for compatibility reason (part 1,2,3)
+	unsigned long unique_years; // introduced at part 4
+	struct list *cntry_root; // deprecated: for compatibility reason (part 1,2,3)
+	unsigned long max_cntry_cnt; // introduced at part 4
+	int max_cntry_code; // introduced at part 4
+};
+
+#### Helper functions
+*set_\*()* functions are reader functions, that read in corresponding output formatted by *fprintf_\*()* from the *FILE\** and sets the corresponding values in a malloc'ed *struct map_res* and return the address of it.
+
+*Read_struct()* and *Write_struct()* are similar to other functions except that they read/write from/to file descriptors and the format is a little different from other functions.
+
+*print_map_res(..)* literally print out the result to stdout. Need to have DEBUG defined to see the result.
+
+### helper.c
+
+Functions in this file can be classified into two big categories: Wrapper and Helper. Wrapper functions are literally error handled wrappers, called *perror(..)* internally when necessary. 
+
+#### Helper functions
+
+##### cntry_code_converter(..) cntry_code_reverter
+These pair of functions encode and decode the 2 character long country code. Mapping AA to integer 0 and ZZ to 25 * 26 + 25. Input checking is not fully done, therefore, really have to be careful when using those.
+
+##### map_part1()
+This is explained in detail earlier so skipping here.
+
+##### Read_struct_r() Write_struct_r()
+For part 4.
+These pair of functions are not just a wrapper but has locks for concurrent program.
+
+##### Fread_r() Fwrite_r() write_to_buf()
+For part 5. Followed echo server example from textbook.
+These pair of functions are not just a wrapper but has locks for concurrent program.
+
+write_to_buf() copy the argument *res* to argument *buf* except the *year_root* and *cntry_root*. This is why using those two fields in the struct is deprecated.
+
+Fwrite_r() is a wrapper for write_to_buf() with locks.
+
+Fread_r() also contains locks.

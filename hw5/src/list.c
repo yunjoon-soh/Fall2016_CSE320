@@ -25,9 +25,7 @@ void add(struct list **head, int key, int value){
 		now->next = *head;
 		*head = now;
 	} else {
-		// debug("Found, updated from %d to ", match->value);
 		match->value += value;
-		// debug("%d!\n", match->value);
 	}
 }
 

@@ -195,9 +195,11 @@ int Closedir(DIR **pdir){
 	return -1;
 }
 
-size_t usleep_time = 1000, hasWLock;
+size_t usleep_time = 100000, hasWLock;
+unsigned long cnt = 0, cnt2 = 0;
 void Fread_r(struct map_res **res, FILE *fp){
 	// save the linecnt
+	debug("line1 %lu\n", cnt++);
 	P(&line);
 	int local_line_cnt = linecnt;
 	V(&line);
@@ -212,29 +214,40 @@ void Fread_r(struct map_res **res, FILE *fp){
 		usleep(usleep_time);
 
 		// update the local_line_cnt
+		debug("line2 %lu\n", cnt++);
 		P(&line);
 		local_line_cnt = linecnt;
 		V(&line);
+		debug("local_line_cnt=%d\n", local_line_cnt);
+
+		if(local_line_cnt == 0){
+			*res = NULL;
+			return;
+		}
 	}
 
 	if(hasWLock == 0){
 		hasWLock = 1;
+		debug("w1 %lu\n", cnt2++);
 		P(&w); // if anyone is reading, hold write mutex
 	}
 
 	set_struct(res, fp); // read from file
 
+	debug("line3 %lu\n", cnt++);
 	P(&line);
 	linecnt--; // update the linecnt
 	V(&line);
 }
 
 void Fwrite_r(struct map_res *res, FILE *fp){
+	debug("_w %lu\n", cnt2++);
 	P(&w);
 
 	fprintf_struct(res, fp);
 	fflush(fp);
 
+	debug("_line %lu\n", cnt++);
 	P(&line);
 	linecnt++;
 	V(&line);
@@ -355,13 +368,3 @@ int Socketpair(int domain, int type, int protocol, int sv[2]){
 
 	return ret;
 }
-
-// int Accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen){
-// 	int ret = accept(sockfd, addr, addrlen);
-
-// 	if(ret == -1){
-// 		perror("");
-// 	}
-
-// 	return ret;
-// }
